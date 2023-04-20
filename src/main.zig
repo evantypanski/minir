@@ -13,6 +13,8 @@ const InterpError = error{
     VariableUndefined,
     InvalidLHSAssign,
     UnknownLabel,
+    // Just catch all the type errors with this for now
+    TypeError,
     IrError,
 };
 const Interpreter = struct {
@@ -91,17 +93,19 @@ const Interpreter = struct {
         }
     }
 
+    // Gets the current runtime value of a name
+    fn getAccessVal(self: Self, name: []const u8) !ir.Value {
+        const index = self.map.get(name) orelse return error.VariableUndefined;
+        return self.env.items[index];
+    }
+
     // Evaluates a given value as a boolean, or returns an error if it
     // cannot be coerced.
     fn evalBool(self: *Self, value: ir.Value) InterpError!ir.Value {
         switch (value) {
             .undef => return error.CannotEvaluateUndefined,
-            .access => |name| {
-                const index = self.map.get(name) orelse return error.VariableUndefined;
-                return self.evalBool(self.env.items[index]);
-            },
-            .int => |i| return ir.Value.initBool(i == 0),
-            .float => |f| return ir.Value.initBool(f == 0),
+            .access => |name| return self.evalBool(try self.getAccessVal(name)),
+            .int, .float => return error.TypeError,
             .bool => return value,
             .binary => {
                 self.evalValue(value) catch return error.InvalidBool;
@@ -114,12 +118,9 @@ const Interpreter = struct {
     fn evalInt(self: *Self, value: ir.Value) !ir.Value {
         switch (value) {
             .undef => return error.CannotEvaluateUndefined,
-            .access => |name| {
-                const index = self.map.get(name) orelse return error.VariableUndefined;
-                return self.evalInt(self.env.items[index]);
-            },
+            .access => |name| self.evalInt(try self.getAccessVal(name)),
             .int => return value,
-            .float => |f| return ir.Value.initInt(@floatToInt(u32, f)),
+            .float, .bool => return error.TypeError,
             .bool => |b| return ir.Value.initInt(b),
             .binary => {
                 try self.evalValue(value);
@@ -132,10 +133,7 @@ const Interpreter = struct {
     fn evalFloat(self: *Self, value: ir.Value) !ir.Value {
         switch (value) {
             .undef => return error.CannotEvaluateUndefined,
-            .access => |name| {
-                const index = self.map.get(name) orelse return error.VariableUndefined;
-                return self.evalFloat(self.env.items[index]);
-            },
+            .access => |name| self.evalFloat(try self.getAccessVal(name)),
             .int => |i| return ir.Value.initInt(@intToFloat(f32, i)),
             .float => return value,
             .bool => |b| return ir.Value.initFloat(@intToFloat(f32, b)),
@@ -213,7 +211,7 @@ const Interpreter = struct {
             .add => try self.env.append(ir.Value.initInt(try lhs.asInt() + try rhs.asInt())),
             .sub => try self.env.append(ir.Value.initInt(try lhs.asInt() - try rhs.asInt())),
             .mul => try self.env.append(ir.Value.initInt(try lhs.asInt() * try rhs.asInt())),
-            .div => try self.env.append(ir.Value.initInt(try lhs.asInt() / try rhs.asInt())),
+            .div => try self.env.append(ir.Value.initInt(@divTrunc(try lhs.asInt(), try rhs.asInt()))),
             .fadd => try self.env.append(ir.Value.initFloat(try lhs.asFloat() + try rhs.asFloat())),
             .fsub => try self.env.append(ir.Value.initFloat(try lhs.asFloat() - try rhs.asFloat())),
             .fmul => try self.env.append(ir.Value.initFloat(try lhs.asFloat() * try rhs.asFloat())),
@@ -229,10 +227,7 @@ const Interpreter = struct {
     fn evalValue(self: *Self, value: ir.Value) !void {
         switch (value) {
             .undef => return error.CannotEvaluateUndefined,
-            .access => |name| {
-                const index = self.map.get(name) orelse return error.VariableUndefined;
-                return self.evalValue(self.env.items[index]);
-            },
+            .access => |name| try self.evalValue(try self.getAccessVal(name)),
             .int => try self.env.append(value),
             .float => try self.env.append(value),
             .bool => try self.env.append(value),

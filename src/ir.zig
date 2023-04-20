@@ -50,7 +50,7 @@ pub const Value = union(ValueKind) {
 
     undef,
     access: []const u8,
-    int: u32,
+    int: i32,
     float: f32,
     bool: u1,
     binary: BinaryOp,
@@ -60,12 +60,10 @@ pub const Value = union(ValueKind) {
     }
 
     pub fn initAccess(name: []const u8) Value {
-        return .{
-            .access = name,
-        };
+        return .{ .access = name };
     }
 
-    pub fn initInt(val: u32) Value {
+    pub fn initInt(val: i32) Value {
         return .{
             .int = val,
         };
@@ -102,7 +100,7 @@ pub const Value = union(ValueKind) {
 
     // Turns an int Value into a native int, else it's not a boolean
     // returns 0.
-    pub fn asInt(self: Value) IrError!u32 {
+    pub fn asInt(self: Value) IrError!i32 {
         switch (self) {
             .int => |val| return val,
             else => return error.NotAnInt,
