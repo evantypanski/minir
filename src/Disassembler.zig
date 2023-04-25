@@ -56,7 +56,24 @@ pub fn disassembleInstr(self: Disassembler, instr: ir.Instr) Writer.Error!void {
             }
         },
         .branch => |branch| {
-            try self.writer.print("br {s}", .{branch.success});
+            switch (branch) {
+                .unconditional =>
+                    try self.writer.print("br {s}", .{branch.labelName()}),
+                .conditional => |conditional| {
+                    const instr_name = switch (conditional.kind) {
+                        .zero => "brz",
+                    };
+                    try self.writer.print(
+                        "{s} {s} ",
+                        .{instr_name, branch.labelName()}
+                    );
+                    try self.disassembleValue(conditional.lhs);
+                    if (conditional.rhs) |value| {
+                        try self.writer.writeAll(" ");
+                        try self.disassembleValue(value);
+                    }
+                }
+            }
         },
         .ret => try self.writer.writeAll("ret"),
     }

@@ -130,19 +130,51 @@ pub const VarDecl = struct {
     val: ?Value,
 };
 
-pub const Branch = struct {
+// Should only be created through Branch init instructions so that fields are
+// properly set.
+pub const ConditionalBranch = struct {
     pub const Kind = enum {
-        unconditional,
+        zero,
     };
 
     kind: Kind,
     success: []const u8,
+    lhs: Value,
+    rhs: ?Value,
+};
+
+pub const BranchKind = enum {
+    unconditional,
+    conditional,
+};
+
+pub const Branch = union(BranchKind) {
+    // Unconditional is just the label it goes to
+    unconditional: []const u8,
+    conditional: ConditionalBranch,
 
     pub fn initUnconditional(to: []const u8) Branch {
         return .{
-            .kind = .unconditional,
-            .success = to,
+            .unconditional = to,
         };
+    }
+
+    pub fn initIfZero(to: []const u8, value: Value) Branch {
+        return .{
+            .conditional = .{
+                .kind = .zero,
+                .success = to,
+                .lhs = value,
+                .rhs = null,
+            },
+        };
+    }
+
+    pub fn labelName(self: Branch) []const u8 {
+        switch (self) {
+            .unconditional => |name| return name,
+            .conditional => |conditional| return conditional.success,
+        }
     }
 };
 

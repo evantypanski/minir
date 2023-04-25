@@ -87,8 +87,26 @@ const Interpreter = struct {
         switch (instr) {
             .debug, .id => return error.ExpectedTerminator,
             .branch => |branch| {
+                const result = switch (branch) {
+                    .conditional => |conditional| blk: {
+                        // Evaluate the condition and abort if it's false
+                        break :blk switch (conditional.kind) {
+                            .zero => try conditional.lhs.asInt() == 0,
+                        };
+                    },
+                    else => true,
+                };
+
+                if (!result) {
+                    // Go to next basic block and return
+                    if (self.current_bb) |*current_bb| {
+                        current_bb.* += 1;
+                    }
+                    return;
+                }
+
                 self.current_bb =
-                    self.function.map.get(branch.success)
+                    self.function.map.get(branch.labelName())
                             orelse return error.UnknownLabel;
             },
             .ret => self.current_bb = null,
@@ -323,7 +341,7 @@ pub fn main() !void {
     var val2 = ir.Value{ .int = 42 };
     try bb3_builder.addInstruction(ir.Instr{ .debug = val2 });
     try bb3_builder.setTerminator(
-        ir.Instr{ .branch = ir.Branch.initUnconditional("bb2") }
+        ir.Instr{ .branch = ir.Branch.initIfZero("bb2", ir.Value.initInt(0)) }
     );
     try fun_builder.addBasicBlock(bb3_builder.build());
 
