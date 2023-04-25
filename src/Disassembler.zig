@@ -79,7 +79,8 @@ pub fn disassembleValue(self: Disassembler, value: ir.Value) Writer.Error!void {
     }
 }
 
-pub fn disassembleBinary(self: Disassembler, binary: ir.Value.BinaryOp) Writer.Error!void {
+pub fn disassembleBinary(self: Disassembler, binary: ir.Value.BinaryOp)
+            Writer.Error!void {
     try self.disassembleValue(binary.lhs.*);
     const op = switch (binary.kind) {
         .assign => " = ",

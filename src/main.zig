@@ -87,7 +87,9 @@ const Interpreter = struct {
         switch (instr) {
             .debug, .id => return error.ExpectedTerminator,
             .branch => |branch| {
-                self.current_bb = self.function.map.get(branch.success) orelse return error.UnknownLabel;
+                self.current_bb =
+                    self.function.map.get(branch.success)
+                            orelse return error.UnknownLabel;
             },
             .ret => self.current_bb = null,
         }
@@ -155,7 +157,8 @@ const Interpreter = struct {
                     .access => |name| name,
                     else => return error.InvalidLHSAssign,
                 };
-                const index = self.map.get(name) orelse return error.VariableUndefined;
+                const index = self.map.get(name)
+                    orelse return error.VariableUndefined;
                 self.evalValue(op.rhs.*) catch return error.OperandError;
                 const rhs = self.env.getLast();
                 self.env.items[index] = rhs;
@@ -208,18 +211,66 @@ const Interpreter = struct {
         const rhs = self.env.pop();
 
         switch (op.kind) {
-            .add => try self.env.append(ir.Value.initInt(try lhs.asInt() + try rhs.asInt())),
-            .sub => try self.env.append(ir.Value.initInt(try lhs.asInt() - try rhs.asInt())),
-            .mul => try self.env.append(ir.Value.initInt(try lhs.asInt() * try rhs.asInt())),
-            .div => try self.env.append(ir.Value.initInt(@divTrunc(try lhs.asInt(), try rhs.asInt()))),
-            .fadd => try self.env.append(ir.Value.initFloat(try lhs.asFloat() + try rhs.asFloat())),
-            .fsub => try self.env.append(ir.Value.initFloat(try lhs.asFloat() - try rhs.asFloat())),
-            .fmul => try self.env.append(ir.Value.initFloat(try lhs.asFloat() * try rhs.asFloat())),
-            .fdiv => try self.env.append(ir.Value.initFloat(try lhs.asFloat() / try rhs.asFloat())),
-            .lt => try self.env.append(ir.Value.initBool(try lhs.asInt() < try rhs.asInt())),
-            .le => try self.env.append(ir.Value.initBool(try lhs.asInt() <= try rhs.asInt())),
-            .gt => try self.env.append(ir.Value.initBool(try lhs.asInt() > try rhs.asInt())),
-            .ge => try self.env.append(ir.Value.initBool(try lhs.asInt() >= try rhs.asInt())),
+            .add => {
+                try self.env.append(
+                    ir.Value.initInt(try lhs.asInt() + try rhs.asInt())
+                );
+            },
+            .sub => {
+                try self.env.append(
+                    ir.Value.initInt(try lhs.asInt() - try rhs.asInt())
+                );
+            },
+            .mul => {
+                try self.env.append(
+                    ir.Value.initInt(try lhs.asInt() * try rhs.asInt())
+                );
+            },
+            .div => {
+                try self.env.append(
+                    ir.Value.initInt(@divTrunc(try lhs.asInt(), try rhs.asInt()))
+                );
+            },
+            .fadd => {
+                try self.env.append(
+                    ir.Value.initFloat(try lhs.asFloat() + try rhs.asFloat())
+                );
+            },
+            .fsub => {
+                try self.env.append(
+                    ir.Value.initFloat(try lhs.asFloat() - try rhs.asFloat())
+                );
+            },
+            .fmul => {
+                try self.env.append(
+                    ir.Value.initFloat(try lhs.asFloat() * try rhs.asFloat())
+                );
+            },
+            .fdiv => {
+                try self.env.append(
+                    ir.Value.initFloat(try lhs.asFloat() / try rhs.asFloat())
+                );
+            },
+            .lt => {
+                try self.env.append(
+                    ir.Value.initBool(try lhs.asInt() < try rhs.asInt())
+                );
+            },
+            .le => {
+                try self.env.append(
+                    ir.Value.initBool(try lhs.asInt() <= try rhs.asInt())
+                );
+            },
+            .gt => {
+                try self.env.append(
+                    ir.Value.initBool(try lhs.asInt() > try rhs.asInt())
+                );
+            },
+            .ge => {
+                try self.env.append(
+                    ir.Value.initBool(try lhs.asInt() >= try rhs.asInt())
+                );
+            },
             else => unreachable,
         }
     }
@@ -245,10 +296,19 @@ pub fn main() !void {
 
     var bb1_builder = ir.BasicBlockBuilder.init(gpa);
     bb1_builder.setLabel("bb1");
-    try bb1_builder.addInstruction(ir.Instr{ .id = .{ .name = "hi", .val = .{ .int = 69 } } });
+    try bb1_builder.addInstruction(
+        ir.Instr {
+            .id = .{
+                .name = "hi",
+                .val = .{ .int = 69 }
+            }
+        }
+    );
     var hi_access = ir.Value.initAccess("hi");
     try bb1_builder.addInstruction(ir.Instr{ .debug = hi_access });
-    try bb1_builder.setTerminator(ir.Instr{ .branch = ir.Branch.initUnconditional("bb3") });
+    try bb1_builder.setTerminator(
+        ir.Instr{ .branch = ir.Branch.initUnconditional("bb3") }
+    );
     try fun_builder.addBasicBlock(bb1_builder.build());
 
     var bb2_builder = ir.BasicBlockBuilder.init(gpa);
@@ -262,11 +322,16 @@ pub fn main() !void {
     bb3_builder.setLabel("bb3");
     var val2 = ir.Value{ .int = 42 };
     try bb3_builder.addInstruction(ir.Instr{ .debug = val2 });
-    try bb3_builder.setTerminator(ir.Instr{ .branch = ir.Branch.initUnconditional("bb2") });
+    try bb3_builder.setTerminator(
+        ir.Instr{ .branch = ir.Branch.initUnconditional("bb2") }
+    );
     try fun_builder.addBasicBlock(bb3_builder.build());
 
     const fun = try fun_builder.build();
-    const disassembler = Disassembler{ .writer = std.io.getStdOut().writer(), .function = fun };
+    const disassembler = Disassembler{
+        .writer = std.io.getStdOut().writer(),
+        .function = fun,
+    };
     try disassembler.disassemble();
     var interpreter = try Interpreter.init(gpa, fun);
     try interpreter.interpret();

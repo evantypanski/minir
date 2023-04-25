@@ -223,7 +223,8 @@ pub const Function = struct {
     // Basic block name to index into bbs
     map: std.StringHashMap(usize),
 
-    pub fn init(allocator: std.mem.Allocator, name: []const u8, bbs: std.ArrayList(BasicBlock)) !Self {
+    pub fn init(allocator: std.mem.Allocator, name: []const u8,
+                bbs: std.ArrayList(BasicBlock)) !Self {
         // Build the map
         var map = std.StringHashMap(usize).init(allocator);
         var i: usize = 0;
