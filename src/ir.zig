@@ -135,6 +135,11 @@ pub const VarDecl = struct {
 pub const ConditionalBranch = struct {
     pub const Kind = enum {
         zero,
+        eq,
+        less,
+        less_eq,
+        greater,
+        greater_eq,
     };
 
     kind: Kind,
@@ -166,6 +171,18 @@ pub const Branch = union(BranchKind) {
                 .success = to,
                 .lhs = value,
                 .rhs = null,
+            },
+        };
+    }
+
+    pub fn initBinaryConditional(to: []const u8, kind: ConditionalBranch.Kind,
+                                 lhs: Value, rhs: Value) Branch {
+        return .{
+            .conditional = .{
+                .kind = kind,
+                .success = to,
+                .lhs = lhs,
+                .rhs = rhs,
             },
         };
     }

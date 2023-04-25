@@ -62,6 +62,11 @@ pub fn disassembleInstr(self: Disassembler, instr: ir.Instr) Writer.Error!void {
                 .conditional => |conditional| {
                     const instr_name = switch (conditional.kind) {
                         .zero => "brz",
+                        .eq => "bre",
+                        .less => "brl",
+                        .less_eq => "brle",
+                        .greater => "brg",
+                        .greater_eq => "brge",
                     };
                     try self.writer.print(
                         "{s} {s} ",

@@ -89,10 +89,37 @@ const Interpreter = struct {
             .branch => |branch| {
                 const result = switch (branch) {
                     .conditional => |conditional| blk: {
+                        try self.evalValue(conditional.lhs);
+                        const lhs = self.env.pop();
                         // Evaluate the condition and abort if it's false
-                        break :blk switch (conditional.kind) {
-                            .zero => try conditional.lhs.asInt() == 0,
-                        };
+                        switch (conditional.kind) {
+                            .zero => break :blk try lhs.asInt() == 0,
+                            .eq => {
+                                try self.evalValue(conditional.rhs.?);
+                                const rhs = self.env.pop();
+                                break :blk try lhs.asInt() == try rhs.asInt();
+                            },
+                            .less => {
+                                try self.evalValue(conditional.rhs.?);
+                                const rhs = self.env.pop();
+                                break :blk try lhs.asInt() < try rhs.asInt();
+                            },
+                            .less_eq => {
+                                try self.evalValue(conditional.rhs.?);
+                                const rhs = self.env.pop();
+                                break :blk try lhs.asInt() <= try rhs.asInt();
+                            },
+                            .greater => {
+                                try self.evalValue(conditional.rhs.?);
+                                const rhs = self.env.pop();
+                                break :blk try lhs.asInt() > try rhs.asInt();
+                            },
+                            .greater_eq => {
+                                try self.evalValue(conditional.rhs.?);
+                                const rhs = self.env.pop();
+                                break :blk try lhs.asInt() >= try rhs.asInt();
+                            },
+                        }
                     },
                     else => true,
                 };
@@ -138,10 +165,9 @@ const Interpreter = struct {
     fn evalInt(self: *Self, value: ir.Value) !ir.Value {
         switch (value) {
             .undef => return error.CannotEvaluateUndefined,
-            .access => |name| self.evalInt(try self.getAccessVal(name)),
+            .access => |name| return self.evalInt(try self.getAccessVal(name)),
             .int => return value,
             .float, .bool => return error.TypeError,
-            .bool => |b| return ir.Value.initInt(b),
             .binary => {
                 try self.evalValue(value);
                 const val = self.env.pop();
@@ -341,7 +367,10 @@ pub fn main() !void {
     var val2 = ir.Value{ .int = 42 };
     try bb3_builder.addInstruction(ir.Instr{ .debug = val2 });
     try bb3_builder.setTerminator(
-        ir.Instr{ .branch = ir.Branch.initIfZero("bb2", ir.Value.initInt(0)) }
+        ir.Instr{ .branch =
+            ir.Branch.initBinaryConditional("bb2", .greater, ir.Value.initInt(0),
+                                            ir.Value.initInt(1))
+        }
     );
     try fun_builder.addBasicBlock(bb3_builder.build());
 
