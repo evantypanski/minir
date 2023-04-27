@@ -5,40 +5,42 @@ const fmt = @import("std").fmt;
 const Disassembler = @This();
 
 writer: Writer,
-function: ir.Function,
+program: ir.Program,
 var indent: usize = 0;
 
 pub fn disassemble(self: Disassembler) Writer.Error!void {
-    try self.writer.print("fn @{s} {{", .{self.function.name});
-    indent += 1;
-    try self.newline();
-    for (self.function.bbs.items) |bb| {
-        if (bb.label) |label| {
-            try self.writer.print("{s}: {{", .{label});
-        } else {
-            try self.writer.writeAll("{");
-        }
+    for (self.program.functions) |function| {
+        try self.writer.print("fn @{s} {{", .{function.name});
         indent += 1;
         try self.newline();
+        for (function.bbs.items) |bb| {
+            if (bb.label) |label| {
+                try self.writer.print("{s}: {{", .{label});
+            } else {
+                try self.writer.writeAll("{");
+            }
+            indent += 1;
+            try self.newline();
 
-        for (bb.instructions.items) |instr| {
-            try self.disassembleInstr(instr);
+            for (bb.instructions.items) |instr| {
+                try self.disassembleInstr(instr);
+                try self.newline();
+            }
+
+            if (bb.terminator) |terminator| {
+                try self.disassembleInstr(terminator);
+            }
+
+            indent -= 1;
+            try self.newline();
+            try self.writer.writeAll("}");
             try self.newline();
         }
-
-        if (bb.terminator) |terminator| {
-            try self.disassembleInstr(terminator);
-        }
-
         indent -= 1;
         try self.newline();
         try self.writer.writeAll("}");
         try self.newline();
     }
-    indent -= 1;
-    try self.newline();
-    try self.writer.writeAll("}");
-    try self.newline();
 }
 
 pub fn disassembleInstr(self: Disassembler, instr: ir.Instr) Writer.Error!void {
@@ -54,6 +56,11 @@ pub fn disassembleInstr(self: Disassembler, instr: ir.Instr) Writer.Error!void {
                 try self.writer.writeAll(" = ");
                 try self.disassembleValue(value);
             }
+        },
+        .call => |call| {
+            try self.writer.writeAll(call.function);
+            // TODO: Arguments
+            try self.writer.writeAll("()");
         },
         .branch => |branch| {
             switch (branch) {

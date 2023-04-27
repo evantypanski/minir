@@ -6,6 +6,8 @@ const IrError = error{
     NotABool,
     ExpectedTerminator,
     UnexpectedTerminator,
+    DuplicateMain,
+    NoMainFunction,
 };
 
 const ValueKind = enum {
@@ -120,6 +122,7 @@ pub const Value = union(ValueKind) {
 const InstrKind = enum {
     debug,
     id,
+    call,
     branch,
     ret,
 };
@@ -128,6 +131,11 @@ pub const VarDecl = struct {
     name: []const u8,
     // Initial decl
     val: ?Value,
+};
+
+pub const FuncCall = struct {
+    function: []const u8,
+    // TODO: Arguments
 };
 
 // Should only be created through Branch init instructions so that fields are
@@ -198,13 +206,14 @@ pub const Branch = union(BranchKind) {
 pub const Instr = union(InstrKind) {
     debug: Value,
     id: VarDecl,
+    call: FuncCall,
     branch: Branch,
     ret,
 
     pub fn isTerminator(self: Instr) bool {
         switch (self) {
             .debug, .id => return false,
-            .branch, .ret => return true,
+            .call, .branch, .ret => return true,
         }
     }
 };
@@ -213,10 +222,6 @@ pub const BasicBlock = struct {
     instructions: std.ArrayList(Instr),
     terminator: ?Instr,
     label: ?[]const u8,
-};
-
-pub const Program = struct {
-    instructions: std.ArrayList(Instr),
 };
 
 pub const BasicBlockBuilder = struct {
@@ -313,5 +318,43 @@ pub const FunctionBuilder = struct {
 
     pub fn build(self: Self) !Function {
         return Function.init(self.allocator, self.name, self.bbs);
+    }
+};
+
+pub const Program = struct {
+    functions: []const Function,
+};
+
+pub const ProgramBuilder = struct {
+    const Self = @This();
+
+    functions: std.ArrayList(Function),
+    main_idx: ?usize,
+
+    pub fn init(allocator: std.mem.Allocator) Self {
+        return .{
+            .functions = std.ArrayList(Function).init(allocator),
+            .main_idx = null,
+        };
+    }
+
+    pub fn addFunction(self: *Self, func: Function) !void {
+        const is_main = std.mem.eql(u8, func.name, "main");
+        if (is_main) {
+            if (self.main_idx != null) {
+                return error.DuplicateMain;
+            } else {
+                self.main_idx = self.functions.items.len;
+            }
+        }
+
+        try self.functions.append(func);
+    }
+
+    pub fn build(self: Self) !Program {
+        if (self.main_idx == null) {
+            return error.NoMainFunction;
+        }
+        return Program { .functions = self.functions.items };
     }
 };

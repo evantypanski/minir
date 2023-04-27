@@ -15,41 +15,58 @@ const InterpError = error{
     UnknownLabel,
     // Just catch all the type errors with this for now
     TypeError,
+    NoSuchFunction,
     IrError,
 };
 const Interpreter = struct {
     const Self = @This();
 
-    function: ir.Function,
+    program: ir.Program,
     // The current basic block's index getting executed.
     // Will start and end as null.
     current_bb: ?usize,
     env: ArrayList(ir.Value),
     // Var name to spot on stack
+    // TODO: This will be removed for call frames etc. so that variables
+    // can be redefed with same name in different functions
     map: std.StringHashMap(usize),
+    // TODO: This will be a call stack
+    current_function: ?ir.Function,
 
-    pub fn init(allocator: std.mem.Allocator, fun: ir.Function) !Self {
+    pub fn init(allocator: std.mem.Allocator, program: ir.Program) !Self {
+        var main_fn: ?ir.Function = null;
+        for (program.functions) |function| {
+            if (std.mem.eql(u8, function.name, "main")) {
+                main_fn = function;
+                break;
+            }
+        } else {
+            return error.NoMainFunction;
+        }
+
         return .{
-            .function = fun,
+            .program = program,
             .current_bb = null,
             .env = try ArrayList(ir.Value).initCapacity(allocator, 50),
             .map = std.StringHashMap(usize).init(allocator),
+            .current_function = main_fn,
         };
     }
 
     pub fn interpret(self: *Self) !void {
-        self.current_bb = if (self.function.bbs.items.len > 0)
+        self.current_bb = if (self.current_function.?.bbs.items.len > 0)
             0
         else
             null;
 
         while (self.current_bb) |bb_idx| {
+            const function = self.current_function orelse return;
             // May go off edge
-            if (self.function.bbs.items.len <= bb_idx) {
+            if (function.bbs.items.len <= bb_idx) {
                 break;
             }
 
-            const bb = self.function.bbs.items[bb_idx];
+            const bb = function.bbs.items[bb_idx];
             for (bb.instructions.items) |instr| {
                 try self.evalInstr(instr);
             }
@@ -79,13 +96,18 @@ const Interpreter = struct {
 
                 try self.map.put(vd.name, self.env.items.len - 1);
             },
-            .branch, .ret => return error.UnexpectedTerminator,
+            .call, .branch, .ret => return error.UnexpectedTerminator,
         }
     }
 
     fn evalTerminator(self: *Self, instr: ir.Instr) !void {
         switch (instr) {
             .debug, .id => return error.ExpectedTerminator,
+            .call => |call| {
+                const func = try self.getFunction(call.function);
+                self.current_function = func;
+                self.current_bb = 0;
+            },
             .branch => |branch| {
                 const result = switch (branch) {
                     .conditional => |conditional| blk: {
@@ -133,11 +155,22 @@ const Interpreter = struct {
                 }
 
                 self.current_bb =
-                    self.function.map.get(branch.labelName())
+                    self.current_function.?.map.get(branch.labelName())
                             orelse return error.UnknownLabel;
             },
             .ret => self.current_bb = null,
         }
+    }
+
+    fn getFunction(self: Self, name: []const u8) !ir.Function {
+        // Just linear search for now
+        for (self.program.functions) |function| {
+            if (std.mem.eql(u8, function.name, name)) {
+                return function;
+            }
+        }
+
+        return error.NoSuchFunction;
     }
 
     // Gets the current runtime value of a name
@@ -336,7 +369,7 @@ const Interpreter = struct {
 pub fn main() !void {
     var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
     const gpa = general_purpose_allocator.allocator();
-    var fun_builder = ir.FunctionBuilder.init(gpa, "main");
+    var func_builder = ir.FunctionBuilder.init(gpa, "main");
 
     var bb1_builder = ir.BasicBlockBuilder.init(gpa);
     bb1_builder.setLabel("bb1");
@@ -344,23 +377,23 @@ pub fn main() !void {
         ir.Instr {
             .id = .{
                 .name = "hi",
-                .val = .{ .int = 69 }
+                .val = .{ .int = 99 }
             }
         }
     );
     var hi_access = ir.Value.initAccess("hi");
     try bb1_builder.addInstruction(ir.Instr{ .debug = hi_access });
     try bb1_builder.setTerminator(
-        ir.Instr{ .branch = ir.Branch.initUnconditional("bb3") }
+        ir.Instr{ .call = .{ .function = "f" } }
     );
-    try fun_builder.addBasicBlock(bb1_builder.build());
+    try func_builder.addBasicBlock(bb1_builder.build());
 
     var bb2_builder = ir.BasicBlockBuilder.init(gpa);
     bb2_builder.setLabel("bb2");
     var val1 = ir.Value{ .int = 50 };
     try bb2_builder.addInstruction(ir.Instr{ .debug = val1 });
     try bb2_builder.setTerminator(.ret);
-    try fun_builder.addBasicBlock(bb2_builder.build());
+    try func_builder.addBasicBlock(bb2_builder.build());
 
     var bb3_builder = ir.BasicBlockBuilder.init(gpa);
     bb3_builder.setLabel("bb3");
@@ -372,14 +405,21 @@ pub fn main() !void {
                                             ir.Value.initInt(1))
         }
     );
-    try fun_builder.addBasicBlock(bb3_builder.build());
+    try func_builder.addBasicBlock(bb3_builder.build());
 
-    const fun = try fun_builder.build();
+    const func = try func_builder.build();
+    var func2_builder = ir.FunctionBuilder.init(gpa, "f");
+    try func2_builder.addBasicBlock(bb3_builder.build());
+    const func2 = try func2_builder.build();
+    var prog_builder = ir.ProgramBuilder.init(gpa);
+    try prog_builder.addFunction(func);
+    try prog_builder.addFunction(func2);
+    const program = try prog_builder.build();
     const disassembler = Disassembler{
         .writer = std.io.getStdOut().writer(),
-        .function = fun,
+        .program = program,
     };
     try disassembler.disassemble();
-    var interpreter = try Interpreter.init(gpa, fun);
+    var interpreter = try Interpreter.init(gpa, program);
     try interpreter.interpret();
 }
