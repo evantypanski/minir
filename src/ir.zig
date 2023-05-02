@@ -20,6 +20,11 @@ const ValueKind = enum {
 };
 
 pub const Value = union(ValueKind) {
+    pub const VarAccess = struct {
+        name: ?[]const u8,
+        offset: ?usize,
+    };
+
     pub const BinaryOp = struct {
         pub const Kind = enum {
             assign,
@@ -51,7 +56,7 @@ pub const Value = union(ValueKind) {
     };
 
     undef,
-    access: []const u8,
+    access: VarAccess,
     int: i32,
     float: f32,
     bool: u1,
@@ -61,8 +66,8 @@ pub const Value = union(ValueKind) {
         return .undef;
     }
 
-    pub fn initAccess(name: []const u8) Value {
-        return .{ .access = name };
+    pub fn initAccessName(name: []const u8) Value {
+        return .{ .access = .{ .name = name, .offset = null } };
     }
 
     pub fn initInt(val: i32) Value {
@@ -322,7 +327,7 @@ pub const FunctionBuilder = struct {
 };
 
 pub const Program = struct {
-    functions: []const Function,
+    functions: []Function,
 };
 
 pub const ProgramBuilder = struct {

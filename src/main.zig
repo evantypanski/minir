@@ -3,6 +3,8 @@ const ArrayList = std.ArrayList;
 
 const ir = @import("ir.zig");
 const Disassembler = @import("Disassembler.zig");
+const numify = @import("passes/numify.zig");
+const visitor = @import("passes/visitor.zig");
 
 const InterpError = error{
     OperandError,
@@ -16,6 +18,7 @@ const InterpError = error{
     // Just catch all the type errors with this for now
     TypeError,
     NoSuchFunction,
+    NoAccessValue,
     IrError,
 };
 const Interpreter = struct {
@@ -179,12 +182,27 @@ const Interpreter = struct {
         return self.env.items[index];
     }
 
+    // Gets the current runtime value from an offset
+    fn getAccessValOffset(self: Self, offset: usize) !ir.Value {
+        // TODO: Functions will need to use actual offset from stack spot
+        return self.env.items[offset];
+    }
+
     // Evaluates a given value as a boolean, or returns an error if it
     // cannot be coerced.
     fn evalBool(self: *Self, value: ir.Value) InterpError!ir.Value {
         switch (value) {
             .undef => return error.CannotEvaluateUndefined,
-            .access => |name| return self.evalBool(try self.getAccessVal(name)),
+            // TODO numify
+            .access => |va| {
+                if (va.offset) |offset| {
+                    return self.evalBool(try self.getAccessValOffset(offset));
+                } else if (va.name) |name| {
+                    return self.evalBool(try self.getAccessVal(name));
+                } else {
+                    return error.NoAccessValue;
+                }
+            },
             .int, .float => return error.TypeError,
             .bool => return value,
             .binary => {
@@ -198,7 +216,15 @@ const Interpreter = struct {
     fn evalInt(self: *Self, value: ir.Value) !ir.Value {
         switch (value) {
             .undef => return error.CannotEvaluateUndefined,
-            .access => |name| return self.evalInt(try self.getAccessVal(name)),
+            .access => |va| {
+                if (va.offset) |offset| {
+                    return self.evalInt(try self.getAccessValOffset(offset));
+                } else if (va.name) |name| {
+                    return self.evalInt(try self.getAccessVal(name));
+                } else {
+                    return error.NoAccessValue;
+                }
+            },
             .int => return value,
             .float, .bool => return error.TypeError,
             .binary => {
@@ -212,7 +238,15 @@ const Interpreter = struct {
     fn evalFloat(self: *Self, value: ir.Value) !ir.Value {
         switch (value) {
             .undef => return error.CannotEvaluateUndefined,
-            .access => |name| self.evalFloat(try self.getAccessVal(name)),
+            .access => |va| {
+                if (va.offset) |offset| {
+                    return self.evalFloat(try self.getAccessValOffset(offset));
+                } else if (va.name) |name| {
+                    return self.evalFloat(try self.getAccessVal(name));
+                } else {
+                    return error.NoAccessValue;
+                }
+            },
             .int => |i| return ir.Value.initInt(@intToFloat(f32, i)),
             .float => return value,
             .bool => |b| return ir.Value.initFloat(@intToFloat(f32, b)),
@@ -230,12 +264,19 @@ const Interpreter = struct {
         // Special ops that don't just pop both values off and do a thing
         switch (op.kind) {
             .assign => {
-                const name = switch (op.lhs.*) {
-                    .access => |name| name,
+                const index = switch (op.lhs.*) {
+                    .access => |va| blk: {
+                        if (va.offset) |offset| {
+                            break :blk offset;
+                        } else if (va.name) |name| {
+                            break :blk self.map.get(name)
+                                orelse return error.VariableUndefined;
+                        } else {
+                            return error.NoAccessValue;
+                        }
+                    },
                     else => return error.InvalidLHSAssign,
                 };
-                const index = self.map.get(name)
-                    orelse return error.VariableUndefined;
                 self.evalValue(op.rhs.*) catch return error.OperandError;
                 const rhs = self.env.getLast();
                 self.env.items[index] = rhs;
@@ -355,7 +396,15 @@ const Interpreter = struct {
     fn evalValue(self: *Self, value: ir.Value) !void {
         switch (value) {
             .undef => return error.CannotEvaluateUndefined,
-            .access => |name| try self.evalValue(try self.getAccessVal(name)),
+            .access => |va| {
+                if (va.offset) |offset| {
+                    try self.evalValue(try self.getAccessValOffset(offset));
+                } else if (va.name) |name| {
+                    try self.evalValue(try self.getAccessVal(name));
+                } else {
+                    return error.NoAccessValue;
+                }
+            },
             .int => try self.env.append(value),
             .float => try self.env.append(value),
             .bool => try self.env.append(value),
@@ -381,7 +430,7 @@ pub fn main() !void {
             }
         }
     );
-    var hi_access = ir.Value.initAccess("hi");
+    var hi_access = ir.Value.initAccessName("hi");
     try bb1_builder.addInstruction(ir.Instr{ .debug = hi_access });
     try bb1_builder.setTerminator(
         ir.Instr{ .call = .{ .function = "f" } }
@@ -414,11 +463,18 @@ pub fn main() !void {
     var prog_builder = ir.ProgramBuilder.init(gpa);
     try prog_builder.addFunction(func);
     try prog_builder.addFunction(func2);
-    const program = try prog_builder.build();
+    var program = try prog_builder.build();
     const disassembler = Disassembler{
         .writer = std.io.getStdOut().writer(),
         .program = program,
     };
+
+    // Numify!
+    var numify_pass = numify.init(gpa);
+    const numify_visitor = numify.NumifyVisitor;
+    // Wow this is ugly.
+    numify_visitor.visitProgram(numify_visitor, &numify_pass, &program);
+
     try disassembler.disassemble();
     var interpreter = try Interpreter.init(gpa, program);
     try interpreter.interpret();

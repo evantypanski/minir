@@ -94,7 +94,15 @@ pub fn disassembleInstr(self: Disassembler, instr: ir.Instr) Writer.Error!void {
 pub fn disassembleValue(self: Disassembler, value: ir.Value) Writer.Error!void {
     switch (value) {
         .undef => try self.writer.writeAll("undefined"),
-        .access => |name| try self.writer.writeAll(name),
+        .access => |va| {
+            if (va.name) |name| {
+                try self.writer.writeAll(name);
+            } else if (va.offset) |offset| {
+                // This could be better
+                try self.writer.writeAll("@+");
+                try fmt.formatInt(offset, 10, .lower, .{}, self.writer);
+            }
+        },
         .int => |i| try fmt.formatInt(i, 10, .lower, .{}, self.writer),
         .float => |f| try fmt.formatFloatDecimal(f, .{}, self.writer),
         .bool => |b| {
