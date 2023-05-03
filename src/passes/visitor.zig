@@ -1,7 +1,7 @@
 const ir = @import("../ir.zig");
 const std = @import("std");
 
-pub fn IrVisitor(comptime ArgTy: type) type {
+pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
     return struct {
         visitProgram: VisitProgramFn = defaultVisitProgram,
         visitFunction: VisitFunctionFn = defaultVisitFunction,
@@ -19,125 +19,119 @@ pub fn IrVisitor(comptime ArgTy: type) type {
         const Self = @This();
 
         // Containers
-        const VisitProgramFn = *const fn(self: Self, arg: ArgTy, program: *ir.Program) void;
-        const VisitFunctionFn = *const fn(self: Self, arg: ArgTy, function: *ir.Function) void;
-        const VisitBasicBlockFn = *const fn(self: Self, arg: ArgTy, bb: *ir.BasicBlock) void;
+        const VisitProgramFn = *const fn(self: Self, arg: ArgTy, program: *ir.Program) RetTy;
+        const VisitFunctionFn = *const fn(self: Self, arg: ArgTy, function: *ir.Function) RetTy;
+        const VisitBasicBlockFn = *const fn(self: Self, arg: ArgTy, bb: *ir.BasicBlock) RetTy;
 
         // Instructions
-        const VisitInstructionFn = *const fn(self: Self, arg: ArgTy, instr: *ir.Instr) void;
-        const VisitVarDeclFn = *const fn(self: Self, arg: ArgTy, decl: *ir.VarDecl) void;
-        const VisitFuncCallFn = *const fn(self: Self, arg: ArgTy, call: *ir.FuncCall) void;
-        const VisitBranchFn = *const fn(self: Self, arg: ArgTy, branch: *ir.Branch) void;
+        const VisitInstructionFn = *const fn(self: Self, arg: ArgTy, instr: *ir.Instr) RetTy;
+        const VisitVarDeclFn = *const fn(self: Self, arg: ArgTy, decl: *ir.VarDecl) RetTy;
+        const VisitFuncCallFn = *const fn(self: Self, arg: ArgTy, call: *ir.FuncCall) RetTy;
+        const VisitBranchFn = *const fn(self: Self, arg: ArgTy, branch: *ir.Branch) RetTy;
 
         // Values
-        const VisitValueFn = *const fn(self: Self, arg: ArgTy, val: *ir.Value) void;
-        const VisitVarAccessFn = *const fn(self: Self, arg: ArgTy, va: *ir.Value.VarAccess) void;
-        const VisitBinaryOpFn = *const fn(self: Self, arg: ArgTy, bo: *ir.Value.BinaryOp) void;
+        const VisitValueFn = *const fn(self: Self, arg: ArgTy, val: *ir.Value) RetTy;
+        const VisitVarAccessFn = *const fn(self: Self, arg: ArgTy, va: *ir.Value.VarAccess) RetTy;
+        const VisitBinaryOpFn = *const fn(self: Self, arg: ArgTy, bo: *ir.Value.BinaryOp) RetTy;
 
-        pub fn walkProgram(self: Self, arg: ArgTy, program: *ir.Program) void {
+        pub fn walkProgram(self: Self, arg: ArgTy, program: *ir.Program) RetTy {
             for (program.functions) |*function| {
-                self.visitFunction(self, arg, function);
+                try self.visitFunction(self, arg, function);
             }
         }
 
-        pub fn walkFunction(self: Self, arg: ArgTy, function: *ir.Function) void {
+        pub fn walkFunction(self: Self, arg: ArgTy, function: *ir.Function) RetTy {
             for (function.bbs.items) |*bb| {
-                self.visitBasicBlock(self, arg, bb);
+                try self.visitBasicBlock(self, arg, bb);
             }
         }
 
-        pub fn walkBasicBlock(self: Self, arg: ArgTy, bb: *ir.BasicBlock) void {
+        pub fn walkBasicBlock(self: Self, arg: ArgTy, bb: *ir.BasicBlock) RetTy {
             for (bb.instructions.items) |*instr| {
-                self.visitInstruction(self, arg, instr);
+                try self.visitInstruction(self, arg, instr);
             }
         }
 
-        pub fn walkInstruction(self: Self, arg: ArgTy, instr: *ir.Instr) void {
+        pub fn walkInstruction(self: Self, arg: ArgTy, instr: *ir.Instr) RetTy {
             switch (instr.*) {
-                .debug => |*val| self.visitValue(self, arg, val),
-                .id => |*decl| self.visitVarDecl(self, arg, decl),
-                .call => |*call| self.visitFuncCall(self, arg, call),
-                .branch => |*branch| self.visitBranch(self, arg, branch),
+                .debug => |*val| try self.visitValue(self, arg, val),
+                .id => |*decl| try self.visitVarDecl(self, arg, decl),
+                .call => |*call| try self.visitFuncCall(self, arg, call),
+                .branch => |*branch| try self.visitBranch(self, arg, branch),
                 // TODO: Ret can't take a value now so no visit method
                 .ret => {},
             }
         }
 
-        pub fn walkVarDecl(self: Self, arg: ArgTy, decl: *ir.VarDecl) void {
+        pub fn walkVarDecl(self: Self, arg: ArgTy, decl: *ir.VarDecl) RetTy {
             if (decl.val) |*val| {
-                self.visitValue(self, arg, val);
+                try self.visitValue(self, arg, val);
             }
         }
 
         // This could be split but the conditional/unconditional split isn't
         // that big of a deal.
-        pub fn walkBranch(self: Self, arg: ArgTy, branch: *ir.Branch) void {
+        pub fn walkBranch(self: Self, arg: ArgTy, branch: *ir.Branch) RetTy {
             switch (branch.*) {
                 .unconditional => {},
                 .conditional => |*conditional| {
-                    self.visitValue(self, arg, &conditional.lhs);
+                    try self.visitValue(self, arg, &conditional.lhs);
                     if (conditional.rhs) |*rhs| {
-                        self.visitValue(self, arg, rhs);
+                        try self.visitValue(self, arg, rhs);
                     }
                 },
             }
         }
 
-        pub fn walkValue(self: Self, arg: ArgTy, val: *ir.Value) void {
+        pub fn walkValue(self: Self, arg: ArgTy, val: *ir.Value) RetTy {
             switch (val.*) {
-                .access => |*va| self.visitVarAccess(self, arg, va),
-                .binary => |*bo| self.visitBinaryOp(self, arg, bo),
+                .access => |*va| try self.visitVarAccess(self, arg, va),
+                .binary => |*bo| try self.visitBinaryOp(self, arg, bo),
                 else => {},
             }
         }
 
-        pub fn walkBinaryOp(self: Self, arg: ArgTy, bo: *ir.Value.BinaryOp) void {
-            self.visitValue(self, arg, bo.lhs);
-            self.visitValue(self, arg, bo.rhs);
+        pub fn walkBinaryOp(self: Self, arg: ArgTy, bo: *ir.Value.BinaryOp) RetTy {
+            try self.visitValue(self, arg, bo.lhs);
+            try self.visitValue(self, arg, bo.rhs);
         }
 
-        pub fn defaultVisitProgram(self: Self, arg: ArgTy, program: *ir.Program) void {
-            self.walkProgram(arg, program);
+        pub fn defaultVisitProgram(self: Self, arg: ArgTy, program: *ir.Program) RetTy {
+            try self.walkProgram(arg, program);
         }
 
-        pub fn defaultVisitFunction(self: Self, arg: ArgTy, function: *ir.Function) void {
-            self.walkFunction(arg, function);
+        pub fn defaultVisitFunction(self: Self, arg: ArgTy, function: *ir.Function) RetTy {
+            try self.walkFunction(arg, function);
         }
 
-        pub fn defaultVisitBasicBlock(self: Self, arg: ArgTy, bb: *ir.BasicBlock) void {
-            self.walkBasicBlock(arg, bb);
+        pub fn defaultVisitBasicBlock(self: Self, arg: ArgTy, bb: *ir.BasicBlock) RetTy {
+            try self.walkBasicBlock(arg, bb);
         }
 
-        pub fn defaultVisitInstruction(self: Self, arg: ArgTy, instr: *ir.Instr) void {
-            self.walkInstruction(arg, instr);
+        pub fn defaultVisitInstruction(self: Self, arg: ArgTy, instr: *ir.Instr) RetTy {
+            try self.walkInstruction(arg, instr);
         }
 
-        pub fn defaultVisitVarDecl(self: Self, arg: ArgTy, decl: *ir.VarDecl) void {
-            self.walkVarDecl(arg, decl);
+        pub fn defaultVisitVarDecl(self: Self, arg: ArgTy, decl: *ir.VarDecl) RetTy {
+            try self.walkVarDecl(arg, decl);
         }
 
-        pub fn defaultVisitFuncCall(self: Self, arg: ArgTy, call: *ir.FuncCall) void {
-            _ = self;
-            _ = arg;
-            _ = call;
+        pub fn defaultVisitFuncCall(_: Self, _: ArgTy, _: *ir.FuncCall) RetTy {
         }
 
-        pub fn defaultVisitBranch(self: Self, arg: ArgTy, branch: *ir.Branch) void {
-            self.walkBranch(arg, branch);
+        pub fn defaultVisitBranch(self: Self, arg: ArgTy, branch: *ir.Branch) RetTy {
+            try self.walkBranch(arg, branch);
         }
 
-        pub fn defaultVisitValue(self: Self, arg: ArgTy, val: *ir.Value) void {
-            self.walkValue(arg, val);
+        pub fn defaultVisitValue(self: Self, arg: ArgTy, val: *ir.Value) RetTy {
+            try self.walkValue(arg, val);
         }
 
-        pub fn defaultVisitVarAccess(self: Self, arg: ArgTy, va: *ir.Value.VarAccess) void {
-            _ = self;
-            _ = arg;
-            _ = va;
+        pub fn defaultVisitVarAccess(_: Self, _: ArgTy, _: *ir.Value.VarAccess) RetTy {
         }
 
-        pub fn defaultVisitBinaryOp(self: Self, arg: ArgTy, bo: *ir.Value.BinaryOp) void {
-            self.walkBinaryOp(arg, bo);
+        pub fn defaultVisitBinaryOp(self: Self, arg: ArgTy, bo: *ir.Value.BinaryOp) RetTy {
+            try self.walkBinaryOp(arg, bo);
         }
     };
 }

@@ -18,7 +18,7 @@ const InterpError = error{
     // Just catch all the type errors with this for now
     TypeError,
     NoSuchFunction,
-    NoAccessValue,
+    ExpectedNumifiedAccess,
     IrError,
 };
 const Interpreter = struct {
@@ -29,10 +29,6 @@ const Interpreter = struct {
     // Will start and end as null.
     current_bb: ?usize,
     env: ArrayList(ir.Value),
-    // Var name to spot on stack
-    // TODO: This will be removed for call frames etc. so that variables
-    // can be redefed with same name in different functions
-    map: std.StringHashMap(usize),
     // TODO: This will be a call stack
     current_function: ?ir.Function,
 
@@ -51,7 +47,6 @@ const Interpreter = struct {
             .program = program,
             .current_bb = null,
             .env = try ArrayList(ir.Value).initCapacity(allocator, 50),
-            .map = std.StringHashMap(usize).init(allocator),
             .current_function = main_fn,
         };
     }
@@ -96,8 +91,6 @@ const Interpreter = struct {
                 } else {
                     try self.env.append(ir.Value.initUndef());
                 }
-
-                try self.map.put(vd.name, self.env.items.len - 1);
             },
             .call, .branch, .ret => return error.UnexpectedTerminator,
         }
@@ -176,12 +169,6 @@ const Interpreter = struct {
         return error.NoSuchFunction;
     }
 
-    // Gets the current runtime value of a name
-    fn getAccessVal(self: Self, name: []const u8) !ir.Value {
-        const index = self.map.get(name) orelse return error.VariableUndefined;
-        return self.env.items[index];
-    }
-
     // Gets the current runtime value from an offset
     fn getAccessValOffset(self: Self, offset: usize) !ir.Value {
         // TODO: Functions will need to use actual offset from stack spot
@@ -193,14 +180,11 @@ const Interpreter = struct {
     fn evalBool(self: *Self, value: ir.Value) InterpError!ir.Value {
         switch (value) {
             .undef => return error.CannotEvaluateUndefined,
-            // TODO numify
             .access => |va| {
                 if (va.offset) |offset| {
                     return self.evalBool(try self.getAccessValOffset(offset));
-                } else if (va.name) |name| {
-                    return self.evalBool(try self.getAccessVal(name));
                 } else {
-                    return error.NoAccessValue;
+                    return error.ExpectedNumifiedAccess;
                 }
             },
             .int, .float => return error.TypeError,
@@ -219,10 +203,8 @@ const Interpreter = struct {
             .access => |va| {
                 if (va.offset) |offset| {
                     return self.evalInt(try self.getAccessValOffset(offset));
-                } else if (va.name) |name| {
-                    return self.evalInt(try self.getAccessVal(name));
                 } else {
-                    return error.NoAccessValue;
+                    return error.ExpectedNumifiedAccess;
                 }
             },
             .int => return value,
@@ -241,10 +223,8 @@ const Interpreter = struct {
             .access => |va| {
                 if (va.offset) |offset| {
                     return self.evalFloat(try self.getAccessValOffset(offset));
-                } else if (va.name) |name| {
-                    return self.evalFloat(try self.getAccessVal(name));
                 } else {
-                    return error.NoAccessValue;
+                    return error.ExpectedNumifiedAccess;
                 }
             },
             .int => |i| return ir.Value.initInt(@intToFloat(f32, i)),
@@ -268,11 +248,8 @@ const Interpreter = struct {
                     .access => |va| blk: {
                         if (va.offset) |offset| {
                             break :blk offset;
-                        } else if (va.name) |name| {
-                            break :blk self.map.get(name)
-                                orelse return error.VariableUndefined;
                         } else {
-                            return error.NoAccessValue;
+                            return error.ExpectedNumifiedAccess;
                         }
                     },
                     else => return error.InvalidLHSAssign,
@@ -399,10 +376,8 @@ const Interpreter = struct {
             .access => |va| {
                 if (va.offset) |offset| {
                     try self.evalValue(try self.getAccessValOffset(offset));
-                } else if (va.name) |name| {
-                    try self.evalValue(try self.getAccessVal(name));
                 } else {
-                    return error.NoAccessValue;
+                    return error.ExpectedNumifiedAccess;
                 }
             },
             .int => try self.env.append(value),
@@ -473,7 +448,7 @@ pub fn main() !void {
     var numify_pass = numify.init(gpa);
     const numify_visitor = numify.NumifyVisitor;
     // Wow this is ugly.
-    numify_visitor.visitProgram(numify_visitor, &numify_pass, &program);
+    try numify_visitor.visitProgram(numify_visitor, &numify_pass, &program);
 
     try disassembler.disassemble();
     var interpreter = try Interpreter.init(gpa, program);

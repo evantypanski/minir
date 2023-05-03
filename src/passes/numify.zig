@@ -2,8 +2,14 @@ const ir = @import("../ir.zig");
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const std = @import("std");
 
+const NumifyError = error{
+    MapError,
+    NoName,
+    NoDecl,
+};
+
 const Self = @This();
-const VisitorTy = IrVisitor(*Self);
+const VisitorTy = IrVisitor(*Self, NumifyError!void);
 
 map: std.StringHashMap(usize),
 // Current number of variables in a function
@@ -18,20 +24,26 @@ pub fn init(allocator: std.mem.Allocator) Self {
 
 pub const NumifyVisitor = VisitorTy {
     .visitFunction = visitFunction,
+    .visitVarDecl = visitVarDecl,
     .visitVarAccess = visitVarAccess,
 };
 
-pub fn visitFunction(self: VisitorTy, arg: *Self, function: *ir.Function) void {
-    // This will be uncommented when frames are done
-    //arg.num_vars = 0;
-    self.walkFunction(arg, function);
+pub fn visitFunction(self: VisitorTy, arg: *Self, function: *ir.Function) NumifyError!void {
+    arg.num_vars = 0;
+    arg.map.clearRetainingCapacity();
+    try self.walkFunction(arg, function);
 }
 
-fn visitVarAccess(self: VisitorTy, arg: *Self, va: *ir.Value.VarAccess) void {
-    // This will not remove the name
-    va.name = null;
-    // This will not increase this when decls are done and map is used
-    va.offset = arg.num_vars;
+pub fn visitVarDecl(_: VisitorTy, arg: *Self, decl: *ir.VarDecl) NumifyError!void {
+    arg.map.put(decl.name, arg.num_vars) catch return error.MapError;
     arg.num_vars += 1;
-    _ = self;
+}
+
+fn visitVarAccess(_: VisitorTy, arg: *Self, va: *ir.Value.VarAccess) NumifyError!void {
+    if (va.name) |name| {
+        const offset = arg.map.get(name) orelse return error.NoDecl;
+        va.offset = offset;
+    } else {
+        return error.NoName;
+    }
 }
