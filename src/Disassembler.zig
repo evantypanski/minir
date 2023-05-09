@@ -64,7 +64,7 @@ pub fn disassembleInstr(self: Disassembler, instr: ir.Instr) Writer.Error!void {
         },
         .branch => |branch| {
             switch (branch) {
-                .unconditional =>
+                .jump =>
                     try self.writer.print("br {s}", .{branch.labelName()}),
                 .conditional => |conditional| {
                     const instr_name = switch (conditional.kind) {

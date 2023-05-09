@@ -143,6 +143,13 @@ pub const FuncCall = struct {
     // TODO: Arguments
 };
 
+pub const Jump = struct {
+    dest_label: []const u8,
+    // dest_index will be set from 0 to the actual value when building the
+    // function.
+    dest_index: usize,
+};
+
 // Should only be created through Branch init instructions so that fields are
 // properly set.
 pub const ConditionalBranch = struct {
@@ -159,21 +166,25 @@ pub const ConditionalBranch = struct {
     success: []const u8,
     lhs: Value,
     rhs: ?Value,
+
+    // dest_index will be set from 0 to the actual value when building the
+    // function.
+    dest_index: usize,
 };
 
 pub const BranchKind = enum {
-    unconditional,
+    jump,
     conditional,
 };
 
 pub const Branch = union(BranchKind) {
     // Unconditional is just the label it goes to
-    unconditional: []const u8,
+    jump: Jump,
     conditional: ConditionalBranch,
 
-    pub fn initUnconditional(to: []const u8) Branch {
+    pub fn initJump(to: []const u8) Branch {
         return .{
-            .unconditional = to,
+            .jump = .{ .dest_label = to, .dest_index = 0 },
         };
     }
 
@@ -184,6 +195,7 @@ pub const Branch = union(BranchKind) {
                 .success = to,
                 .lhs = value,
                 .rhs = null,
+                .dest_index = 0,
             },
         };
     }
@@ -196,16 +208,32 @@ pub const Branch = union(BranchKind) {
                 .success = to,
                 .lhs = lhs,
                 .rhs = rhs,
+                .dest_index = 0,
             },
         };
     }
 
     pub fn labelName(self: Branch) []const u8 {
         switch (self) {
-            .unconditional => |name| return name,
+            .jump => |j| return j.dest_label,
             .conditional => |conditional| return conditional.success,
         }
     }
+
+    pub fn labelIndex(self: Branch) usize {
+        switch (self) {
+            .jump => |j| return j.dest_index,
+            .conditional => |conditional| return conditional.dest_index,
+        }
+    }
+
+    pub fn setIndex(self: *Branch, index: usize) void {
+        switch (self.*) {
+            .jump => |*j| j.dest_index = index,
+            .conditional => |*conditional| conditional.dest_index = index,
+        }
+    }
+
 };
 
 pub const Instr = union(InstrKind) {
@@ -279,25 +307,11 @@ pub const Function = struct {
 
     name: []const u8,
     bbs: std.ArrayList(BasicBlock),
-    // Basic block name to index into bbs
-    map: std.StringHashMap(usize),
 
-    pub fn init(allocator: std.mem.Allocator, name: []const u8,
-                bbs: std.ArrayList(BasicBlock)) !Self {
-        // Build the map
-        var map = std.StringHashMap(usize).init(allocator);
-        var i: usize = 0;
-        while (i < bbs.items.len) : (i += 1) {
-            const bb = bbs.items[i];
-            if (bb.label) |label| {
-                try map.put(label, i);
-            }
-        }
-
+    pub fn init(name: []const u8, bbs: std.ArrayList(BasicBlock)) !Self {
         return .{
             .name = name,
             .bbs = bbs,
-            .map = map,
         };
     }
 };
@@ -308,21 +322,42 @@ pub const FunctionBuilder = struct {
     allocator: std.mem.Allocator,
     name: []const u8,
     bbs: std.ArrayList(BasicBlock),
+    label_map: std.StringHashMap(usize),
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) Self {
         return .{
             .allocator = allocator,
             .name = name,
             .bbs = std.ArrayList(BasicBlock).init(allocator),
+            .label_map = std.StringHashMap(usize).init(allocator),
         };
     }
 
     pub fn addBasicBlock(self: *Self, bb: BasicBlock) !void {
+        if (bb.label) |label| {
+            try self.label_map.put(label, self.bbs.items.len);
+        }
         try self.bbs.append(bb);
     }
 
     pub fn build(self: Self) !Function {
-        return Function.init(self.allocator, self.name, self.bbs);
+        // Use map to set indexes in basic blocks
+        var i: usize = 0;
+        while (i < self.bbs.items.len) : (i += 1) {
+            var bb = self.bbs.items[i];
+            if (bb.terminator) |*terminator| {
+                switch (terminator.*) {
+                    .branch => |*branch| {
+                        const index = self.label_map.get(branch.labelName())
+                                orelse return error.UnknownLabel;
+                        branch.setIndex(index);
+                    },
+                    else => {},
+                }
+            }
+        }
+
+        return Function.init(self.name, self.bbs);
     }
 };
 

@@ -14,13 +14,20 @@ const InterpError = error{
     CannotEvaluateUndefined,
     VariableUndefined,
     InvalidLHSAssign,
-    UnknownLabel,
+    LabelNoIndex,
     // Just catch all the type errors with this for now
     TypeError,
     NoSuchFunction,
     ExpectedNumifiedAccess,
+    CallError,
     IrError,
 };
+
+const Frame = struct {
+    frame_env_begin: usize,
+    return_bb_index: usize,
+};
+
 const Interpreter = struct {
     const Self = @This();
 
@@ -29,12 +36,20 @@ const Interpreter = struct {
     // Will start and end as null.
     current_bb: ?usize,
     env: ArrayList(ir.Value),
-    // TODO: This will be a call stack
-    current_function: ?ir.Function,
+    call_stack: ArrayList(Frame),
 
     pub fn init(allocator: std.mem.Allocator, program: ir.Program) !Self {
+        return .{
+            .program = program,
+            .current_bb = null,
+            .env = try ArrayList(ir.Value).initCapacity(allocator, 50),
+            .call_stack = ArrayList(Frame).init(allocator),
+        };
+    }
+
+    pub fn interpret(self: *Self) !void {
         var main_fn: ?ir.Function = null;
-        for (program.functions) |function| {
+        for (self.program.functions) |function| {
             if (std.mem.eql(u8, function.name, "main")) {
                 main_fn = function;
                 break;
@@ -43,22 +58,16 @@ const Interpreter = struct {
             return error.NoMainFunction;
         }
 
-        return .{
-            .program = program,
-            .current_bb = null,
-            .env = try ArrayList(ir.Value).initCapacity(allocator, 50),
-            .current_function = main_fn,
-        };
-    }
-
-    pub fn interpret(self: *Self) !void {
-        self.current_bb = if (self.current_function.?.bbs.items.len > 0)
+        self.current_bb = if (main_fn.?.bbs.items.len > 0)
             0
         else
             null;
 
+        try self.interpretFn(main_fn.?);
+    }
+
+    pub fn interpretFn(self: *Self, function: ir.Function) !void {
         while (self.current_bb) |bb_idx| {
-            const function = self.current_function orelse return;
             // May go off edge
             if (function.bbs.items.len <= bb_idx) {
                 break;
@@ -101,8 +110,10 @@ const Interpreter = struct {
             .debug, .id => return error.ExpectedTerminator,
             .call => |call| {
                 const func = try self.getFunction(call.function);
-                self.current_function = func;
-                self.current_bb = 0;
+                try self.pushFrame();
+                self.interpretFn(func) catch return error.CallError;
+                const frame = self.popFrame();
+                self.current_bb = frame.return_bb_index;
             },
             .branch => |branch| {
                 const result = switch (branch) {
@@ -150,9 +161,7 @@ const Interpreter = struct {
                     return;
                 }
 
-                self.current_bb =
-                    self.current_function.?.map.get(branch.labelName())
-                            orelse return error.UnknownLabel;
+                self.current_bb = branch.labelIndex();
             },
             .ret => self.current_bb = null,
         }
@@ -388,6 +397,18 @@ const Interpreter = struct {
             },
         }
     }
+
+    fn pushFrame(self: *Self) !void {
+        try self.call_stack.append(.{
+            .frame_env_begin = self.env.items.len,
+            // Calls are terminators so add 1
+            .return_bb_index = self.current_bb.? + 1
+        });
+    }
+
+    fn popFrame(self: *Self) Frame {
+        return self.call_stack.pop();
+    }
 };
 
 pub fn main() !void {
@@ -433,6 +454,7 @@ pub fn main() !void {
 
     const func = try func_builder.build();
     var func2_builder = ir.FunctionBuilder.init(gpa, "f");
+    try func2_builder.addBasicBlock(bb2_builder.build());
     try func2_builder.addBasicBlock(bb3_builder.build());
     const func2 = try func2_builder.build();
     var prog_builder = ir.ProgramBuilder.init(gpa);
