@@ -10,7 +10,9 @@ var indent: usize = 0;
 
 pub fn disassemble(self: Disassembler) Writer.Error!void {
     for (self.program.functions) |function| {
-        try self.writer.print("fn @{s} {{", .{function.name});
+        try self.writer.print("fn @{s} -> ", .{function.name});
+        try self.disassembleType(function.ret_ty);
+        try self.writer.writeAll(" {");
         indent += 1;
         try self.newline();
         for (function.bbs.items) |bb| {
@@ -57,11 +59,6 @@ pub fn disassembleInstr(self: Disassembler, instr: ir.Instr) Writer.Error!void {
                 try self.disassembleValue(value);
             }
         },
-        .call => |call| {
-            try self.writer.writeAll(call.function);
-            // TODO: Arguments
-            try self.writer.writeAll("()");
-        },
         .branch => |branch| {
             switch (branch) {
                 .jump =>
@@ -87,7 +84,15 @@ pub fn disassembleInstr(self: Disassembler, instr: ir.Instr) Writer.Error!void {
                 }
             }
         },
-        .ret => try self.writer.writeAll("ret"),
+        .ret => |opt_value| {
+            try self.writer.writeAll("ret ");
+            if (opt_value) |value| {
+                try self.disassembleValue(value);
+            }
+        },
+        .value => |val| {
+            try self.disassembleValue(val);
+        }
     }
 }
 
@@ -113,6 +118,11 @@ pub fn disassembleValue(self: Disassembler, value: ir.Value) Writer.Error!void {
             }
         },
         .binary => |binary| try self.disassembleBinary(binary),
+        .call => |call| {
+            try self.writer.writeAll(call.function);
+            // TODO: Arguments
+            try self.writer.writeAll("()");
+        },
     }
 }
 
@@ -138,6 +148,16 @@ pub fn disassembleBinary(self: Disassembler, binary: ir.Value.BinaryOp)
     };
     try self.writer.writeAll(op);
     try self.disassembleValue(binary.rhs.*);
+}
+
+pub fn disassembleType(self: Disassembler, ty: ir.Type) Writer.Error!void {
+    const name = switch (ty) {
+        .int => "int",
+        .float => "float",
+        .boolean => "boolean",
+        .none => "void",
+    };
+    try self.writer.writeAll(name);
 }
 
 fn newline(self: Disassembler) !void {

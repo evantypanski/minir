@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const IrError = error{
+pub const IrError = error{
     NotAnInt,
     NotAFloat,
     NotABool,
@@ -17,6 +17,7 @@ const ValueKind = enum {
     float,
     bool,
     binary,
+    call,
 };
 
 pub const Value = union(ValueKind) {
@@ -55,12 +56,18 @@ pub const Value = union(ValueKind) {
         rhs: *Value,
     };
 
+    pub const FuncCall = struct {
+        function: []const u8,
+        // TODO: Arguments
+    };
+
     undef,
     access: VarAccess,
     int: i32,
     float: f32,
     bool: u1,
     binary: BinaryOp,
+    call: FuncCall,
 
     pub fn initUndef() Value {
         return .undef;
@@ -96,6 +103,10 @@ pub const Value = union(ValueKind) {
         } };
     }
 
+    pub fn initCall(function: []const u8) Value {
+        return .{ .call = .{ .function = function } };
+    }
+
     // Turns a boolean Value into a native boolean. Should not be called
     // on non-bool Values.
     pub fn asBool(self: Value) IrError!bool {
@@ -124,23 +135,27 @@ pub const Value = union(ValueKind) {
     }
 };
 
+pub const Type = enum {
+    int,
+    float,
+    boolean,
+    // void but avoiding name conflicts is good :)
+    none,
+};
+
 const InstrKind = enum {
     debug,
     id,
-    call,
     branch,
     ret,
+    value,
 };
 
 pub const VarDecl = struct {
     name: []const u8,
     // Initial decl
     val: ?Value,
-};
-
-pub const FuncCall = struct {
-    function: []const u8,
-    // TODO: Arguments
+    ty: Type,
 };
 
 pub const Jump = struct {
@@ -239,14 +254,14 @@ pub const Branch = union(BranchKind) {
 pub const Instr = union(InstrKind) {
     debug: Value,
     id: VarDecl,
-    call: FuncCall,
     branch: Branch,
-    ret,
+    ret: ?Value,
+    value: Value,
 
     pub fn isTerminator(self: Instr) bool {
         switch (self) {
-            .debug, .id => return false,
-            .call, .branch, .ret => return true,
+            .debug, .id, .value => return false,
+            .branch, .ret => return true,
         }
     }
 };
@@ -307,11 +322,14 @@ pub const Function = struct {
 
     name: []const u8,
     bbs: std.ArrayList(BasicBlock),
+    ret_ty: Type,
 
-    pub fn init(name: []const u8, bbs: std.ArrayList(BasicBlock)) !Self {
+    pub fn init(name: []const u8, bbs: std.ArrayList(BasicBlock), ret_ty: Type)
+            !Self {
         return .{
             .name = name,
             .bbs = bbs,
+            .ret_ty = ret_ty,
         };
     }
 };
@@ -323,6 +341,7 @@ pub const FunctionBuilder = struct {
     name: []const u8,
     bbs: std.ArrayList(BasicBlock),
     label_map: std.StringHashMap(usize),
+    ret_ty: ?Type,
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) Self {
         return .{
@@ -330,6 +349,7 @@ pub const FunctionBuilder = struct {
             .name = name,
             .bbs = std.ArrayList(BasicBlock).init(allocator),
             .label_map = std.StringHashMap(usize).init(allocator),
+            .ret_ty = null,
         };
     }
 
@@ -338,6 +358,10 @@ pub const FunctionBuilder = struct {
             try self.label_map.put(label, self.bbs.items.len);
         }
         try self.bbs.append(bb);
+    }
+
+    pub fn setReturnType(self: *Self, ty: Type) void {
+        self.ret_ty = ty;
     }
 
     pub fn build(self: Self) !Function {
@@ -357,7 +381,7 @@ pub const FunctionBuilder = struct {
             }
         }
 
-        return Function.init(self.name, self.bbs);
+        return Function.init(self.name, self.bbs, self.ret_ty orelse .none);
     }
 };
 

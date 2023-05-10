@@ -15,13 +15,17 @@ const InterpError = error{
     VariableUndefined,
     InvalidLHSAssign,
     LabelNoIndex,
-    // Just catch all the type errors with this for now
     TypeError,
     NoSuchFunction,
     ExpectedNumifiedAccess,
     CallError,
-    IrError,
+    ExpectedReturn,
+    FrameError,
+    StackError,
 };
+
+// Big!
+const BigError = InterpError || ir.IrError;
 
 const Frame = struct {
     frame_env_begin: usize,
@@ -47,7 +51,7 @@ const Interpreter = struct {
         };
     }
 
-    pub fn interpret(self: *Self) !void {
+    pub fn interpret(self: *Self) BigError!void {
         var main_fn: ?ir.Function = null;
         for (self.program.functions) |function| {
             if (std.mem.eql(u8, function.name, "main")) {
@@ -63,14 +67,15 @@ const Interpreter = struct {
         else
             null;
 
+        // For now ignore main return
         try self.interpretFn(main_fn.?);
     }
 
-    pub fn interpretFn(self: *Self, function: ir.Function) !void {
+    pub fn interpretFn(self: *Self, function: ir.Function) BigError!void {
         while (self.current_bb) |bb_idx| {
             // May go off edge
             if (function.bbs.items.len <= bb_idx) {
-                break;
+                return;
             }
 
             const bb = function.bbs.items[bb_idx];
@@ -88,7 +93,7 @@ const Interpreter = struct {
         }
     }
 
-    fn evalInstr(self: *Self, instr: ir.Instr) !void {
+    fn evalInstr(self: *Self, instr: ir.Instr) BigError!void {
         switch (instr) {
             .debug => |value| {
                 try self.evalValue(value);
@@ -98,23 +103,21 @@ const Interpreter = struct {
                 if (vd.val) |val| {
                     try self.evalValue(val);
                 } else {
-                    try self.env.append(ir.Value.initUndef());
+                    try self.pushValue(ir.Value.initUndef());
                 }
             },
-            .call, .branch, .ret => return error.UnexpectedTerminator,
+            .value => |value| {
+                try self.evalValue(value);
+                // Remove the value pushed to stack
+                _ = self.env.pop();
+            },
+            .branch, .ret => return error.UnexpectedTerminator,
         }
     }
 
-    fn evalTerminator(self: *Self, instr: ir.Instr) !void {
+    fn evalTerminator(self: *Self, instr: ir.Instr) BigError!void {
         switch (instr) {
-            .debug, .id => return error.ExpectedTerminator,
-            .call => |call| {
-                const func = try self.getFunction(call.function);
-                try self.pushFrame();
-                self.interpretFn(func) catch return error.CallError;
-                const frame = self.popFrame();
-                self.current_bb = frame.return_bb_index;
-            },
+            .debug, .id, .value => return error.ExpectedTerminator,
             .branch => |branch| {
                 const result = switch (branch) {
                     .conditional => |conditional| blk: {
@@ -158,16 +161,20 @@ const Interpreter = struct {
                     if (self.current_bb) |*current_bb| {
                         current_bb.* += 1;
                     }
-                    return;
                 }
 
                 self.current_bb = branch.labelIndex();
             },
-            .ret => self.current_bb = null,
+            .ret => |opt_val| {
+                self.current_bb = null;
+                if (opt_val) |val| {
+                    try self.pushValue(val);
+                }
+            },
         }
     }
 
-    fn getFunction(self: Self, name: []const u8) !ir.Function {
+    fn getFunction(self: Self, name: []const u8) BigError!ir.Function {
         // Just linear search for now
         for (self.program.functions) |function| {
             if (std.mem.eql(u8, function.name, name)) {
@@ -179,14 +186,14 @@ const Interpreter = struct {
     }
 
     // Gets the current runtime value from an offset
-    fn getAccessValOffset(self: Self, offset: usize) !ir.Value {
+    fn getAccessValOffset(self: Self, offset: usize) BigError!ir.Value {
         // TODO: Functions will need to use actual offset from stack spot
         return self.env.items[offset];
     }
 
     // Evaluates a given value as a boolean, or returns an error if it
     // cannot be coerced.
-    fn evalBool(self: *Self, value: ir.Value) InterpError!ir.Value {
+    fn evalBool(self: *Self, value: ir.Value) BigError!ir.Value {
         switch (value) {
             .undef => return error.CannotEvaluateUndefined,
             .access => |va| {
@@ -198,6 +205,21 @@ const Interpreter = struct {
             },
             .int, .float => return error.TypeError,
             .bool => return value,
+            .call => |call| {
+                const func = try self.getFunction(call.function);
+                if (func.ret_ty != .boolean) {
+                    return error.TypeError;
+                }
+                try self.pushFrame();
+                defer {
+                    const frame = self.popFrame();
+                    self.current_bb = frame.return_bb_index;
+                }
+                try self.interpretFn(func);
+                // TODO: We don't yet ensure we actually returned a value.
+                const ret = self.env.pop();
+                return ret;
+            },
             .binary => {
                 self.evalValue(value) catch return error.InvalidBool;
                 const val = self.env.pop();
@@ -206,50 +228,9 @@ const Interpreter = struct {
         }
     }
 
-    fn evalInt(self: *Self, value: ir.Value) !ir.Value {
-        switch (value) {
-            .undef => return error.CannotEvaluateUndefined,
-            .access => |va| {
-                if (va.offset) |offset| {
-                    return self.evalInt(try self.getAccessValOffset(offset));
-                } else {
-                    return error.ExpectedNumifiedAccess;
-                }
-            },
-            .int => return value,
-            .float, .bool => return error.TypeError,
-            .binary => {
-                try self.evalValue(value);
-                const val = self.env.pop();
-                return self.evalInt(val) catch error.InvalidInt;
-            },
-        }
-    }
-
-    fn evalFloat(self: *Self, value: ir.Value) !ir.Value {
-        switch (value) {
-            .undef => return error.CannotEvaluateUndefined,
-            .access => |va| {
-                if (va.offset) |offset| {
-                    return self.evalFloat(try self.getAccessValOffset(offset));
-                } else {
-                    return error.ExpectedNumifiedAccess;
-                }
-            },
-            .int => |i| return ir.Value.initInt(@intToFloat(f32, i)),
-            .float => return value,
-            .bool => |b| return ir.Value.initFloat(@intToFloat(f32, b)),
-            .binary => {
-                try self.evalValue(value);
-                const val = self.env.pop();
-                return self.evalFloat(val) catch error.InvalidFloat;
-            },
-        }
-    }
-
     // Pops two values off the stack, performs the given operator on them,
     // then pushes the result onto the stack.
-    fn evalBinaryOp(self: *Self, op: ir.Value.BinaryOp) !void {
+    fn evalBinaryOp(self: *Self, op: ir.Value.BinaryOp) BigError!void {
         // Special ops that don't just pop both values off and do a thing
         switch (op.kind) {
             .assign => {
@@ -275,7 +256,7 @@ const Interpreter = struct {
                 _ = self.env.pop();
                 if (!try newLHS.asBool()) {
                     // Replace stack value with the new bool
-                    try self.env.append(newLHS);
+                    try self.pushValue(newLHS);
                     return;
                 }
 
@@ -284,7 +265,7 @@ const Interpreter = struct {
                 // No error so pop it
                 _ = self.env.pop();
                 // Now append the result which is just the RHS
-                try self.env.append(newRHS);
+                try self.pushValue(newRHS);
                 return;
             },
             .@"or" => {
@@ -294,7 +275,7 @@ const Interpreter = struct {
                 _ = self.env.pop();
                 if (!try newLHS.asBool()) {
                     // Replace stack value with the new bool
-                    try self.env.append(newLHS);
+                    try self.pushValue(newLHS);
                     return;
                 }
 
@@ -303,7 +284,7 @@ const Interpreter = struct {
                 // No error so pop it
                 _ = self.env.pop();
                 // Now append the result which is just the RHS
-                try self.env.append(newRHS);
+                try self.pushValue(newRHS);
                 return;
             },
             else => {},
@@ -316,62 +297,62 @@ const Interpreter = struct {
 
         switch (op.kind) {
             .add => {
-                try self.env.append(
+                try self.pushValue(
                     ir.Value.initInt(try lhs.asInt() + try rhs.asInt())
                 );
             },
             .sub => {
-                try self.env.append(
+                try self.pushValue(
                     ir.Value.initInt(try lhs.asInt() - try rhs.asInt())
                 );
             },
             .mul => {
-                try self.env.append(
+                try self.pushValue(
                     ir.Value.initInt(try lhs.asInt() * try rhs.asInt())
                 );
             },
             .div => {
-                try self.env.append(
+                try self.pushValue(
                     ir.Value.initInt(@divTrunc(try lhs.asInt(), try rhs.asInt()))
                 );
             },
             .fadd => {
-                try self.env.append(
+                try self.pushValue(
                     ir.Value.initFloat(try lhs.asFloat() + try rhs.asFloat())
                 );
             },
             .fsub => {
-                try self.env.append(
+                try self.pushValue(
                     ir.Value.initFloat(try lhs.asFloat() - try rhs.asFloat())
                 );
             },
             .fmul => {
-                try self.env.append(
+                try self.pushValue(
                     ir.Value.initFloat(try lhs.asFloat() * try rhs.asFloat())
                 );
             },
             .fdiv => {
-                try self.env.append(
+                try self.pushValue(
                     ir.Value.initFloat(try lhs.asFloat() / try rhs.asFloat())
                 );
             },
             .lt => {
-                try self.env.append(
+                try self.pushValue(
                     ir.Value.initBool(try lhs.asInt() < try rhs.asInt())
                 );
             },
             .le => {
-                try self.env.append(
+                try self.pushValue(
                     ir.Value.initBool(try lhs.asInt() <= try rhs.asInt())
                 );
             },
             .gt => {
-                try self.env.append(
+                try self.pushValue(
                     ir.Value.initBool(try lhs.asInt() > try rhs.asInt())
                 );
             },
             .ge => {
-                try self.env.append(
+                try self.pushValue(
                     ir.Value.initBool(try lhs.asInt() >= try rhs.asInt())
                 );
             },
@@ -379,7 +360,7 @@ const Interpreter = struct {
         }
     }
 
-    fn evalValue(self: *Self, value: ir.Value) !void {
+    fn evalValue(self: *Self, value: ir.Value) BigError!void {
         switch (value) {
             .undef => return error.CannotEvaluateUndefined,
             .access => |va| {
@@ -389,25 +370,38 @@ const Interpreter = struct {
                     return error.ExpectedNumifiedAccess;
                 }
             },
-            .int => try self.env.append(value),
-            .float => try self.env.append(value),
-            .bool => try self.env.append(value),
+            .int => try self.pushValue(value),
+            .float => try self.pushValue(value),
+            .bool => try self.pushValue(value),
             .binary => |op| {
                 try self.evalBinaryOp(op);
+            },
+            .call => |call| {
+                const func = try self.getFunction(call.function);
+                try self.pushFrame();
+                defer {
+                    const frame = self.popFrame();
+                    self.current_bb = frame.return_bb_index;
+                }
+                try self.interpretFn(func);
             },
         }
     }
 
-    fn pushFrame(self: *Self) !void {
-        try self.call_stack.append(.{
+    fn pushFrame(self: *Self) BigError!void {
+        self.call_stack.append(.{
             .frame_env_begin = self.env.items.len,
             // Calls are terminators so add 1
             .return_bb_index = self.current_bb.? + 1
-        });
+        }) catch return error.FrameError;
     }
 
     fn popFrame(self: *Self) Frame {
         return self.call_stack.pop();
+    }
+
+    fn pushValue(self: *Self, value: ir.Value) BigError!void {
+        self.env.append(value) catch return error.StackError;
     }
 };
 
@@ -422,40 +416,34 @@ pub fn main() !void {
         ir.Instr {
             .id = .{
                 .name = "hi",
-                .val = .{ .int = 99 }
+                .val = .{ .int = 99 },
+                .ty = .int,
             }
         }
     );
     var hi_access = ir.Value.initAccessName("hi");
     try bb1_builder.addInstruction(ir.Instr{ .debug = hi_access });
-    try bb1_builder.setTerminator(
-        ir.Instr{ .call = .{ .function = "f" } }
-    );
+    try bb1_builder.addInstruction(.{ .debug = ir.Value.initCall("f") });
+    //try bb1_builder.setTerminator(
+        //ir.Instr{ .call = .{ .function = "f" } }
+    //);
     try func_builder.addBasicBlock(bb1_builder.build());
 
     var bb2_builder = ir.BasicBlockBuilder.init(gpa);
     bb2_builder.setLabel("bb2");
     var val1 = ir.Value{ .int = 50 };
     try bb2_builder.addInstruction(ir.Instr{ .debug = val1 });
-    try bb2_builder.setTerminator(.ret);
+    try bb2_builder.setTerminator(.{.ret = null});
     try func_builder.addBasicBlock(bb2_builder.build());
 
-    var bb3_builder = ir.BasicBlockBuilder.init(gpa);
-    bb3_builder.setLabel("bb3");
-    var val2 = ir.Value{ .int = 42 };
-    try bb3_builder.addInstruction(ir.Instr{ .debug = val2 });
-    try bb3_builder.setTerminator(
-        ir.Instr{ .branch =
-            ir.Branch.initBinaryConditional("bb2", .greater, ir.Value.initInt(0),
-                                            ir.Value.initInt(1))
-        }
-    );
-    try func_builder.addBasicBlock(bb3_builder.build());
-
     const func = try func_builder.build();
+
+    var bb4_builder = ir.BasicBlockBuilder.init(gpa);
+    bb4_builder.setLabel("bb4");
+    try bb4_builder.setTerminator(.{.ret = ir.Value.initInt(5)});
     var func2_builder = ir.FunctionBuilder.init(gpa, "f");
-    try func2_builder.addBasicBlock(bb2_builder.build());
-    try func2_builder.addBasicBlock(bb3_builder.build());
+    func2_builder.setReturnType(.int);
+    try func2_builder.addBasicBlock(bb4_builder.build());
     const func2 = try func2_builder.build();
     var prog_builder = ir.ProgramBuilder.init(gpa);
     try prog_builder.addFunction(func);

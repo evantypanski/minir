@@ -9,12 +9,12 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
 
         visitInstruction: VisitInstructionFn = defaultVisitInstruction,
         visitVarDecl: VisitVarDeclFn = defaultVisitVarDecl,
-        visitFuncCall: VisitFuncCallFn = defaultVisitFuncCall,
         visitBranch: VisitBranchFn = defaultVisitBranch,
 
         visitValue: VisitValueFn = defaultVisitValue,
         visitVarAccess: VisitVarAccessFn = defaultVisitVarAccess,
         visitBinaryOp: VisitBinaryOpFn = defaultVisitBinaryOp,
+        visitFuncCall: VisitFuncCallFn = defaultVisitFuncCall,
 
         const Self = @This();
 
@@ -26,13 +26,13 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         // Instructions
         const VisitInstructionFn = *const fn(self: Self, arg: ArgTy, instr: *ir.Instr) RetTy;
         const VisitVarDeclFn = *const fn(self: Self, arg: ArgTy, decl: *ir.VarDecl) RetTy;
-        const VisitFuncCallFn = *const fn(self: Self, arg: ArgTy, call: *ir.FuncCall) RetTy;
         const VisitBranchFn = *const fn(self: Self, arg: ArgTy, branch: *ir.Branch) RetTy;
 
         // Values
         const VisitValueFn = *const fn(self: Self, arg: ArgTy, val: *ir.Value) RetTy;
         const VisitVarAccessFn = *const fn(self: Self, arg: ArgTy, va: *ir.Value.VarAccess) RetTy;
         const VisitBinaryOpFn = *const fn(self: Self, arg: ArgTy, bo: *ir.Value.BinaryOp) RetTy;
+        const VisitFuncCallFn = *const fn(self: Self, arg: ArgTy, call: *ir.Value.FuncCall) RetTy;
 
         pub fn walkProgram(self: Self, arg: ArgTy, program: *ir.Program) RetTy {
             for (program.functions) |*function| {
@@ -56,10 +56,13 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             switch (instr.*) {
                 .debug => |*val| try self.visitValue(self, arg, val),
                 .id => |*decl| try self.visitVarDecl(self, arg, decl),
-                .call => |*call| try self.visitFuncCall(self, arg, call),
                 .branch => |*branch| try self.visitBranch(self, arg, branch),
-                // TODO: Ret can't take a value now so no visit method
-                .ret => {},
+                .value => |*value| try self.visitValue(self, arg, value),
+                .ret => |*opt_value| {
+                    if (opt_value.*) |*value| {
+                        try self.visitValue(self, arg, value);
+                    }
+                }
             }
         }
 
@@ -87,6 +90,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             switch (val.*) {
                 .access => |*va| try self.visitVarAccess(self, arg, va),
                 .binary => |*bo| try self.visitBinaryOp(self, arg, bo),
+                .call => |*call| try self.visitFuncCall(self, arg, call),
                 else => {},
             }
         }
@@ -116,9 +120,6 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             try self.walkVarDecl(arg, decl);
         }
 
-        pub fn defaultVisitFuncCall(_: Self, _: ArgTy, _: *ir.FuncCall) RetTy {
-        }
-
         pub fn defaultVisitBranch(self: Self, arg: ArgTy, branch: *ir.Branch) RetTy {
             try self.walkBranch(arg, branch);
         }
@@ -132,6 +133,9 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
 
         pub fn defaultVisitBinaryOp(self: Self, arg: ArgTy, bo: *ir.Value.BinaryOp) RetTy {
             try self.walkBinaryOp(arg, bo);
+        }
+
+        pub fn defaultVisitFuncCall(_: Self, _: ArgTy, _: *ir.Value.FuncCall) RetTy {
         }
     };
 }
