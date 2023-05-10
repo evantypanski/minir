@@ -35,7 +35,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const VisitFuncCallFn = *const fn(self: Self, arg: ArgTy, call: *ir.Value.FuncCall) RetTy;
 
         pub fn walkProgram(self: Self, arg: ArgTy, program: *ir.Program) RetTy {
-            for (program.functions) |*function| {
+            for (program.functions.items) |*function| {
                 try self.visitFunction(self, arg, function);
             }
         }

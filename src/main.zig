@@ -53,7 +53,7 @@ const Interpreter = struct {
 
     pub fn interpret(self: *Self) BigError!void {
         var main_fn: ?ir.Function = null;
-        for (self.program.functions) |function| {
+        for (self.program.functions.items) |function| {
             if (std.mem.eql(u8, function.name, "main")) {
                 main_fn = function;
                 break;
@@ -176,7 +176,7 @@ const Interpreter = struct {
 
     fn getFunction(self: Self, name: []const u8) BigError!ir.Function {
         // Just linear search for now
-        for (self.program.functions) |function| {
+        for (self.program.functions.items) |function| {
             if (std.mem.eql(u8, function.name, name)) {
                 return function;
             }
@@ -448,7 +448,10 @@ pub fn main() !void {
     var prog_builder = ir.ProgramBuilder.init(gpa);
     try prog_builder.addFunction(func);
     try prog_builder.addFunction(func2);
+
     var program = try prog_builder.build();
+    defer program.deinit();
+
     const disassembler = Disassembler{
         .writer = std.io.getStdOut().writer(),
         .program = program,

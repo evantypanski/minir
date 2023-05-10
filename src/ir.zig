@@ -270,6 +270,10 @@ pub const BasicBlock = struct {
     instructions: std.ArrayList(Instr),
     terminator: ?Instr,
     label: ?[]const u8,
+
+    pub fn deinit(self: *BasicBlock) void {
+        self.instructions.deinit();
+    }
 };
 
 pub const BasicBlockBuilder = struct {
@@ -332,6 +336,13 @@ pub const Function = struct {
             .ret_ty = ret_ty,
         };
     }
+
+    pub fn deinit(self: *Function) void {
+        for (self.bbs.items) |*bb| {
+            bb.deinit();
+        }
+        self.bbs.deinit();
+    }
 };
 
 pub const FunctionBuilder = struct {
@@ -351,6 +362,10 @@ pub const FunctionBuilder = struct {
             .label_map = std.StringHashMap(usize).init(allocator),
             .ret_ty = null,
         };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.label_map.deinit();
     }
 
     pub fn addBasicBlock(self: *Self, bb: BasicBlock) !void {
@@ -386,7 +401,14 @@ pub const FunctionBuilder = struct {
 };
 
 pub const Program = struct {
-    functions: []Function,
+    functions: std.ArrayList(Function),
+
+    pub fn deinit(self: *Program) void {
+        for (self.functions.items) |*function| {
+            function.deinit();
+        }
+        self.functions.deinit();
+    }
 };
 
 pub const ProgramBuilder = struct {
@@ -419,6 +441,46 @@ pub const ProgramBuilder = struct {
         if (self.main_idx == null) {
             return error.NoMainFunction;
         }
-        return Program { .functions = self.functions.items };
+        return Program { .functions = self.functions };
     }
 };
+
+test "deinit works" {
+    var func_builder = FunctionBuilder.init(std.testing.allocator, "main");
+    defer func_builder.deinit();
+
+    var bb1_builder = BasicBlockBuilder.init(std.testing.allocator);
+    bb1_builder.setLabel("bb1");
+    try bb1_builder.addInstruction(
+        Instr {
+            .id = .{
+                .name = "hi",
+                .val = .{ .int = 99 },
+                .ty = .int,
+            }
+        }
+    );
+    var hi_access = Value.initAccessName("hi");
+    try bb1_builder.addInstruction(Instr{ .debug = hi_access });
+    try bb1_builder.addInstruction(.{ .debug = Value.initCall("f") });
+    try func_builder.addBasicBlock(bb1_builder.build());
+
+    const func = try func_builder.build();
+
+    var bb4_builder = BasicBlockBuilder.init(std.testing.allocator);
+    bb4_builder.setLabel("bb4");
+    try bb4_builder.setTerminator(.{.ret = Value.initInt(5)});
+
+    var func2_builder = FunctionBuilder.init(std.testing.allocator, "f");
+    defer func2_builder.deinit();
+    func2_builder.setReturnType(.int);
+    try func2_builder.addBasicBlock(bb4_builder.build());
+    const func2 = try func2_builder.build();
+
+    var prog_builder = ProgramBuilder.init(std.testing.allocator);
+    try prog_builder.addFunction(func);
+    try prog_builder.addFunction(func2);
+
+    var program = try prog_builder.build();
+    program.deinit();
+}

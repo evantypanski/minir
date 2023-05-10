@@ -9,7 +9,7 @@ program: ir.Program,
 var indent: usize = 0;
 
 pub fn disassemble(self: Disassembler) Writer.Error!void {
-    for (self.program.functions) |function| {
+    for (self.program.functions.items) |function| {
         try self.writer.print("fn @{s} -> ", .{function.name});
         try self.disassembleType(function.ret_ty);
         try self.writer.writeAll(" {");
