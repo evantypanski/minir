@@ -67,8 +67,10 @@ const Interpreter = struct {
         else
             null;
 
+        try self.pushFrame();
         // For now ignore main return
         try self.interpretFn(main_fn.?);
+        _ = self.popFrame();
     }
 
     pub fn interpretFn(self: *Self, function: ir.Function) BigError!void {
@@ -185,10 +187,14 @@ const Interpreter = struct {
         return error.NoSuchFunction;
     }
 
+    fn getAbsoluteOffset(self: Self, offset: isize) usize {
+        const index = @intCast(isize, self.call_stack.getLast().frame_env_begin) + offset;
+        return @intCast(usize, index);
+    }
+
     // Gets the current runtime value from an offset
-    fn getAccessValOffset(self: Self, offset: usize) BigError!ir.Value {
-        // TODO: Functions will need to use actual offset from stack spot
-        return self.env.items[offset];
+    fn getAccessValOffset(self: Self, offset: isize) BigError!ir.Value {
+        return self.env.items[self.getAbsoluteOffset(offset)];
     }
 
     // Evaluates a given value as a boolean, or returns an error if it
@@ -206,19 +212,12 @@ const Interpreter = struct {
             .int, .float => return error.TypeError,
             .bool => return value,
             .call => |call| {
-                const func = try self.getFunction(call.function);
-                if (func.ret_ty != .boolean) {
-                    return error.TypeError;
+                const ret = try self.evalCall(call);
+                if (ret) |val| {
+                    return self.evalBool(val);
+                } else {
+                    return error.ExpectedReturn;
                 }
-                try self.pushFrame();
-                defer {
-                    const frame = self.popFrame();
-                    self.current_bb = frame.return_bb_index;
-                }
-                try self.interpretFn(func);
-                // TODO: We don't yet ensure we actually returned a value.
-                const ret = self.env.pop();
-                return ret;
             },
             .binary => {
                 self.evalValue(value) catch return error.InvalidBool;
@@ -246,7 +245,7 @@ const Interpreter = struct {
                 };
                 self.evalValue(op.rhs.*) catch return error.OperandError;
                 const rhs = self.env.getLast();
-                self.env.items[index] = rhs;
+                self.env.items[self.getAbsoluteOffset(index)] = rhs;
                 return;
             },
             .@"and" => {
@@ -377,22 +376,45 @@ const Interpreter = struct {
                 try self.evalBinaryOp(op);
             },
             .call => |call| {
-                const func = try self.getFunction(call.function);
-                try self.pushFrame();
-                defer {
-                    const frame = self.popFrame();
-                    self.current_bb = frame.return_bb_index;
+                const ret = try self.evalCall(call);
+                if (ret) |val| {
+                    return self.evalValue(val);
+                } else {
+                    // Void function should get undef pushed. This should be
+                    // done better.
+                    try self.pushValue(ir.Value.initUndef());
                 }
-                try self.interpretFn(func);
             },
         }
+    }
+
+    fn evalCall(self: *Self, call: ir.Value.FuncCall) BigError!?ir.Value {
+        if (call.arguments) |arguments| {
+            for (arguments.items) |arg| {
+                try self.evalValue(arg);
+            }
+        }
+        // TODO: We make assumptions here that should be analyzed, like a
+        // return type actually means a value is returned.
+        const func = try self.getFunction(call.function);
+        try self.pushFrame();
+        defer {
+            const frame = self.popFrame();
+            self.current_bb = frame.return_bb_index;
+        }
+        try self.interpretFn(func);
+        if (func.ret_ty != .none) {
+            const ret = self.env.pop();
+            return ret;
+        }
+
+        return null;
     }
 
     fn pushFrame(self: *Self) BigError!void {
         self.call_stack.append(.{
             .frame_env_begin = self.env.items.len,
-            // Calls are terminators so add 1
-            .return_bb_index = self.current_bb.? + 1
+            .return_bb_index = self.current_bb.?
         }) catch return error.FrameError;
     }
 
@@ -422,8 +444,10 @@ pub fn main() !void {
         }
     );
     var hi_access = ir.Value.initAccessName("hi");
-    try bb1_builder.addInstruction(ir.Instr{ .debug = hi_access });
-    try bb1_builder.addInstruction(.{ .debug = ir.Value.initCall("f") });
+    var params = std.ArrayList(ir.Value).init(gpa);
+    try params.append(hi_access);
+    try params.append(ir.Value{ .int = 50 });
+    try bb1_builder.addInstruction(.{ .debug = ir.Value.initCall("f", params) });
     //try bb1_builder.setTerminator(
         //ir.Instr{ .call = .{ .function = "f" } }
     //);
@@ -443,6 +467,20 @@ pub fn main() !void {
     try bb4_builder.setTerminator(.{.ret = ir.Value.initInt(5)});
     var func2_builder = ir.FunctionBuilder.init(gpa, "f");
     func2_builder.setReturnType(.int);
+    try func2_builder.addParam(.{
+                .name = "par1",
+                .val = null,
+                .ty = .int,
+            });
+    try func2_builder.addParam(.{
+                .name = "par2",
+                .val = null,
+                .ty = .int,
+            });
+    var par1_access = ir.Value.initAccessName("par1");
+    try bb4_builder.addInstruction(ir.Instr{ .debug = par1_access });
+    var par2_access = ir.Value.initAccessName("par2");
+    try bb4_builder.addInstruction(ir.Instr{ .debug = par2_access });
     try func2_builder.addBasicBlock(bb4_builder.build());
     const func2 = try func2_builder.build();
     var prog_builder = ir.ProgramBuilder.init(gpa);

@@ -10,7 +10,9 @@ var indent: usize = 0;
 
 pub fn disassemble(self: Disassembler) Writer.Error!void {
     for (self.program.functions.items) |function| {
-        try self.writer.print("fn @{s} -> ", .{function.name});
+        try self.writer.print("fn @{s}(", .{function.name});
+        try self.printParams(function.params.items);
+        try self.writer.writeAll(") -> ");
         try self.disassembleType(function.ret_ty);
         try self.writer.writeAll(" {");
         indent += 1;
@@ -120,8 +122,20 @@ pub fn disassembleValue(self: Disassembler, value: ir.Value) Writer.Error!void {
         .binary => |binary| try self.disassembleBinary(binary),
         .call => |call| {
             try self.writer.writeAll(call.function);
-            // TODO: Arguments
-            try self.writer.writeAll("()");
+            try self.writer.writeAll("(");
+            var first = true;
+            if (call.arguments) |arguments| {
+                for (arguments.items) |arg| {
+                    if (!first) {
+                        try self.writer.writeAll(", ");
+                    }
+
+                    try self.disassembleValue(arg);
+                    first = false;
+                }
+            }
+
+            try self.writer.writeAll(")");
         },
     }
 }
@@ -158,6 +172,19 @@ pub fn disassembleType(self: Disassembler, ty: ir.Type) Writer.Error!void {
         .none => "void",
     };
     try self.writer.writeAll(name);
+}
+
+fn printParams(self: Disassembler, params: []const ir.VarDecl) !void {
+    var first = true;
+    for (params) |param| {
+        if (!first) {
+            try self.writer.writeAll(", ");
+        }
+        try self.disassembleType(param.ty);
+        try self.writer.print(" {s}", .{param.name});
+
+        first = false;
+    }
 }
 
 fn newline(self: Disassembler) !void {

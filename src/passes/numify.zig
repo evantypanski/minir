@@ -11,13 +11,13 @@ const NumifyError = error{
 const Self = @This();
 const VisitorTy = IrVisitor(*Self, NumifyError!void);
 
-map: std.StringHashMap(usize),
+map: std.StringHashMap(isize),
 // Current number of variables in a function
 num_vars: usize,
 
 pub fn init(allocator: std.mem.Allocator) Self {
     return .{
-        .map = std.StringHashMap(usize).init(allocator),
+        .map = std.StringHashMap(isize).init(allocator),
         .num_vars = 0,
     };
 }
@@ -29,13 +29,19 @@ pub const NumifyVisitor = VisitorTy {
 };
 
 pub fn visitFunction(self: VisitorTy, arg: *Self, function: *ir.Function) NumifyError!void {
-    arg.num_vars = 0;
     arg.map.clearRetainingCapacity();
+    arg.num_vars = 0;
+    var i: usize = function.params.items.len;
+    for (function.params.items) |*param| {
+        arg.map.put(param.name, -1 * @intCast(isize, i))
+                catch return error.MapError;
+        i -= 1;
+    }
     try self.walkFunction(arg, function);
 }
 
 pub fn visitVarDecl(_: VisitorTy, arg: *Self, decl: *ir.VarDecl) NumifyError!void {
-    arg.map.put(decl.name, arg.num_vars) catch return error.MapError;
+    arg.map.put(decl.name, @intCast(isize, arg.num_vars)) catch return error.MapError;
     arg.num_vars += 1;
 }
 

@@ -100,6 +100,14 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             try self.visitValue(self, arg, bo.rhs);
         }
 
+        pub fn walkFuncCall(self: Self, arg: ArgTy, call: *ir.Value.FuncCall) RetTy {
+            if (call.arguments) |*arguments| {
+                for (arguments.items) |*call_arg| {
+                    try self.visitValue(self, arg, call_arg);
+                }
+            }
+        }
+
         pub fn defaultVisitProgram(self: Self, arg: ArgTy, program: *ir.Program) RetTy {
             try self.walkProgram(arg, program);
         }
@@ -135,7 +143,8 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             try self.walkBinaryOp(arg, bo);
         }
 
-        pub fn defaultVisitFuncCall(_: Self, _: ArgTy, _: *ir.Value.FuncCall) RetTy {
+        pub fn defaultVisitFuncCall(self: Self, arg: ArgTy, call: *ir.Value.FuncCall) RetTy {
+            try self.walkFuncCall(arg, call);
         }
     };
 }

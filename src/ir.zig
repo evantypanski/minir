@@ -23,7 +23,7 @@ const ValueKind = enum {
 pub const Value = union(ValueKind) {
     pub const VarAccess = struct {
         name: ?[]const u8,
-        offset: ?usize,
+        offset: ?isize,
     };
 
     pub const BinaryOp = struct {
@@ -58,7 +58,7 @@ pub const Value = union(ValueKind) {
 
     pub const FuncCall = struct {
         function: []const u8,
-        // TODO: Arguments
+        arguments: ?std.ArrayList(Value),
     };
 
     undef,
@@ -103,8 +103,8 @@ pub const Value = union(ValueKind) {
         } };
     }
 
-    pub fn initCall(function: []const u8) Value {
-        return .{ .call = .{ .function = function } };
+    pub fn initCall(function: []const u8, arguments: ?std.ArrayList(Value)) Value {
+        return .{ .call = .{ .function = function, .arguments = arguments } };
     }
 
     // Turns a boolean Value into a native boolean. Should not be called
@@ -326,13 +326,15 @@ pub const Function = struct {
 
     name: []const u8,
     bbs: std.ArrayList(BasicBlock),
+    params: std.ArrayList(VarDecl),
     ret_ty: Type,
 
-    pub fn init(name: []const u8, bbs: std.ArrayList(BasicBlock), ret_ty: Type)
-            !Self {
+    pub fn init(name: []const u8, bbs: std.ArrayList(BasicBlock),
+                params: std.ArrayList(VarDecl), ret_ty: Type) !Self {
         return .{
             .name = name,
             .bbs = bbs,
+            .params = params,
             .ret_ty = ret_ty,
         };
     }
@@ -342,6 +344,7 @@ pub const Function = struct {
             bb.deinit();
         }
         self.bbs.deinit();
+        self.params.deinit();
     }
 };
 
@@ -351,6 +354,7 @@ pub const FunctionBuilder = struct {
     allocator: std.mem.Allocator,
     name: []const u8,
     bbs: std.ArrayList(BasicBlock),
+    params: std.ArrayList(VarDecl),
     label_map: std.StringHashMap(usize),
     ret_ty: ?Type,
 
@@ -359,6 +363,7 @@ pub const FunctionBuilder = struct {
             .allocator = allocator,
             .name = name,
             .bbs = std.ArrayList(BasicBlock).init(allocator),
+            .params = std.ArrayList(VarDecl).init(allocator),
             .label_map = std.StringHashMap(usize).init(allocator),
             .ret_ty = null,
         };
@@ -379,6 +384,10 @@ pub const FunctionBuilder = struct {
         self.ret_ty = ty;
     }
 
+    pub fn addParam(self: *Self, param_decl: VarDecl) !void {
+        try self.params.append(param_decl);
+    }
+
     pub fn build(self: Self) !Function {
         // Use map to set indexes in basic blocks
         var i: usize = 0;
@@ -396,7 +405,8 @@ pub const FunctionBuilder = struct {
             }
         }
 
-        return Function.init(self.name, self.bbs, self.ret_ty orelse .none);
+        return Function.init(self.name, self.bbs, self.params,
+                             self.ret_ty orelse .none);
     }
 };
 
