@@ -31,8 +31,8 @@ pub const NumifyVisitor = VisitorTy {
 pub fn visitFunction(self: VisitorTy, arg: *Self, function: *ir.Function) NumifyError!void {
     arg.map.clearRetainingCapacity();
     arg.num_vars = 0;
-    var i: usize = function.params.items.len;
-    for (function.params.items) |*param| {
+    var i: usize = function.params.len;
+    for (function.params) |*param| {
         arg.map.put(param.name, -1 * @intCast(isize, i))
                 catch return error.MapError;
         i -= 1;

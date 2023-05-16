@@ -58,7 +58,7 @@ pub const Value = union(ValueKind) {
 
     pub const FuncCall = struct {
         function: []const u8,
-        arguments: ?std.ArrayList(Value),
+        arguments: []Value,
     };
 
     undef,
@@ -103,7 +103,7 @@ pub const Value = union(ValueKind) {
         } };
     }
 
-    pub fn initCall(function: []const u8, arguments: ?std.ArrayList(Value)) Value {
+    pub fn initCall(function: []const u8, arguments: []Value) Value {
         return .{ .call = .{ .function = function, .arguments = arguments } };
     }
 
@@ -267,26 +267,24 @@ pub const Instr = union(InstrKind) {
 };
 
 pub const BasicBlock = struct {
-    instructions: std.ArrayList(Instr),
+    instructions: []Instr,
     terminator: ?Instr,
     label: ?[]const u8,
 
-    pub fn deinit(self: *BasicBlock) void {
-        self.instructions.deinit();
+    pub fn deinit(self: *BasicBlock, allocator: std.mem.Allocator) void {
+        allocator.free(self.instructions);
     }
 };
 
 pub const BasicBlockBuilder = struct {
     const Self = @This();
 
-    allocator: std.mem.Allocator,
     instructions: std.ArrayList(Instr),
     terminator: ?Instr,
     label: ?[]const u8,
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
-            .allocator = allocator,
             .instructions = std.ArrayList(Instr).init(allocator),
             .terminator = null,
             .label = null,
@@ -312,9 +310,9 @@ pub const BasicBlockBuilder = struct {
         self.label = label;
     }
 
-    pub fn build(self: Self) BasicBlock {
+    pub fn build(self: *Self) !BasicBlock {
         return .{
-            .instructions = self.instructions,
+            .instructions = try self.instructions.toOwnedSlice(),
             .terminator = self.terminator,
             .label = self.label,
         };
@@ -325,12 +323,12 @@ pub const Function = struct {
     const Self = @This();
 
     name: []const u8,
-    bbs: std.ArrayList(BasicBlock),
-    params: std.ArrayList(VarDecl),
+    bbs: []BasicBlock,
+    params: []VarDecl,
     ret_ty: Type,
 
-    pub fn init(name: []const u8, bbs: std.ArrayList(BasicBlock),
-                params: std.ArrayList(VarDecl), ret_ty: Type) !Self {
+    pub fn init(name: []const u8, bbs: []BasicBlock,
+                params: []VarDecl, ret_ty: Type) !Self {
         return .{
             .name = name,
             .bbs = bbs,
@@ -339,19 +337,18 @@ pub const Function = struct {
         };
     }
 
-    pub fn deinit(self: *Function) void {
-        for (self.bbs.items) |*bb| {
-            bb.deinit();
+    pub fn deinit(self: *Function, allocator: std.mem.Allocator) void {
+        for (self.bbs) |*bb| {
+            bb.deinit(allocator);
         }
-        self.bbs.deinit();
-        self.params.deinit();
+        allocator.free(self.bbs);
+        allocator.free(self.params);
     }
 };
 
 pub const FunctionBuilder = struct {
     const Self = @This();
 
-    allocator: std.mem.Allocator,
     name: []const u8,
     bbs: std.ArrayList(BasicBlock),
     params: std.ArrayList(VarDecl),
@@ -360,7 +357,6 @@ pub const FunctionBuilder = struct {
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) Self {
         return .{
-            .allocator = allocator,
             .name = name,
             .bbs = std.ArrayList(BasicBlock).init(allocator),
             .params = std.ArrayList(VarDecl).init(allocator),
@@ -369,6 +365,8 @@ pub const FunctionBuilder = struct {
         };
     }
 
+    // Only frees memory owned by this builder, not what would be owned by
+    // what it creates.
     pub fn deinit(self: *Self) void {
         self.label_map.deinit();
     }
@@ -388,7 +386,7 @@ pub const FunctionBuilder = struct {
         try self.params.append(param_decl);
     }
 
-    pub fn build(self: Self) !Function {
+    pub fn build(self: *Self) !Function {
         // Use map to set indexes in basic blocks
         var i: usize = 0;
         while (i < self.bbs.items.len) : (i += 1) {
@@ -405,19 +403,20 @@ pub const FunctionBuilder = struct {
             }
         }
 
-        return Function.init(self.name, self.bbs, self.params,
+        return Function.init(self.name, try self.bbs.toOwnedSlice(),
+                             try self.params.toOwnedSlice(),
                              self.ret_ty orelse .none);
     }
 };
 
 pub const Program = struct {
-    functions: std.ArrayList(Function),
+    functions: []Function,
 
-    pub fn deinit(self: *Program) void {
-        for (self.functions.items) |*function| {
-            function.deinit();
+    pub fn deinit(self: *Program, allocator: std.mem.Allocator) void {
+        for (self.functions) |*function| {
+            function.deinit(allocator);
         }
-        self.functions.deinit();
+        allocator.free(self.functions);
     }
 };
 
@@ -447,11 +446,11 @@ pub const ProgramBuilder = struct {
         try self.functions.append(func);
     }
 
-    pub fn build(self: Self) !Program {
+    pub fn build(self: *Self) !Program {
         if (self.main_idx == null) {
             return error.NoMainFunction;
         }
-        return Program { .functions = self.functions };
+        return Program { .functions = try self.functions.toOwnedSlice() };
     }
 };
 
@@ -472,8 +471,8 @@ test "deinit works" {
     );
     var hi_access = Value.initAccessName("hi");
     try bb1_builder.addInstruction(Instr{ .debug = hi_access });
-    try bb1_builder.addInstruction(.{ .debug = Value.initCall("f") });
-    try func_builder.addBasicBlock(bb1_builder.build());
+    try bb1_builder.addInstruction(.{ .debug = Value.initCall("f", &.{}) });
+    try func_builder.addBasicBlock(try bb1_builder.build());
 
     const func = try func_builder.build();
 
@@ -484,7 +483,7 @@ test "deinit works" {
     var func2_builder = FunctionBuilder.init(std.testing.allocator, "f");
     defer func2_builder.deinit();
     func2_builder.setReturnType(.int);
-    try func2_builder.addBasicBlock(bb4_builder.build());
+    try func2_builder.addBasicBlock(try bb4_builder.build());
     const func2 = try func2_builder.build();
 
     var prog_builder = ProgramBuilder.init(std.testing.allocator);
@@ -492,5 +491,5 @@ test "deinit works" {
     try prog_builder.addFunction(func2);
 
     var program = try prog_builder.build();
-    program.deinit();
+    program.deinit(std.testing.allocator);
 }

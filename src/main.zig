@@ -53,7 +53,7 @@ const Interpreter = struct {
 
     pub fn interpret(self: *Self) BigError!void {
         var main_fn: ?ir.Function = null;
-        for (self.program.functions.items) |function| {
+        for (self.program.functions) |function| {
             if (std.mem.eql(u8, function.name, "main")) {
                 main_fn = function;
                 break;
@@ -62,7 +62,7 @@ const Interpreter = struct {
             return error.NoMainFunction;
         }
 
-        self.current_bb = if (main_fn.?.bbs.items.len > 0)
+        self.current_bb = if (main_fn.?.bbs.len > 0)
             0
         else
             null;
@@ -76,12 +76,12 @@ const Interpreter = struct {
     pub fn interpretFn(self: *Self, function: ir.Function) BigError!void {
         while (self.current_bb) |bb_idx| {
             // May go off edge
-            if (function.bbs.items.len <= bb_idx) {
+            if (function.bbs.len <= bb_idx) {
                 return;
             }
 
-            const bb = function.bbs.items[bb_idx];
-            for (bb.instructions.items) |instr| {
+            const bb = function.bbs[bb_idx];
+            for (bb.instructions) |instr| {
                 try self.evalInstr(instr);
             }
 
@@ -178,7 +178,7 @@ const Interpreter = struct {
 
     fn getFunction(self: Self, name: []const u8) BigError!ir.Function {
         // Just linear search for now
-        for (self.program.functions.items) |function| {
+        for (self.program.functions) |function| {
             if (std.mem.eql(u8, function.name, name)) {
                 return function;
             }
@@ -389,10 +389,8 @@ const Interpreter = struct {
     }
 
     fn evalCall(self: *Self, call: ir.Value.FuncCall) BigError!?ir.Value {
-        if (call.arguments) |arguments| {
-            for (arguments.items) |arg| {
-                try self.evalValue(arg);
-            }
+        for (call.arguments) |arg| {
+            try self.evalValue(arg);
         }
         // TODO: We make assumptions here that should be analyzed, like a
         // return type actually means a value is returned.
@@ -447,18 +445,15 @@ pub fn main() !void {
     var params = std.ArrayList(ir.Value).init(gpa);
     try params.append(hi_access);
     try params.append(ir.Value{ .int = 50 });
-    try bb1_builder.addInstruction(.{ .debug = ir.Value.initCall("f", params) });
-    //try bb1_builder.setTerminator(
-        //ir.Instr{ .call = .{ .function = "f" } }
-    //);
-    try func_builder.addBasicBlock(bb1_builder.build());
+    try bb1_builder.addInstruction(.{ .debug = ir.Value.initCall("f", try params.toOwnedSlice()) });
+    try func_builder.addBasicBlock(try bb1_builder.build());
 
     var bb2_builder = ir.BasicBlockBuilder.init(gpa);
     bb2_builder.setLabel("bb2");
     var val1 = ir.Value{ .int = 50 };
     try bb2_builder.addInstruction(ir.Instr{ .debug = val1 });
     try bb2_builder.setTerminator(.{.ret = null});
-    try func_builder.addBasicBlock(bb2_builder.build());
+    try func_builder.addBasicBlock(try bb2_builder.build());
 
     const func = try func_builder.build();
 
@@ -481,14 +476,14 @@ pub fn main() !void {
     try bb4_builder.addInstruction(ir.Instr{ .debug = par1_access });
     var par2_access = ir.Value.initAccessName("par2");
     try bb4_builder.addInstruction(ir.Instr{ .debug = par2_access });
-    try func2_builder.addBasicBlock(bb4_builder.build());
+    try func2_builder.addBasicBlock(try bb4_builder.build());
     const func2 = try func2_builder.build();
     var prog_builder = ir.ProgramBuilder.init(gpa);
     try prog_builder.addFunction(func);
     try prog_builder.addFunction(func2);
 
     var program = try prog_builder.build();
-    defer program.deinit();
+    defer program.deinit(gpa);
 
     const disassembler = Disassembler{
         .writer = std.io.getStdOut().writer(),

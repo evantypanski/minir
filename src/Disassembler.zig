@@ -9,15 +9,15 @@ program: ir.Program,
 var indent: usize = 0;
 
 pub fn disassemble(self: Disassembler) Writer.Error!void {
-    for (self.program.functions.items) |function| {
+    for (self.program.functions) |function| {
         try self.writer.print("fn @{s}(", .{function.name});
-        try self.printParams(function.params.items);
+        try self.printParams(function.params);
         try self.writer.writeAll(") -> ");
         try self.disassembleType(function.ret_ty);
         try self.writer.writeAll(" {");
         indent += 1;
         try self.newline();
-        for (function.bbs.items) |bb| {
+        for (function.bbs) |bb| {
             if (bb.label) |label| {
                 try self.writer.print("{s}: {{", .{label});
             } else {
@@ -26,7 +26,7 @@ pub fn disassemble(self: Disassembler) Writer.Error!void {
             indent += 1;
             try self.newline();
 
-            for (bb.instructions.items) |instr| {
+            for (bb.instructions) |instr| {
                 try self.disassembleInstr(instr);
                 try self.newline();
             }
@@ -124,15 +124,13 @@ pub fn disassembleValue(self: Disassembler, value: ir.Value) Writer.Error!void {
             try self.writer.writeAll(call.function);
             try self.writer.writeAll("(");
             var first = true;
-            if (call.arguments) |arguments| {
-                for (arguments.items) |arg| {
-                    if (!first) {
-                        try self.writer.writeAll(", ");
-                    }
-
-                    try self.disassembleValue(arg);
-                    first = false;
+            for (call.arguments) |arg| {
+                if (!first) {
+                    try self.writer.writeAll(", ");
                 }
+
+                try self.disassembleValue(arg);
+                first = false;
             }
 
             try self.writer.writeAll(")");

@@ -35,19 +35,19 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const VisitFuncCallFn = *const fn(self: Self, arg: ArgTy, call: *ir.Value.FuncCall) RetTy;
 
         pub fn walkProgram(self: Self, arg: ArgTy, program: *ir.Program) RetTy {
-            for (program.functions.items) |*function| {
+            for (program.functions) |*function| {
                 try self.visitFunction(self, arg, function);
             }
         }
 
         pub fn walkFunction(self: Self, arg: ArgTy, function: *ir.Function) RetTy {
-            for (function.bbs.items) |*bb| {
+            for (function.bbs) |*bb| {
                 try self.visitBasicBlock(self, arg, bb);
             }
         }
 
         pub fn walkBasicBlock(self: Self, arg: ArgTy, bb: *ir.BasicBlock) RetTy {
-            for (bb.instructions.items) |*instr| {
+            for (bb.instructions) |*instr| {
                 try self.visitInstruction(self, arg, instr);
             }
         }
@@ -101,10 +101,8 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         }
 
         pub fn walkFuncCall(self: Self, arg: ArgTy, call: *ir.Value.FuncCall) RetTy {
-            if (call.arguments) |*arguments| {
-                for (arguments.items) |*call_arg| {
-                    try self.visitValue(self, arg, call_arg);
-                }
+            for (call.arguments) |*call_arg| {
+                try self.visitValue(self, arg, call_arg);
             }
         }
 
