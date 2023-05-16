@@ -1,11 +1,16 @@
-const ir = @import("ir.zig");
-const Writer = @import("std").fs.File.Writer;
 const fmt = @import("std").fmt;
+const Writer = @import("std").fs.File.Writer;
+
+const Program = @import("nodes/program.zig").Program;
+const Instr = @import("nodes/instruction.zig").Instr;
+const VarDecl = @import("nodes/instruction.zig").VarDecl;
+const Value = @import("nodes/value.zig").Value;
+const Type = @import("nodes/type.zig").Type;
 
 const Disassembler = @This();
 
 writer: Writer,
-program: ir.Program,
+program: Program,
 var indent: usize = 0;
 
 pub fn disassemble(self: Disassembler) Writer.Error!void {
@@ -47,7 +52,7 @@ pub fn disassemble(self: Disassembler) Writer.Error!void {
     }
 }
 
-pub fn disassembleInstr(self: Disassembler, instr: ir.Instr) Writer.Error!void {
+pub fn disassembleInstr(self: Disassembler, instr: Instr) Writer.Error!void {
     switch (instr) {
         .debug => |val| {
             try self.writer.writeAll("debug(");
@@ -98,7 +103,7 @@ pub fn disassembleInstr(self: Disassembler, instr: ir.Instr) Writer.Error!void {
     }
 }
 
-pub fn disassembleValue(self: Disassembler, value: ir.Value) Writer.Error!void {
+pub fn disassembleValue(self: Disassembler, value: Value) Writer.Error!void {
     switch (value) {
         .undef => try self.writer.writeAll("undefined"),
         .access => |va| {
@@ -138,7 +143,7 @@ pub fn disassembleValue(self: Disassembler, value: ir.Value) Writer.Error!void {
     }
 }
 
-pub fn disassembleBinary(self: Disassembler, binary: ir.Value.BinaryOp)
+pub fn disassembleBinary(self: Disassembler, binary: Value.BinaryOp)
             Writer.Error!void {
     try self.disassembleValue(binary.lhs.*);
     const op = switch (binary.kind) {
@@ -162,7 +167,7 @@ pub fn disassembleBinary(self: Disassembler, binary: ir.Value.BinaryOp)
     try self.disassembleValue(binary.rhs.*);
 }
 
-pub fn disassembleType(self: Disassembler, ty: ir.Type) Writer.Error!void {
+pub fn disassembleType(self: Disassembler, ty: Type) Writer.Error!void {
     const name = switch (ty) {
         .int => "int",
         .float => "float",
@@ -172,7 +177,7 @@ pub fn disassembleType(self: Disassembler, ty: ir.Type) Writer.Error!void {
     try self.writer.writeAll(name);
 }
 
-fn printParams(self: Disassembler, params: []const ir.VarDecl) !void {
+fn printParams(self: Disassembler, params: []const VarDecl) !void {
     var first = true;
     for (params) |param| {
         if (!first) {

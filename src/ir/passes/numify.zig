@@ -1,6 +1,9 @@
-const ir = @import("../ir.zig");
-const IrVisitor = @import("visitor.zig").IrVisitor;
 const std = @import("std");
+
+const Function = @import("../nodes/function.zig").Function;
+const VarDecl = @import("../nodes/instruction.zig").VarDecl;
+const Value = @import("../nodes/value.zig").Value;
+const IrVisitor = @import("visitor.zig").IrVisitor;
 
 const NumifyError = error{
     MapError,
@@ -28,7 +31,7 @@ pub const NumifyVisitor = VisitorTy {
     .visitVarAccess = visitVarAccess,
 };
 
-pub fn visitFunction(self: VisitorTy, arg: *Self, function: *ir.Function) NumifyError!void {
+pub fn visitFunction(self: VisitorTy, arg: *Self, function: *Function) NumifyError!void {
     arg.map.clearRetainingCapacity();
     arg.num_vars = 0;
     var i: usize = function.params.len;
@@ -40,12 +43,12 @@ pub fn visitFunction(self: VisitorTy, arg: *Self, function: *ir.Function) Numify
     try self.walkFunction(arg, function);
 }
 
-pub fn visitVarDecl(_: VisitorTy, arg: *Self, decl: *ir.VarDecl) NumifyError!void {
+pub fn visitVarDecl(_: VisitorTy, arg: *Self, decl: *VarDecl) NumifyError!void {
     arg.map.put(decl.name, @intCast(isize, arg.num_vars)) catch return error.MapError;
     arg.num_vars += 1;
 }
 
-fn visitVarAccess(_: VisitorTy, arg: *Self, va: *ir.Value.VarAccess) NumifyError!void {
+fn visitVarAccess(_: VisitorTy, arg: *Self, va: *Value.VarAccess) NumifyError!void {
     if (va.name) |name| {
         const offset = arg.map.get(name) orelse return error.NoDecl;
         va.offset = offset;
