@@ -21,12 +21,13 @@ pub fn main() !void {
 
     var builder = ChunkBuilder.init(gpa);
     try builder.addOp(.ret);
+    try builder.addOp(.constant);
+    try builder.addByte(0);
+
+    try builder.addValue(.{ .float = 1.2 });
 
     var chunk = try builder.build();
-    const disassembler = Disassembler{
-        .writer = std.io.getStdOut().writer(),
-        .chunk = chunk,
-    };
+    var disassembler = Disassembler.init(std.io.getStdOut().writer(), chunk);
     try disassembler.disassemble();
 
     chunk.deinit(gpa);
