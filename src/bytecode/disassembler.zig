@@ -35,6 +35,7 @@ pub const Disassembler = struct {
 
     fn disassembleOp(self: *Self, op: OpCode) DisassembleError!void {
         const str = switch (op) {
+            .debug => "DEBUG",
             .ret => "RET",
             .constant => "CONSTANT",
         };
@@ -58,6 +59,7 @@ pub const Disassembler = struct {
 
     fn disassembleValue(self: *Self, value: Value) DisassembleError!void {
         switch (value) {
+            .undef => try self.writer.writeAll("undef"),
             .int => |i| try fmt.formatInt(i, 10, .lower, .{}, self.writer),
             .float => |f| try fmt.formatFloatDecimal(f, .{}, self.writer),
         }

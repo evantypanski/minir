@@ -20,15 +20,20 @@ pub fn main() !void {
     const gpa = general_purpose_allocator.allocator();
 
     var builder = ChunkBuilder.init(gpa);
-    try builder.addOp(.ret);
     try builder.addOp(.constant);
     try builder.addByte(0);
+    try builder.addOp(.debug);
 
     try builder.addValue(.{ .float = 1.2 });
 
     var chunk = try builder.build();
+    std.debug.print("\nDisassembling...\n", .{});
     var disassembler = Disassembler.init(std.io.getStdOut().writer(), chunk);
     try disassembler.disassemble();
+
+    std.debug.print("\nInterpreting...\n", .{});
+    var interpreter = Interpreter.init(chunk);
+    try interpreter.interpret();
 
     chunk.deinit(gpa);
 
