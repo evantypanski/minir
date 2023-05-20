@@ -24,7 +24,19 @@ pub fn main() !void {
     try builder.addByte(0);
     try builder.addOp(.debug);
 
+    try builder.addOp(.constant);
+    try builder.addByte(1);
+    try builder.addOp(.constant);
+    try builder.addByte(2);
+    try builder.addOp(.div);
+    try builder.addOp(.debug);
+
+    // Value 0
     try builder.addValue(.{ .float = 1.2 });
+    // Value 1
+    try builder.addValue(.{ .float = 1.5 });
+    // Value 2
+    try builder.addValue(.{ .float = 2.5 });
 
     var chunk = try builder.build();
     std.debug.print("\nDisassembling...\n", .{});

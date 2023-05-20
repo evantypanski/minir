@@ -42,20 +42,39 @@ pub const Interpreter = struct {
         switch (op) {
             // TODO ret
             .ret => {},
-            .constant => try self.pushVal(),
+            .constant => try self.pushImmediate(),
             .debug => {
                 const value = try self.popVal();
                 std.debug.print("{}\n", .{value});
             },
+            .add, .sub, .mul, .div => {
+                const rhs = try self.popVal();
+                var lhs = try self.peekVal();
+
+                // Just to reuse code we have another switch to get the op
+                // TODO: Maybe make this not pop the LHS and just modify that
+                // Value?
+                switch (op) {
+                    .add => try lhs.add(rhs),
+                    .sub => try lhs.sub(rhs),
+                    .mul => try lhs.mul(rhs),
+                    .div => try lhs.div(rhs),
+                    else => unreachable,
+                }
+            }
         }
     }
 
-    fn pushVal(self: *Self) InterpreterError!void {
+    fn pushImmediate(self: *Self) InterpreterError!void {
+        const value = try self.getValue(try self.getByte());
+        try self.pushValue(value);
+    }
+
+    fn pushValue(self: *Self, value: Value) InterpreterError!void {
         if (self.sp >= array_size) {
             return error.StackOverflow;
         }
 
-        const value = try self.getValue(try self.getByte());
         self.stack[self.sp] = value;
         self.sp += 1;
     }
@@ -66,6 +85,15 @@ pub const Interpreter = struct {
         }
         self.sp -= 1;
         return self.stack[self.sp];
+    }
+
+    // Peeks the value and returns a pointer so you can modify it in place
+    fn peekVal(self: *Self) InterpreterError!*Value {
+        if (self.sp == 0) {
+            return error.StackUnderflow;
+        }
+
+        return &self.stack[self.sp - 1];
     }
 
     // Gets the next byte and increments the index, returning an error if

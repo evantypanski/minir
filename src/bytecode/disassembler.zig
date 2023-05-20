@@ -35,9 +35,13 @@ pub const Disassembler = struct {
 
     fn disassembleOp(self: *Self, op: OpCode) DisassembleError!void {
         const str = switch (op) {
-            .debug => "DEBUG",
             .ret => "RET",
             .constant => "CONSTANT",
+            .debug => "DEBUG",
+            .add => "ADD",
+            .sub => "SUB",
+            .mul => "MUL",
+            .div => "DIV",
         };
 
         try self.writer.print("{s}", .{str});
