@@ -11,16 +11,16 @@ pub const OpCode = enum(u8) {
 
     pub fn numImmediates(self: Self) usize {
          return switch (self) {
-             .ret, .debug, .add, .sub, .mul, .div => 0,
              .constant => 1,
+             .ret, .debug, .add, .sub, .mul, .div => 0,
          };
     }
 
-    pub fn numPops(self: Self) usize {
+    pub fn stackEffect(self: Self) isize {
          return switch (self) {
-             .ret, .constant => 0,
-             .debug => 1,
-             .add, .sub, .mul, .div => 2,
+             .constant => 1,
+             .ret => 0,
+             .debug, .add, .sub, .mul, .div => -1,
          };
     }
 };

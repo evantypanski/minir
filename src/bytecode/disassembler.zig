@@ -46,6 +46,9 @@ pub const Disassembler = struct {
 
         try self.writer.print("{s}", .{str});
 
+        // For now anything that pushes to the stack pushes immediate,
+        // but this may change and we'll need a separate function.
+        // This also applies to the verifier.
         var immediatesLeft = op.numImmediates();
         var first = true;
         while (immediatesLeft > 0) : (immediatesLeft -= 1) {

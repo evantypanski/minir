@@ -8,7 +8,7 @@ const errors = @import("errors.zig");
 
 const InterpreterError = errors.RuntimeError || errors.InvalidBytecodeError;
 
-const array_size = 256;
+pub const array_size = 256;
 
 pub const Interpreter = struct {
     const Self = @This();

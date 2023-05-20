@@ -13,6 +13,7 @@ const ArrayList = std.ArrayList;
 
 const Interpreter = @import("bytecode/interpret.zig").Interpreter;
 const Disassembler = @import("bytecode/disassembler.zig").Disassembler;
+const Verifier = @import("bytecode/verify.zig").Verifier;
 const ChunkBuilder = @import("bytecode/chunk.zig").ChunkBuilder;
 
 pub fn main() !void {
@@ -39,6 +40,16 @@ pub fn main() !void {
     try builder.addValue(.{ .float = 2.5 });
 
     var chunk = try builder.build();
+
+    std.debug.print("\nVerifying...\n", .{});
+    var verifier = Verifier.init(chunk);
+    if (verifier.verify()) {
+        std.debug.print("Verification succeeded!\n", .{});
+    } else {
+        std.debug.print("Verification failed!\n", .{});
+        return;
+    }
+
     std.debug.print("\nDisassembling...\n", .{});
     var disassembler = Disassembler.init(std.io.getStdOut().writer(), chunk);
     try disassembler.disassemble();
