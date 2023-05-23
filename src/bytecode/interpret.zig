@@ -61,7 +61,18 @@ pub const Interpreter = struct {
                     .div => try lhs.div(rhs),
                     else => unreachable,
                 }
-            }
+            },
+            .alloc => self.sp += 1,
+            .set => {
+                const new_val = try self.popVal();
+                const offset = try self.getByte();
+                var lhs = try self.getVar(offset);
+                lhs.* = new_val;
+            },
+            .get => {
+                const offset = try self.getByte();
+                try self.pushValue((try self.getVar(offset)).*);
+            },
         }
     }
 
@@ -114,5 +125,10 @@ pub const Interpreter = struct {
         }
 
         return self.chunk.values[valueIdx];
+    }
+
+    // Gets a pointer to the value at offset on stack
+    fn getVar(self: *Self, stackIdx: usize) InterpreterError!*Value {
+        return &self.stack[stackIdx];
     }
 };

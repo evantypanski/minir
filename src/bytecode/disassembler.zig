@@ -42,23 +42,27 @@ pub const Disassembler = struct {
             .sub => "SUB",
             .mul => "MUL",
             .div => "DIV",
+            .alloc => "ALLOC",
+            .set => "SET",
+            .get => "GET",
         };
 
         try self.writer.print("{s}", .{str});
 
-        // For now anything that pushes to the stack pushes immediate,
-        // but this may change and we'll need a separate function.
-        // This also applies to the verifier.
-        var immediatesLeft = op.numImmediates();
+        var i: usize = 0;
         var first = true;
-        while (immediatesLeft > 0) : (immediatesLeft -= 1) {
+        while (i < op.numImmediates()) : (i += 1) {
             if (!first) {
                 try self.writer.writeAll(",");
                 first = false;
             }
-            const valueIdx = try self.getByte();
+            const immediate = try self.getByte();
             try self.writer.writeAll(" ");
-            try self.disassembleValue(try self.getValue(valueIdx));
+            if (i < op.numVars()) {
+                try self.disassembleOffset(immediate);
+            } else {
+                try self.disassembleValue(try self.getValue(immediate));
+            }
         }
 
         try self.writer.writeAll("\n");
@@ -70,6 +74,11 @@ pub const Disassembler = struct {
             .int => |i| try fmt.formatInt(i, 10, .lower, .{}, self.writer),
             .float => |f| try fmt.formatFloatDecimal(f, .{}, self.writer),
         }
+    }
+
+    fn disassembleOffset(self: *Self, offset: u8) DisassembleError!void {
+        try self.writer.writeAll("var @fp-");
+        try fmt.formatInt(offset, 10, .lower, .{}, self.writer);
     }
 
     // Gets the next byte and increments the index, returning an error if
