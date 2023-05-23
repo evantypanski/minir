@@ -1,6 +1,7 @@
 pub const InvalidBytecodeError = error {
     UnexpectedEnd,
     InvalidValueIndex,
+    TooManyConstants,
 };
 
 pub const RuntimeError = error {

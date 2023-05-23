@@ -21,15 +21,18 @@ pub fn main() !void {
     const gpa = general_purpose_allocator.allocator();
 
     var builder = ChunkBuilder.init(gpa);
+    const c1 = try builder.addValue(.{ .float = 1.2 });
+    const c2 = try builder.addValue(.{ .float = 1.5 });
+
     // alloc offset 0
     try builder.addOp(.alloc);
     try builder.addOp(.constant);
-    try builder.addByte(0);
+    try builder.addByte(c1);
     // Set offset 0 aka what we allocd
     try builder.addOp(.set);
     try builder.addByte(0);
     try builder.addOp(.get);
-    try builder.addByte(0);
+    try builder.addByte(c2);
     try builder.addOp(.debug);
 
     // Load new value in and debug it
@@ -40,13 +43,6 @@ pub fn main() !void {
     try builder.addOp(.get);
     try builder.addByte(0);
     try builder.addOp(.debug);
-
-    // Value 0
-    try builder.addValue(.{ .float = 1.2 });
-    // Value 1
-    try builder.addValue(.{ .float = 1.5 });
-    // Value 2
-    try builder.addValue(.{ .float = 2.5 });
 
     var chunk = try builder.build();
 

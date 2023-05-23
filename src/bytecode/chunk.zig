@@ -2,6 +2,7 @@ const std = @import("std");
 
 const OpCode = @import("opcodes.zig").OpCode;
 const Value = @import("value.zig").Value;
+const InvalidBytecodeError = @import("errors.zig").InvalidBytecodeError;
 
 pub const Chunk = struct {
     bytes: []u8,
@@ -35,8 +36,13 @@ pub const ChunkBuilder = struct {
         try self.bytes.append(byte);
     }
 
-    pub fn addValue(self: *Self, value: Value) !void {
+    pub fn addValue(self: *Self, value: Value) !u8 {
+        const idx = self.values.items.len;
+        if (idx > std.math.maxInt(u8)) {
+            return error.TooManyConstants;
+        }
         try self.values.append(value);
+        return @intCast(u8, idx);
     }
 
     pub fn build(self: *Self) !Chunk {
