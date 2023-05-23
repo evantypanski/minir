@@ -1,18 +1,21 @@
 const std = @import("std");
+const fmt = std.fmt;
 const ArrayList = std.ArrayList;
+const Writer = std.fs.File.Writer;
 
 const Chunk = @import("chunk.zig").Chunk;
 const Value = @import("value.zig").Value;
 const OpCode = @import("opcodes.zig").OpCode;
 const errors = @import("errors.zig");
 
-const InterpreterError = errors.RuntimeError || errors.InvalidBytecodeError;
+const InterpreterError = errors.RuntimeError || errors.InvalidBytecodeError || Writer.Error;
 
 pub const array_size = 256;
 
 pub const Interpreter = struct {
     const Self = @This();
 
+    writer: Writer,
     chunk: Chunk,
 
     stack: [array_size]Value,
@@ -22,8 +25,9 @@ pub const Interpreter = struct {
     // with calls
     idx: usize,
 
-    pub fn init(chunk: Chunk) Self {
+    pub fn init(chunk: Chunk, writer: Writer) Self {
         return .{
+            .writer = writer,
             .chunk = chunk,
             .stack = [_]Value{.undef} ** array_size,
             .sp = 0,
@@ -45,7 +49,7 @@ pub const Interpreter = struct {
             .constant => try self.pushImmediate(),
             .debug => {
                 const value = try self.popVal();
-                std.debug.print("{}\n", .{value});
+                try self.printValue(value);
             },
             .add, .sub, .mul, .div => {
                 const rhs = try self.popVal();
@@ -131,4 +135,53 @@ pub const Interpreter = struct {
     fn getVar(self: *Self, stackIdx: usize) InterpreterError!*Value {
         return &self.stack[stackIdx];
     }
+
+    fn printValue(self: *Self, value: Value) InterpreterError!void {
+        switch (value) {
+            .undef => try self.writer.writeAll("undef"),
+            .int => |i| try fmt.formatInt(i, 10, .lower, .{}, self.writer),
+            .float => |f| try fmt.formatFloatDecimal(f, .{}, self.writer),
+        }
+
+        try self.writer.writeAll("\n");
+    }
 };
+
+test "binary ops" {
+    const ChunkBuilder = @import("chunk.zig").ChunkBuilder;
+    var builder = ChunkBuilder.init(std.testing.allocator);
+    const c1 = try builder.addValue(.{ .int = 1 });
+    const c2 = try builder.addValue(.{ .int = 2 });
+    const c3 = try builder.addValue(.{ .int = 3 });
+
+    try builder.addOp(.constant);
+    try builder.addByte(c1);
+    try builder.addOp(.constant);
+    try builder.addByte(c2);
+    try builder.addOp(.add);
+    try builder.addOp(.debug);
+
+    try builder.addOp(.constant);
+    try builder.addByte(c2);
+    try builder.addOp(.constant);
+    try builder.addByte(c3);
+    try builder.addOp(.sub);
+    try builder.addOp(.debug);
+
+    var chunk = try builder.build();
+
+    var dir = std.testing.tmpDir(.{});
+    var file = try dir.dir.createFile("binaryops", .{ .read = true });
+
+    var interpreter = Interpreter.init(chunk, file.writer());
+    try interpreter.interpret();
+
+    var buffer = [_]u8 { 0 } ** 10;
+    const bytes_read = try file.preadAll(&buffer, 0);
+
+    try std.testing.expectEqual(bytes_read, 5);
+    // Do starts with so we don't need to deal with EOF stuff
+    try std.testing.expectStringStartsWith(&buffer, "3\n-1\n");
+
+    chunk.deinit(std.testing.allocator);
+}

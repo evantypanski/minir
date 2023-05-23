@@ -60,7 +60,7 @@ pub fn main() !void {
     try disassembler.disassemble();
 
     std.debug.print("\nInterpreting...\n", .{});
-    var interpreter = Interpreter.init(chunk);
+    var interpreter = Interpreter.init(chunk, std.io.getStdOut().writer());
     try interpreter.interpret();
 
     chunk.deinit(gpa);
@@ -137,4 +137,9 @@ pub fn main() !void {
     //    try disassembler.disassemble();
     //    var interpreter = try Interpreter.init(gpa, program);
     //    try interpreter.interpret();
+}
+
+test {
+    _ = @import("bytecode/interpret.zig");
+    _ = @import("ir/nodes/program.zig");
 }
