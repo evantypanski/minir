@@ -23,7 +23,7 @@ pub const Interpreter = struct {
 
     // Index into the chunk's instructions. Eventually needs to be a stack
     // with calls
-    idx: usize,
+    pc: usize,
 
     pub fn init(chunk: Chunk, writer: Writer) Self {
         return .{
@@ -31,13 +31,13 @@ pub const Interpreter = struct {
             .chunk = chunk,
             .stack = [_]Value{.undef} ** array_size,
             .sp = 0,
-            .idx = 0,
+            .pc = 0,
         };
     }
 
     pub fn interpret(self: *Self) InterpreterError!void {
-        while (self.idx < self.chunk.bytes.len) : (self.idx += 1) {
-            const op = @intToEnum(OpCode, self.chunk.bytes[self.idx]);
+        while (self.pc < self.chunk.bytes.len) : (self.pc += 1) {
+            const op = @intToEnum(OpCode, self.chunk.bytes[self.pc]);
             try self.interpretOp(op);
         }
     }
@@ -66,6 +66,18 @@ pub const Interpreter = struct {
                     else => unreachable,
                 }
             },
+            .gt => {
+                // These don't replace the value since they change the type.
+                const rhs = try self.popVal();
+                const lhs = try self.popVal();
+
+                const result = switch (op) {
+                    .gt => try lhs.gt(rhs),
+                    else => unreachable,
+                };
+
+                try self.pushValue(result);
+            },
             .alloc => self.sp += 1,
             .set => {
                 const new_val = try self.popVal();
@@ -74,8 +86,17 @@ pub const Interpreter = struct {
                 lhs.* = new_val;
             },
             .get => {
+                // TODO: Maybe this should point to the same Value so we can update it
+                // without separate set?
                 const offset = try self.getByte();
                 try self.pushValue((try self.getVar(offset)).*);
+            },
+            .jmpf => {
+                const condition = try self.popVal();
+                const offset = try self.getShort();
+                if (!(try condition.asBool())) {
+                    self.pc = @intCast(usize, @intCast(isize, self.pc) + offset);
+                }
             },
         }
     }
@@ -114,12 +135,24 @@ pub const Interpreter = struct {
     // Gets the next byte and increments the index, returning an error if
     // we are off the end.
     fn getByte(self: *Self) InterpreterError!u8 {
-        if (self.idx + 1 >= self.chunk.bytes.len) {
+        if (self.pc + 1 >= self.chunk.bytes.len) {
             return error.UnexpectedEnd;
         }
 
-        self.idx += 1;
-        return self.chunk.bytes[self.idx];
+        self.pc += 1;
+        return self.chunk.bytes[self.pc];
+    }
+
+    // Gets the next two bytes as a signed short (i16)
+    fn getShort(self: *Self) InterpreterError!i16 {
+        if (self.pc + 2 >= self.chunk.bytes.len) {
+            return error.UnexpectedEnd;
+        }
+
+        self.pc += 2;
+        const b1 = self.chunk.bytes[self.pc - 1];
+        const b2 = self.chunk.bytes[self.pc];
+        return @bitCast(i16, (@intCast(u16, b1) << 8) | @intCast(u16, b2));
     }
 
     // Gets a value at the specified index, returning an error if it's invalid.
@@ -141,6 +174,7 @@ pub const Interpreter = struct {
             .undef => try self.writer.writeAll("undef"),
             .int => |i| try fmt.formatInt(i, 10, .lower, .{}, self.writer),
             .float => |f| try fmt.formatFloatDecimal(f, .{}, self.writer),
+            .boolean => |b| try self.writer.print("{}", .{b}),
         }
 
         try self.writer.writeAll("\n");

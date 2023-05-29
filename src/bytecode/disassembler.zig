@@ -34,35 +34,41 @@ pub const Disassembler = struct {
     }
 
     fn disassembleOp(self: *Self, op: OpCode) DisassembleError!void {
-        const str = switch (op) {
-            .ret => "RET",
-            .constant => "CONSTANT",
-            .debug => "DEBUG",
-            .add => "ADD",
-            .sub => "SUB",
-            .mul => "MUL",
-            .div => "DIV",
-            .alloc => "ALLOC",
-            .set => "SET",
-            .get => "GET",
-        };
-
-        try self.writer.print("{s}", .{str});
-
-        var i: usize = 0;
-        var first = true;
-        while (i < op.numImmediates()) : (i += 1) {
-            if (!first) {
-                try self.writer.writeAll(",");
-                first = false;
-            }
-            const immediate = try self.getByte();
-            try self.writer.writeAll(" ");
-            if (i < op.numVars()) {
-                try self.disassembleOffset(immediate);
-            } else {
+        try self.printAddress();
+        switch (op) {
+            .ret => try self.writer.writeAll("RET"),
+            .constant => {
+                try self.writer.writeAll("CONSTANT");
+                const immediate = try self.getByte();
+                try self.writer.writeAll(" ");
                 try self.disassembleValue(try self.getValue(immediate));
-            }
+            },
+            .debug => try self.writer.writeAll("DEBUG"),
+            .add => try self.writer.writeAll("ADD"),
+            .sub => try self.writer.writeAll("SUB"),
+            .mul => try self.writer.writeAll("MUL"),
+            .div => try self.writer.writeAll("DIV"),
+            .gt => try self.writer.writeAll("GT"),
+            .alloc => try self.writer.writeAll("ALLOC"),
+            .set => {
+                try self.writer.writeAll("SET");
+                const immediate = try self.getByte();
+                try self.writer.writeAll(" ");
+                try self.disassembleOffset(immediate);
+            },
+            .get => {
+                try self.writer.writeAll("GET");
+                const immediate = try self.getByte();
+                try self.writer.writeAll(" ");
+                try self.disassembleOffset(immediate);
+            },
+            .jmpf => {
+                try self.writer.writeAll("JMPF");
+                const b1 = try self.getByte();
+                const b2 = try self.getByte();
+                const relative = @bitCast(i16, (@intCast(u16, b1) << 8) | @intCast(u16, b2));
+                try self.writer.print(" {}", .{relative});
+            },
         }
 
         try self.writer.writeAll("\n");
@@ -73,6 +79,7 @@ pub const Disassembler = struct {
             .undef => try self.writer.writeAll("undef"),
             .int => |i| try fmt.formatInt(i, 10, .lower, .{}, self.writer),
             .float => |f| try fmt.formatFloatDecimal(f, .{}, self.writer),
+            .boolean => |b| try self.writer.print("{}", .{b}),
         }
     }
 
@@ -99,5 +106,10 @@ pub const Disassembler = struct {
         }
 
         return self.chunk.values[valueIdx];
+    }
+
+    fn printAddress(self: *Self) DisassembleError!void {
+        try fmt.formatInt(self.idx, 16, .upper, .{.fill = '0', .width = 8 }, self.writer);
+        try self.writer.writeAll(": ");
     }
 };

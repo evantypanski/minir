@@ -12,4 +12,5 @@ pub const RuntimeError = error {
     // Type errors
     ExpectedInt,
     ExpectedFloat,
+    ExpectedBool,
 };

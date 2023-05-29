@@ -36,6 +36,11 @@ pub const ChunkBuilder = struct {
         try self.bytes.append(byte);
     }
 
+    pub fn addShort(self: *Self, short: i16) !void {
+        try self.bytes.append(@bitCast(u8, @intCast(i8, short >> 8)));
+        try self.bytes.append(@bitCast(u8, @intCast(i8, short | 8)));
+    }
+
     pub fn addValue(self: *Self, value: Value) !u8 {
         const idx = self.values.items.len;
         if (idx > std.math.maxInt(u8)) {
@@ -43,6 +48,11 @@ pub const ChunkBuilder = struct {
         }
         try self.values.append(value);
         return @intCast(u8, idx);
+    }
+
+    // Returns the current length of the chunk, which is where we will append more instructions.
+    pub fn currentByte(self: Self) usize {
+        return self.bytes.items.len;
     }
 
     pub fn build(self: *Self) !Chunk {

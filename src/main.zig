@@ -21,27 +21,48 @@ pub fn main() !void {
     const gpa = general_purpose_allocator.allocator();
 
     var builder = ChunkBuilder.init(gpa);
-    const c1 = try builder.addValue(.{ .float = 1.2 });
-    const c2 = try builder.addValue(.{ .float = 1.5 });
+    const begin = try builder.addValue(.{ .int = 0 });
+    const five = try builder.addValue(.{ .int = 5 });
+    const one = try builder.addValue(.{ .int = 1 });
+    const forty_two = try builder.addValue(.{ .int = 42 });
 
     // alloc offset 0
     try builder.addOp(.alloc);
     try builder.addOp(.constant);
-    try builder.addByte(c1);
+    try builder.addByte(begin);
     // Set offset 0 aka what we allocd
     try builder.addOp(.set);
     try builder.addByte(0);
+
+    const loop_beg = builder.currentByte();
+
     try builder.addOp(.get);
-    try builder.addByte(c2);
+    try builder.addByte(0);
     try builder.addOp(.debug);
 
-    // Load new value in and debug it
-    try builder.addOp(.constant);
-    try builder.addByte(1);
-    try builder.addOp(.set);
-    try builder.addByte(0);
+    // Subtract one. That's a lot.
     try builder.addOp(.get);
     try builder.addByte(0);
+    try builder.addOp(.constant);
+    try builder.addByte(one);
+    try builder.addOp(.add);
+    try builder.addOp(.set);
+    try builder.addByte(0);
+
+    // Is it greater than 0
+    try builder.addOp(.get);
+    try builder.addByte(0);
+    try builder.addOp(.constant);
+    try builder.addByte(five);
+    try builder.addOp(.gt);
+    try builder.addOp(.jmpf);
+    // Since this is two off from the end
+    const loop_end_minus_two = builder.currentByte();
+    try builder.addShort(@intCast(i16, loop_beg) - @intCast(i16, loop_end_minus_two) - 2);
+
+    // Out of loop
+    try builder.addOp(.constant);
+    try builder.addByte(forty_two);
     try builder.addOp(.debug);
 
     var chunk = try builder.build();
