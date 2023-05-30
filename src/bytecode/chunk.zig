@@ -38,7 +38,24 @@ pub const ChunkBuilder = struct {
 
     pub fn addShort(self: *Self, short: i16) !void {
         try self.bytes.append(@bitCast(u8, @intCast(i8, short >> 8)));
-        try self.bytes.append(@bitCast(u8, @intCast(i8, short | 8)));
+        try self.bytes.append(@truncate(u8, @bitCast(u16, short)));
+    }
+
+    // Adds a short and returns the index it was added to. This can then be
+    // modified when the absolute address is known.
+    pub fn addPlaceholderShort(self: *Self) !usize {
+        const placeholder = self.currentByte();
+        try self.bytes.append(0);
+        try self.bytes.append(0);
+        return placeholder;
+    }
+
+    pub fn setPlaceholderShort(self: *Self, placeholder: usize, short: u16)
+            !void {
+        self.bytes.items[placeholder] =
+            @intCast(u8, short >> 8);
+        self.bytes.items[placeholder + 1] =
+            @intCast(u8, short & 0xFF);
     }
 
     pub fn addValue(self: *Self, value: Value) !u8 {
@@ -50,7 +67,8 @@ pub const ChunkBuilder = struct {
         return @intCast(u8, idx);
     }
 
-    // Returns the current length of the chunk, which is where we will append more instructions.
+    // Returns the current length of the chunk, which is where we will append
+    // more instructions.
     pub fn currentByte(self: Self) usize {
         return self.bytes.items.len;
     }

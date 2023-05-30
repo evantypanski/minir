@@ -28,9 +28,12 @@ pub const OpCode = enum(u8) {
     // Jump if false
     jmpf,
 
+    // Call an absolute address
+    call,
+
     pub fn numImmediates(self: Self) usize {
          return switch (self) {
-             .jmpf => 2,
+             .jmpf, .call => 2,
              .constant, .set, .get => 1,
              .ret, .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
              .alloc => 0,
@@ -40,9 +43,18 @@ pub const OpCode = enum(u8) {
     pub fn stackEffect(self: Self) isize {
          return switch (self) {
              .constant, .get => 1,
-             .ret, .alloc => 0,
+             .ret, .alloc, .call => 0,
              .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
              .set, .jmpf => -1,
          };
+    }
+
+    // If this updates the PC to an absolute value so the PC should not
+    // be incremented after these instructions
+    pub fn updatesPC(self: Self) bool {
+        return switch (self) {
+            .ret, .call => true,
+            else => false,
+        };
     }
 };

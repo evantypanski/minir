@@ -74,6 +74,13 @@ pub const Disassembler = struct {
                 const relative = @bitCast(i16, (@intCast(u16, b1) << 8) | @intCast(u16, b2));
                 try self.writer.print(" {}", .{relative});
             },
+            .call => {
+                try self.writer.writeAll("CALL ");
+                const b1 = try self.getByte();
+                const b2 = try self.getByte();
+                const absolute = (@intCast(u16, b1) << 8) | @intCast(u16, b2);
+                try fmt.formatInt(absolute, 16, .upper, .{.fill = '0', .width = 8 }, self.writer);
+            },
         }
 
         try self.writer.writeAll("\n");

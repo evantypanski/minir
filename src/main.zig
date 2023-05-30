@@ -25,6 +25,7 @@ pub fn main() !void {
     const five = try builder.addValue(.{ .int = 5 });
     const one = try builder.addValue(.{ .int = 1 });
     const forty_two = try builder.addValue(.{ .int = 42 });
+    const fifty = try builder.addValue(.{ .int = 50 });
 
     // alloc offset 0
     try builder.addOp(.alloc);
@@ -33,6 +34,13 @@ pub fn main() !void {
     // Set offset 0 aka what we allocd
     try builder.addOp(.set);
     try builder.addByte(0);
+
+    try builder.addOp(.get);
+    try builder.addByte(0);
+    try builder.addOp(.debug);
+
+    try builder.addOp(.call);
+    const placeholder = try builder.addPlaceholderShort();
 
     const loop_beg = builder.currentByte();
 
@@ -63,6 +71,12 @@ pub fn main() !void {
     // Out of loop
     try builder.addOp(.constant);
     try builder.addByte(forty_two);
+    try builder.addOp(.debug);
+    try builder.addOp(.ret);
+
+    try builder.setPlaceholderShort(placeholder, 0x21);
+    try builder.addOp(.constant);
+    try builder.addByte(fifty);
     try builder.addOp(.debug);
     try builder.addOp(.ret);
 

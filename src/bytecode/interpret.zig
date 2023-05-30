@@ -60,13 +60,15 @@ pub const Interpreter = struct {
 
             const op = @intToEnum(OpCode, self.chunk.bytes[self.pc]);
             try self.interpretOp(op);
-            self.pc += 1;
+            // Operators that update the PC should not increment after.
+            if (!op.updatesPC()) {
+                self.pc += 1;
+            }
         }
     }
 
     pub fn interpretOp(self: *Self, op: OpCode) InterpreterError!void {
         switch (op) {
-            // TODO ret
             .ret => self.pc = try self.popFrame(),
             .constant => try self.pushImmediate(),
             .debug => {
@@ -125,6 +127,11 @@ pub const Interpreter = struct {
                     self.pc = @intCast(usize, @intCast(isize, self.pc) + offset);
                 }
             },
+            .call => {
+                const absolute = try self.getUnsignedShort();
+                try self.pushFrame();
+                self.pc = absolute;
+            },
         }
     }
 
@@ -157,6 +164,16 @@ pub const Interpreter = struct {
         }
 
         return &self.stack[self.sp - 1];
+    }
+
+    fn pushFrame(self: *Self) InterpreterError!void {
+        if (self.call_idx + 1 >= array_size) {
+            return error.MaxFunctionDepth;
+        }
+
+        self.call_idx += 1;
+        self.call_stack[self.call_idx].frame_stack_begin = self.sp;
+        self.call_stack[self.call_idx].return_pc = self.pc + 1;
     }
 
     // Pops a call frame and returns the PC we should resume at.
@@ -193,6 +210,18 @@ pub const Interpreter = struct {
         const b1 = self.chunk.bytes[self.pc - 1];
         const b2 = self.chunk.bytes[self.pc];
         return @bitCast(i16, (@intCast(u16, b1) << 8) | @intCast(u16, b2));
+    }
+
+    // Gets the next two bytes as an unsigned short (u16)
+    fn getUnsignedShort(self: *Self) InterpreterError!u16 {
+        if (self.pc + 2 >= self.chunk.bytes.len) {
+            return error.UnexpectedEnd;
+        }
+
+        self.pc += 2;
+        const b1 = self.chunk.bytes[self.pc - 1];
+        const b2 = self.chunk.bytes[self.pc];
+        return (@intCast(u16, b1) << 8) | @intCast(u16, b2);
     }
 
     // Gets a value at the specified index, returning an error if it's invalid.
