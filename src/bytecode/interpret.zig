@@ -12,11 +12,22 @@ const InterpreterError = errors.RuntimeError || errors.InvalidBytecodeError || W
 
 pub const array_size = 256;
 
+const Frame = struct {
+    frame_stack_begin: usize,
+    return_pc: usize,
+};
+
 pub const Interpreter = struct {
     const Self = @This();
 
     writer: Writer,
     chunk: Chunk,
+
+    // We have a max function call depth
+    call_stack: [array_size]Frame,
+    // Index into the call stack of the current function. 1 is main, 0 is
+    // reserved to mean no function.
+    call_idx: usize,
 
     stack: [array_size]Value,
     sp: usize,
@@ -28,6 +39,11 @@ pub const Interpreter = struct {
     pub fn init(chunk: Chunk, writer: Writer) Self {
         return .{
             .writer = writer,
+            .call_stack = [_] Frame { .{
+                    .frame_stack_begin = 0,
+                    .return_pc = 0
+                }} ** array_size,
+            .call_idx = 1,
             .chunk = chunk,
             .stack = [_]Value{.undef} ** array_size,
             .sp = 0,
@@ -36,16 +52,22 @@ pub const Interpreter = struct {
     }
 
     pub fn interpret(self: *Self) InterpreterError!void {
-        while (self.pc < self.chunk.bytes.len) : (self.pc += 1) {
+        // No implicit returns, if we fall off the end then it's an error
+        while (self.call_idx != 0) {
+            if (self.pc >= self.chunk.bytes.len) {
+                return error.ReachedEndNoReturn;
+            }
+
             const op = @intToEnum(OpCode, self.chunk.bytes[self.pc]);
             try self.interpretOp(op);
+            self.pc += 1;
         }
     }
 
     pub fn interpretOp(self: *Self, op: OpCode) InterpreterError!void {
         switch (op) {
             // TODO ret
-            .ret => {},
+            .ret => self.pc = try self.popFrame(),
             .constant => try self.pushImmediate(),
             .debug => {
                 const value = try self.popVal();
@@ -135,6 +157,19 @@ pub const Interpreter = struct {
         }
 
         return &self.stack[self.sp - 1];
+    }
+
+    // Pops a call frame and returns the PC we should resume at.
+    fn popFrame(self: *Self) InterpreterError!usize {
+        if (self.call_idx == 0) {
+            return error.ReturnWithoutFunction;
+        }
+        if (self.call_idx >= array_size) {
+            return error.MaxFunctionDepth;
+        }
+        const new_pc = self.call_stack[self.call_idx].return_pc;
+        self.call_idx -= 1;
+        return new_pc;
     }
 
     // Gets the next byte and increments the index, returning an error if

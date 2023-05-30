@@ -64,6 +64,7 @@ pub fn main() !void {
     try builder.addOp(.constant);
     try builder.addByte(forty_two);
     try builder.addOp(.debug);
+    try builder.addOp(.ret);
 
     var chunk = try builder.build();
 
