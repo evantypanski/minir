@@ -15,6 +15,12 @@ pub const Value = union(ValueKind) {
     float: f32,
     boolean: bool,
 
+    pub fn initBool(b: bool) Value {
+        return Self {
+            .boolean = b,
+        };
+    }
+
     pub fn add(self: *Self, other: Self) RuntimeError!void {
         switch (self.*) {
             .undef => return error.InvalidOperand,
@@ -51,6 +57,28 @@ pub const Value = union(ValueKind) {
         }
     }
 
+    pub fn eq(self: Self, other: Self) RuntimeError!Self {
+        const result = switch (self) {
+            .undef => return error.InvalidOperand,
+            .int => |i| i == try other.asInt(),
+            .float => |f| f == try other.asFloat(),
+            .boolean => return error.InvalidOperand,
+        };
+
+        return Self.initBool(result);
+    }
+
+    pub fn ne(self: Self, other: Self) RuntimeError!Self {
+        const result = switch (self) {
+            .undef => return error.InvalidOperand,
+            .int => |i| i != try other.asInt(),
+            .float => |f| f != try other.asFloat(),
+            .boolean => return error.InvalidOperand,
+        };
+
+        return Self.initBool(result);
+    }
+
     pub fn gt(self: Self, other: Self) RuntimeError!Self {
         const result = switch (self) {
             .undef => return error.InvalidOperand,
@@ -59,9 +87,41 @@ pub const Value = union(ValueKind) {
             .boolean => return error.InvalidOperand,
         };
 
-        return Self { .boolean = result };
+        return Self.initBool(result);
     }
 
+    pub fn ge(self: Self, other: Self) RuntimeError!Self {
+        const result = switch (self) {
+            .undef => return error.InvalidOperand,
+            .int => |i| i >= try other.asInt(),
+            .float => |f| f >= try other.asFloat(),
+            .boolean => return error.InvalidOperand,
+        };
+
+        return Self.initBool(result);
+    }
+
+    pub fn lt(self: Self, other: Self) RuntimeError!Self {
+        const result = switch (self) {
+            .undef => return error.InvalidOperand,
+            .int => |i| i < try other.asInt(),
+            .float => |f| f < try other.asFloat(),
+            .boolean => return error.InvalidOperand,
+        };
+
+        return Self.initBool(result);
+    }
+
+    pub fn le(self: Self, other: Self) RuntimeError!Self {
+        const result = switch (self) {
+            .undef => return error.InvalidOperand,
+            .int => |i| i <= try other.asInt(),
+            .float => |f| f <= try other.asFloat(),
+            .boolean => return error.InvalidOperand,
+        };
+
+        return Self.initBool(result);
+    }
 
     pub fn asInt(self: Self) RuntimeError!i32 {
         switch (self) {

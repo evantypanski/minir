@@ -13,7 +13,13 @@ pub const OpCode = enum(u8) {
     mul,
     div,
 
+    // Comparisons
+    eq,
+    ne,
     gt,
+    ge,
+    lt,
+    le,
 
     alloc,
     set,
@@ -26,7 +32,8 @@ pub const OpCode = enum(u8) {
          return switch (self) {
              .jmpf => 2,
              .constant, .set, .get => 1,
-             .ret, .debug, .add, .sub, .mul, .div, .gt, .alloc => 0,
+             .ret, .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
+             .alloc => 0,
          };
     }
 
@@ -34,7 +41,8 @@ pub const OpCode = enum(u8) {
          return switch (self) {
              .constant, .get => 1,
              .ret, .alloc => 0,
-             .debug, .add, .sub, .mul, .div, .gt, .set, .jmpf => -1,
+             .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
+             .set, .jmpf => -1,
          };
     }
 };

@@ -66,13 +66,18 @@ pub const Interpreter = struct {
                     else => unreachable,
                 }
             },
-            .gt => {
+            .eq, .ne, .gt, .ge, .lt, .le => {
                 // These don't replace the value since they change the type.
                 const rhs = try self.popVal();
                 const lhs = try self.popVal();
 
                 const result = switch (op) {
+                    .eq => try lhs.eq(rhs),
+                    .ne => try lhs.ne(rhs),
                     .gt => try lhs.gt(rhs),
+                    .ge => try lhs.ge(rhs),
+                    .lt => try lhs.lt(rhs),
+                    .le => try lhs.lt(rhs),
                     else => unreachable,
                 };
 
