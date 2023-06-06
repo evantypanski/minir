@@ -257,7 +257,6 @@ pub const Interpreter = struct {
             if (absolute < 0) {
                 return error.InvalidStackIndex;
             }
-            // TODO: Error here if negative?
             return &self.stack[@intCast(usize, absolute)];
         }
 
