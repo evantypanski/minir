@@ -59,7 +59,24 @@ pub const Interpreter = struct {
             }
 
             const op = @intToEnum(OpCode, self.chunk.bytes[self.pc]);
-            try self.interpretOp(op);
+            self.interpretOp(op) catch |e| {
+                // All error handling goes here :)
+                //
+                // I suspect in the future there will be a diagnostics
+                // engine with log levels and all that. But for now
+                // we'll just log it like this.
+                std.log.scoped(.interpreter)
+                    .err("Found error while interpreting: {}", .{e});
+                if (isFatal(e)) {
+                    std.log.scoped(.interpreter)
+                        .err("Fatal error!", .{});
+                    std.process.exit(1);
+                } else {
+                    // We always want to update the PC if it errors.
+                    self.pc += 1;
+                    continue;
+                }
+            };
             // Operators that update the PC should not increment after.
             if (!op.updatesPC()) {
                 self.pc += 1;
@@ -272,6 +289,15 @@ pub const Interpreter = struct {
         }
 
         try self.writer.writeAll("\n");
+    }
+
+    fn isFatal(e: InterpreterError) bool {
+        // Most are fatal so just mark those as non-fatal, rest are fatal.
+        return switch (e) {
+            error.InvalidOperand, error.InvalidStackIndex,
+                error.InvalidValueIndex => false,
+            else => true,
+        };
     }
 };
 

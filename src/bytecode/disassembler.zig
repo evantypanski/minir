@@ -29,7 +29,11 @@ pub const Disassembler = struct {
     pub fn disassemble(self: *Self) DisassembleError!void {
         while (self.idx < self.chunk.bytes.len) : (self.idx += 1) {
             const op = @intToEnum(OpCode, self.chunk.bytes[self.idx]);
-            try self.disassembleOp(op);
+            self.disassembleOp(op) catch |e| {
+                std.log.scoped(.disassembler)
+                    .err("Found error while disassembling: {}", .{e});
+                // No disassembler errors are fatal
+            };
         }
     }
 
