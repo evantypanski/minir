@@ -29,7 +29,8 @@ pub const Verifier = struct {
         while (self.idx < self.chunk.bytes.len) : (self.idx += 1) {
             const byte = self.chunk.bytes[self.idx];
             if (!isOpcode(byte)) {
-                self.diag("Not an opcode {}", .{byte});
+                self.diag("Not an opcode {}\n", .{byte});
+                continue;
             }
             const op = @intToEnum(OpCode, byte);
             if (self.sp + op.stackEffect() < 0) {

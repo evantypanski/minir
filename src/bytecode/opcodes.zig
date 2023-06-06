@@ -23,6 +23,10 @@ pub const OpCode = enum(u8) {
 
     alloc,
     set,
+    // Gets a variable at the next offset.
+    // The immediate value is a signed byte for the offset from the current
+    // frame. Negative values are parameters passed by caller, positive values
+    // are locals in the current frame.
     get,
 
     // Jump if false

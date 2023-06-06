@@ -11,6 +11,8 @@ pub const RuntimeError = error {
     InvalidOperand,
     MaxFunctionDepth,
     ReachedEndNoReturn,
+    NoValidFrame,
+    InvalidStackIndex,
 
     // Type errors
     ExpectedInt,

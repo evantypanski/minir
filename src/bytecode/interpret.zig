@@ -117,7 +117,7 @@ pub const Interpreter = struct {
             .get => {
                 // TODO: Maybe this should point to the same Value so we can update it
                 // without separate set?
-                const offset = try self.getByte();
+                const offset = try self.getSignedByte();
                 try self.pushValue((try self.getVar(offset)).*);
             },
             .jmpf => {
@@ -189,6 +189,15 @@ pub const Interpreter = struct {
         return new_pc;
     }
 
+    // Returns the top frame in the stack if it exists
+    fn peekFrame(self: *Self) ?Frame {
+        if (self.call_idx == 0) {
+            return null;
+        }
+
+        return self.call_stack[self.call_idx];
+    }
+
     // Gets the next byte and increments the index, returning an error if
     // we are off the end.
     fn getByte(self: *Self) InterpreterError!u8 {
@@ -199,6 +208,13 @@ pub const Interpreter = struct {
         self.pc += 1;
         return self.chunk.bytes[self.pc];
     }
+
+    // Gets the next byte as a signed byte
+    fn getSignedByte(self: *Self) InterpreterError!i8 {
+        const byte = try self.getByte();
+        return @bitCast(i8, byte);
+    }
+
 
     // Gets the next two bytes as a signed short (i16)
     fn getShort(self: *Self) InterpreterError!i16 {
@@ -234,8 +250,18 @@ pub const Interpreter = struct {
     }
 
     // Gets a pointer to the value at offset on stack
-    fn getVar(self: *Self, stackIdx: usize) InterpreterError!*Value {
-        return &self.stack[stackIdx];
+    fn getVar(self: *Self, relativeOffset: isize) InterpreterError!*Value {
+        if (self.peekFrame()) |frame| {
+            const absolute = @intCast(isize, frame.frame_stack_begin)
+                    + relativeOffset;
+            if (absolute < 0) {
+                return error.InvalidStackIndex;
+            }
+            // TODO: Error here if negative?
+            return &self.stack[@intCast(usize, absolute)];
+        }
+
+        return error.NoValidFrame;
     }
 
     fn printValue(self: *Self, value: Value) InterpreterError!void {

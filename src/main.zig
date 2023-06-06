@@ -39,6 +39,13 @@ pub fn main() !void {
     try builder.addByte(0);
     try builder.addOp(.debug);
 
+    // Function param
+    try builder.addOp(.alloc);
+    try builder.addOp(.constant);
+    try builder.addByte(five);
+    try builder.addOp(.set);
+    try builder.addByte(1);
+
     try builder.addOp(.call);
     const placeholder = try builder.addPlaceholderShort();
 
@@ -74,9 +81,13 @@ pub fn main() !void {
     try builder.addOp(.debug);
     try builder.addOp(.ret);
 
-    try builder.setPlaceholderShort(placeholder, 0x21);
+    try builder.setPlaceholderShort(placeholder, 0x26);
     try builder.addOp(.constant);
     try builder.addByte(fifty);
+    try builder.addOp(.debug);
+
+    try builder.addOp(.get);
+    try builder.addByte(@bitCast(u8, @intCast(i8, -1)));
     try builder.addOp(.debug);
     try builder.addOp(.ret);
 
