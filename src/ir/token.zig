@@ -1,35 +1,50 @@
-const TokenType = enum {
-    EOF,
-    LPAREN,
-    RPAREN,
-    LBRACE,
-    RBRACE,
-    ARROW,
-    AT,
-    IDENTIFIER,
-
-    PLUS,
-    MINUS,
-    EQ,
-    GE,
-    GT,
-
-    // Keywords
-    FN,
-    DEBUG
-};
-
 pub const Token = struct {
     const Self = @This();
 
-    ty: TokenType,
-    // This may change if we want context from the source better.
-    slice: *const []u8,
+    pub const Tag = enum {
+        EOF,
+        LPAREN,
+        RPAREN,
+        LBRACE,
+        RBRACE,
+        ARROW,
+        AT,
+        IDENTIFIER,
+        NUM,
 
-    pub fn init(ty: TokenType, slice: *const []u8) Self {
+        EQ,
+        PLUS,
+        MINUS,
+        STAR,
+        SLASH,
+        AMP_AMP,
+        PIPE_PIPE,
+        LESS,
+        LESS_EQ,
+        GREATER,
+        GREATER_EQ,
+
+        // Keywords
+        FN,
+        DEBUG
+    };
+
+    // Like Zig compiler with start/end because it's just one stream.
+    pub const Loc = struct {
+        start: usize,
+        end: usize,
+    };
+
+    tag: Tag,
+    loc: Loc,
+
+    pub fn init(tag: Tag, start: usize, end: usize) Self {
         return .{
-            .ty = ty,
-            .slice = slice,
+            .tag = tag,
+            .loc = .{
+                .start = start,
+                .end = end,
+            },
         };
     }
 };

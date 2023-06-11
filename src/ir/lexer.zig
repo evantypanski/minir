@@ -1,6 +1,11 @@
 const std = @import("std");
+const ascii = std.ascii;
 
 const Token = @import("token.zig").Token;
+
+pub const LexError = error {
+    Unexpected,
+};
 
 pub const Lexer = struct {
     const Self = @This();
@@ -15,29 +20,100 @@ pub const Lexer = struct {
         };
     }
 
-    pub fn lex(self: *Self) Token {
+    pub fn lex(self: *Self) LexError!Token {
+        self.skipWhitespace();
         const start = self.current;
 
         if (self.isAtEnd()) {
             // EOF token has the last character as its slice
-            return Token.init(.EOF, &self.source[self.source.len - 1..]);
+            return Token.init(.EOF, self.source.len - 1, self.source.len - 1);
         }
 
         var c = self.advance();
+
+        if (ascii.isAlphabetic(c) or c == '_') {
+            return self.lexIdentifier(start);
+        } else if (ascii.isDigit(c)) {
+            return self.lexNumber(start);
+        }
+
         return switch (c) {
-            '+' => Token.init(.PLUS, &self.source[start..self.current]),
-            '-' => Token.init(.MINUS, &self.source[start..self.current]),
-            '=' => Token.init(.EQ, &self.source[start..self.current]),
-            '>' => if (self.match('='))
-                        Token.init(.GE, &self.source[start..self.current])
+            '(' => Token.init(.LPAREN, start, self.current),
+            ')' => Token.init(.RPAREN, start, self.current),
+            '{' => Token.init(.LBRACE, start, self.current),
+            '}' => Token.init(.RBRACE, start, self.current),
+            '@' => Token.init(.AT, start, self.current),
+            '=' => Token.init(.EQ, start, self.current),
+            '+' => Token.init(.PLUS, start, self.current),
+            '-' => if (self.match('>'))
+                        Token.init(.ARROW, start, self.current)
                     else
-                        Token.init(.GT, &self.source[start..self.current]),
+                        Token.init(.MINUS, start, self.current),
+            '*' => Token.init(.STAR, start, self.current),
+            '/' => Token.init(.SLASH, start, self.current),
+            '&' => if (self.match('&'))
+                        Token.init(.AMP_AMP, start, self.current)
+                    else
+                        return error.Unexpected,
+            '|' => if (self.match('|'))
+                        Token.init(.PIPE_PIPE, start, self.current)
+                    else
+                        return error.Unexpected,
+            '<' => if (self.match('='))
+                        Token.init(.GREATER_EQ, start, self.current)
+                    else
+                        Token.init(.GREATER, start, self.current),
+            '>' => if (self.match('='))
+                        Token.init(.LESS_EQ, start, self.current)
+                    else
+                        Token.init(.LESS, start, self.current),
 
-            // TODO: Error token?
-            else => Token.init(.EOF, &self.source[self.source.len - 1..]),
+            else => error.Unexpected,
         };
+    }
 
-        //return Token.init(.DEBUG, &self.source[start..start + 1]);
+    pub fn lexNumber(self: *Self, start: usize) Token {
+        while (ascii.isDigit(self.peek())) : (_ = self.advance()) {}
+
+        if (self.peek() == '.' and ascii.isDigit(self.peekNext())) {
+            // Consume `.`
+            _ = self.advance();
+            while (ascii.isDigit(self.peek())) : (_ = self.advance()) {}
+        }
+
+        return Token.init(.NUM, start, self.current);
+    }
+
+    /// Gets the tag associated with the current token. Efficiently matches
+    /// keywords :)
+    ///
+    /// It's pretty overkill with so few. But oh well. Grabbed this tiny trie
+    /// impl from crafting interpreters.
+    fn identifierTag(self: Self, start: usize) Token.Tag {
+        return switch (self.source[start]) {
+            'f' => self.checkKeyword(start + 1, 1, "n", .FN),
+            'd' => self.checkKeyword(start + 1, 4, "ebug", .DEBUG),
+            else => .IDENTIFIER,
+        };
+    }
+
+    fn checkKeyword(self: Self, start: usize, len: usize,
+        rest: []const u8, tag: Token.Tag) Token.Tag {
+        if (self.current - start == len
+            and std.mem.eql(u8, self.source[start..self.current], rest)) {
+            return tag;
+        }
+
+        return .IDENTIFIER;
+    }
+
+    pub fn lexIdentifier(self: *Self, start: usize) Token {
+
+        while (ascii.isAlphabetic(self.peek())
+            or ascii.isDigit(self.peek())
+            or self.peek() == '_')
+                : (_ = self.advance()) {}
+        return Token.init(self.identifierTag(start), start, self.current);
     }
 
     pub inline fn isAtEnd(self: Self) bool {
@@ -59,5 +135,22 @@ pub const Lexer = struct {
 
         self.current += 1;
         return true;
+    }
+
+    fn peek(self: Self) u8 {
+        return self.source[self.current];
+    }
+
+    fn peekNext(self: Self) u8 {
+        if (self.isAtEnd()) {
+            return 0;
+        }
+        return self.source[self.current + 1];
+    }
+
+    fn skipWhitespace(self: *Self) void {
+        while (self.current < self.source.len
+            and ascii.isWhitespace(self.peek()))
+            : (self.current += 1) {}
     }
 };

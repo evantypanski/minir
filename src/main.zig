@@ -16,11 +16,11 @@ pub fn main() !void {
     var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
     const gpa = general_purpose_allocator.allocator();
 
-    const file = try std.fs.cwd().openFile("tinyexample.min", .{ .mode = .read_only });
+    const file = try std.fs.cwd().openFile("example.min", .{ .mode = .read_only });
     const source = try file.readToEndAlloc(gpa, 10000);
     var lexer = Lexer.init(source);
-    var tok = lexer.lex();
-    while (tok.ty != .EOF) : (tok = lexer.lex()) {
+    var tok = try lexer.lex();
+    while (tok.tag != .EOF) : (tok = try lexer.lex()) {
         std.debug.print("{}\n", .{tok});
     }
 }
