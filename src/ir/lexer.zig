@@ -43,6 +43,7 @@ pub const Lexer = struct {
             '{' => Token.init(.LBRACE, start, self.current),
             '}' => Token.init(.RBRACE, start, self.current),
             '@' => Token.init(.AT, start, self.current),
+            ':' => Token.init(.COLON, start, self.current),
             '=' => Token.init(.EQ, start, self.current),
             '+' => Token.init(.PLUS, start, self.current),
             '-' => if (self.match('>'))
@@ -90,11 +91,40 @@ pub const Lexer = struct {
     /// It's pretty overkill with so few. But oh well. Grabbed this tiny trie
     /// impl from crafting interpreters.
     fn identifierTag(self: Self, start: usize) Token.Tag {
-        return switch (self.source[start]) {
-            'f' => self.checkKeyword(start + 1, 1, "n", .FN),
-            'd' => self.checkKeyword(start + 1, 4, "ebug", .DEBUG),
-            else => .IDENTIFIER,
-        };
+        const token_len = self.current - start;
+        switch (self.source[start]) {
+            'f' => return self.checkKeyword(start + 1, 1, "n", .FN),
+            'd' => return self.checkKeyword(start + 1, 4, "ebug", .DEBUG),
+            // Just do branches here because why not. This is a mess. Oops.
+            'b' => if (token_len >= 2) {
+                    switch (self.source[start + 1]) {
+                        'r' => {
+                            if (token_len == 2)
+                                return .BR
+                            else
+                                return switch (self.source[start + 2]) {
+                                    'z' => .BRZ,
+                                    'e' => .BRE,
+                                    'l' => if (token_len > 3)
+                                                self.checkKeyword(start + 2, 2,
+                                                        "le", .BRLE)
+                                            else
+                                                .BRL,
+                                    'g' => if (token_len > 3)
+                                                self.checkKeyword(start + 2, 2,
+                                                        "ge", .BRGE)
+                                            else
+                                                .BRG,
+                                    else => .IDENTIFIER,
+                                };
+                        },
+                        else => return .IDENTIFIER,
+                    }
+                } else {
+                    return .IDENTIFIER;
+                },
+            else => return .IDENTIFIER,
+        }
     }
 
     fn checkKeyword(self: Self, start: usize, len: usize,

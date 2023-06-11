@@ -9,6 +9,7 @@ pub const Token = struct {
         RBRACE,
         ARROW,
         AT,
+        COLON,
         IDENTIFIER,
         NUM,
 
@@ -26,7 +27,15 @@ pub const Token = struct {
 
         // Keywords
         FN,
-        DEBUG
+        DEBUG,
+        // Branch keywords
+        BR,
+        BRZ,
+        BRE,
+        BRL,
+        BRLE,
+        BRG,
+        BRGE,
     };
 
     // Like Zig compiler with start/end because it's just one stream.

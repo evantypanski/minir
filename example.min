@@ -1,4 +1,6 @@
 fn @main() -> void {
   hi = 99
+test:
   debug(hi)
+  br test
 }
