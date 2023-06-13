@@ -112,7 +112,17 @@ pub const Parser = struct {
     }
 
     fn parseStmt(self: *Self) void {
+        if (self.match(.DEBUG)) {
+            self.parseDebug();
+        } else {
+            _ = self.parseExpr() catch self.diagCurrent("Error parsing expression");
+        }
+    }
+
+    fn parseDebug(self: *Self) void {
+        self.consume(.LPAREN, "Expected 'fn' keyword");
         _ = self.parseExpr() catch self.diagCurrent("Error parsing expression");
+        self.consume(.RPAREN, "Expected 'fn' keyword");
     }
 
     fn parseExpr(self: *Self) !Value {
@@ -178,5 +188,14 @@ pub const Parser = struct {
             .STAR, .SLASH => .FACTOR,
             else => .NONE,
         };
+    }
+
+    fn match(self: *Self, tag: Token.Tag) bool {
+        if (self.current.tag != tag) {
+            return false;
+        }
+
+        self.advance();
+        return true;
     }
 };
