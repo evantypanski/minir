@@ -24,6 +24,7 @@ pub const NodeError = error{
     UnexpectedTerminator,
     DuplicateMain,
     NoMainFunction,
+    NotAnOperator,
 };
 
 pub const IrError = InterpError || NodeError;

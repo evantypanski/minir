@@ -1,4 +1,5 @@
 const NodeError = @import("../errors.zig").NodeError;
+const Token = @import("../token.zig").Token;
 
 const ValueKind = enum {
     undef,
@@ -38,6 +39,25 @@ pub const Value = union(ValueKind) {
             le,
             gt,
             ge,
+
+            pub fn fromTag(tag: Token.Tag) !Kind {
+                // Ignoring float ops for now, those may disappear and you
+                // just explicitly cast.
+                return switch (tag) {
+                    .EQ => .assign,
+                    .PLUS => .add,
+                    .MINUS => .sub,
+                    .STAR => .mul,
+                    .SLASH => .div,
+                    .AMP_AMP => .@"and",
+                    .PIPE_PIPE => .@"or",
+                    .LESS => .lt,
+                    .LESS_EQ => .le,
+                    .GREATER => .gt,
+                    .GREATER_EQ => .ge,
+                    else => error.NotAnOperator,
+                };
+            }
         };
 
         kind: Kind,

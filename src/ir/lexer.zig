@@ -44,7 +44,11 @@ pub const Lexer = struct {
             '}' => Token.init(.RBRACE, start, self.current),
             '@' => Token.init(.AT, start, self.current),
             ':' => Token.init(.COLON, start, self.current),
-            '=' => Token.init(.EQ, start, self.current),
+            ',' => Token.init(.COMMA, start, self.current),
+            '=' => if (self.match('='))
+                        Token.init(.EQ_EQ, start, self.current)
+                    else
+                        Token.init(.EQ, start, self.current),
             '+' => Token.init(.PLUS, start, self.current),
             '-' => if (self.match('>'))
                         Token.init(.ARROW, start, self.current)
@@ -148,6 +152,12 @@ pub const Lexer = struct {
 
     pub inline fn isAtEnd(self: Self) bool {
         return self.current >= self.source.len;
+    }
+
+    // This should probably be a source manager of some type. Gets the token from
+    // the source information.
+    pub fn getTokString(self: Self, token: Token) []const u8 {
+        return self.source[token.loc.start..token.loc.end];
     }
 
     fn advance(self: *Self) u8 {

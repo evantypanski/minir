@@ -9,6 +9,8 @@ pub const Function = struct {
     const Self = @This();
 
     name: []const u8,
+    // TODO: Basic blocks should just be an instruction then you can just
+    // "blockify" a function?
     bbs: []BasicBlock,
     params: []VarDecl,
     ret_ty: Type,

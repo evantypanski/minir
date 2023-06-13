@@ -11,6 +11,7 @@ const numify = @import("ir/passes/numify.zig");
 const visitor = @import("ir/passes/visitor.zig");
 const Interpreter = @import("ir/interpret.zig").Interpreter;
 const Lexer = @import("ir/lexer.zig").Lexer;
+const Parser = @import("ir/parser.zig").Parser;
 
 pub fn main() !void {
     var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
@@ -19,10 +20,8 @@ pub fn main() !void {
     const file = try std.fs.cwd().openFile("example.min", .{ .mode = .read_only });
     const source = try file.readToEndAlloc(gpa, 10000);
     var lexer = Lexer.init(source);
-    var tok = try lexer.lex();
-    while (tok.tag != .EOF) : (tok = try lexer.lex()) {
-        std.debug.print("{}\n", .{tok});
-    }
+    var parser = Parser.init(gpa, lexer);
+    parser.parse();
 }
 
 test {

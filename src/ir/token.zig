@@ -10,10 +10,12 @@ pub const Token = struct {
         ARROW,
         AT,
         COLON,
+        COMMA,
         IDENTIFIER,
         NUM,
 
         EQ,
+        EQ_EQ,
         PLUS,
         MINUS,
         STAR,
@@ -36,6 +38,10 @@ pub const Token = struct {
         BRLE,
         BRG,
         BRGE,
+
+        // Default value of "undefined" token. Should not appear when lexing
+        // normally.
+        NONE,
     };
 
     // Like Zig compiler with start/end because it's just one stream.
@@ -54,6 +60,22 @@ pub const Token = struct {
                 .start = start,
                 .end = end,
             },
+        };
+    }
+
+    pub fn none() Self {
+        return Self.init(.NONE, 0, 0);
+    }
+
+    pub fn isValid(self: Self) bool {
+        return self.tag != .NONE;
+    }
+
+    pub fn isOp(self: Self) bool {
+        return switch(self.tag) {
+            .EQ, .PLUS, .MINUS, .STAR, .SLASH, .AMP_AMP, .PIPE_PIPE,
+            .LESS, .LESS_EQ, .GREATER, .GREATER_EQ => true,
+            else => false,
         };
     }
 };
