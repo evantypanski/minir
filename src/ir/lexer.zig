@@ -26,7 +26,7 @@ pub const Lexer = struct {
 
         if (self.isAtEnd()) {
             // EOF token has the last character as its slice
-            return Token.init(.EOF, self.source.len - 1, self.source.len - 1);
+            return Token.init(.eof, self.source.len - 1, self.source.len - 1);
         }
 
         var c = self.advance();
@@ -38,40 +38,40 @@ pub const Lexer = struct {
         }
 
         return switch (c) {
-            '(' => Token.init(.LPAREN, start, self.current),
-            ')' => Token.init(.RPAREN, start, self.current),
-            '{' => Token.init(.LBRACE, start, self.current),
-            '}' => Token.init(.RBRACE, start, self.current),
-            '@' => Token.init(.AT, start, self.current),
-            ':' => Token.init(.COLON, start, self.current),
-            ',' => Token.init(.COMMA, start, self.current),
+            '(' => Token.init(.lparen, start, self.current),
+            ')' => Token.init(.rparen, start, self.current),
+            '{' => Token.init(.lbrace, start, self.current),
+            '}' => Token.init(.rbrace, start, self.current),
+            '@' => Token.init(.at, start, self.current),
+            ':' => Token.init(.colon, start, self.current),
+            ',' => Token.init(.comma, start, self.current),
             '=' => if (self.match('='))
-                        Token.init(.EQ_EQ, start, self.current)
+                        Token.init(.eq_eq, start, self.current)
                     else
-                        Token.init(.EQ, start, self.current),
-            '+' => Token.init(.PLUS, start, self.current),
+                        Token.init(.eq, start, self.current),
+            '+' => Token.init(.plus, start, self.current),
             '-' => if (self.match('>'))
-                        Token.init(.ARROW, start, self.current)
+                        Token.init(.arrow, start, self.current)
                     else
-                        Token.init(.MINUS, start, self.current),
-            '*' => Token.init(.STAR, start, self.current),
-            '/' => Token.init(.SLASH, start, self.current),
+                        Token.init(.minus, start, self.current),
+            '*' => Token.init(.star, start, self.current),
+            '/' => Token.init(.slash, start, self.current),
             '&' => if (self.match('&'))
-                        Token.init(.AMP_AMP, start, self.current)
+                        Token.init(.amp_amp, start, self.current)
                     else
                         return error.Unexpected,
             '|' => if (self.match('|'))
-                        Token.init(.PIPE_PIPE, start, self.current)
+                        Token.init(.pipe_pipe, start, self.current)
                     else
                         return error.Unexpected,
             '<' => if (self.match('='))
-                        Token.init(.GREATER_EQ, start, self.current)
+                        Token.init(.greater_eq, start, self.current)
                     else
-                        Token.init(.GREATER, start, self.current),
+                        Token.init(.greater, start, self.current),
             '>' => if (self.match('='))
-                        Token.init(.LESS_EQ, start, self.current)
+                        Token.init(.less_eq, start, self.current)
                     else
-                        Token.init(.LESS, start, self.current),
+                        Token.init(.less, start, self.current),
 
             else => error.Unexpected,
         };
@@ -86,7 +86,7 @@ pub const Lexer = struct {
             while (ascii.isDigit(self.peek())) : (_ = self.advance()) {}
         }
 
-        return Token.init(.NUM, start, self.current);
+        return Token.init(.num, start, self.current);
     }
 
     /// Gets the tag associated with the current token. Efficiently matches
@@ -97,37 +97,37 @@ pub const Lexer = struct {
     fn identifierTag(self: Self, start: usize) Token.Tag {
         const token_len = self.current - start;
         switch (self.source[start]) {
-            'f' => return self.checkKeyword(start + 1, 1, "n", .FN),
-            'd' => return self.checkKeyword(start + 1, 4, "ebug", .DEBUG),
+            'f' => return self.checkKeyword(start + 1, 1, "n", .func),
+            'd' => return self.checkKeyword(start + 1, 4, "ebug", .debug),
             // Just do branches here because why not. This is a mess. Oops.
             'b' => if (token_len >= 2) {
                     switch (self.source[start + 1]) {
                         'r' => {
                             if (token_len == 2)
-                                return .BR
+                                return .br
                             else
                                 return switch (self.source[start + 2]) {
-                                    'z' => .BRZ,
-                                    'e' => .BRE,
+                                    'z' => .brz,
+                                    'e' => .bre,
                                     'l' => if (token_len > 3)
                                                 self.checkKeyword(start + 2, 2,
-                                                        "le", .BRLE)
+                                                        "le", .brle)
                                             else
-                                                .BRL,
+                                                .brl,
                                     'g' => if (token_len > 3)
                                                 self.checkKeyword(start + 2, 2,
-                                                        "ge", .BRGE)
+                                                        "ge", .brge)
                                             else
-                                                .BRG,
-                                    else => .IDENTIFIER,
+                                                .brg,
+                                    else => .identifier,
                                 };
                         },
-                        else => return .IDENTIFIER,
+                        else => return .identifier,
                     }
                 } else {
-                    return .IDENTIFIER;
+                    return .identifier;
                 },
-            else => return .IDENTIFIER,
+            else => return .identifier,
         }
     }
 
@@ -138,7 +138,7 @@ pub const Lexer = struct {
             return tag;
         }
 
-        return .IDENTIFIER;
+        return .identifier;
     }
 
     pub fn lexIdentifier(self: *Self, start: usize) Token {

@@ -14,25 +14,25 @@ pub const Parser = struct {
     const Self = @This();
 
     const Precedence = enum(u8) {
-        NONE,
-        ASSIGN,
-        OR,
-        AND,
-        EQUAL,
-        COMPARE,
-        TERM,
-        FACTOR,
-        UNARY,
-        CALL,
-        PRIMARY,
+        none,
+        assign,
+        or_,
+        and_,
+        equal,
+        compare,
+        term,
+        factor,
+        unary,
+        call,
+        primary,
 
         pub fn gte(self: Precedence, other: Precedence) bool {
             return @enumToInt(self) >= @enumToInt(other);
         }
 
         pub fn inc(self: Precedence) Precedence {
-            if (self == .PRIMARY) {
-                return .PRIMARY;
+            if (self == .primary) {
+                return .primary;
             }
 
             return @intToEnum(Precedence, @enumToInt(self) + 1);
@@ -48,8 +48,8 @@ pub const Parser = struct {
         return .{
             .allocator = allocator,
             .lexer = lexer,
-            .current = Token.init(.NONE, 0, 0),
-            .previous = Token.init(.NONE, 0, 0),
+            .current = Token.init(.none, 0, 0),
+            .previous = Token.init(.none, 0, 0),
         };
     }
 
@@ -60,7 +60,7 @@ pub const Parser = struct {
         }
 
         // A program is just a bunch of function decls.
-        while (self.current.tag != .EOF) : (self.advance()) {
+        while (self.current.tag != .eof) : (self.advance()) {
             self.parseFnDecl();
         }
     }
@@ -89,30 +89,30 @@ pub const Parser = struct {
     }
 
     fn parseFnDecl(self: *Self) void {
-        self.consume(.FN, "Expected 'fn' keyword");
-        self.consume(.AT, "Expected '@' before function identifier");
+        self.consume(.func, "Expected 'fn' keyword");
+        self.consume(.at, "Expected '@' before function identifier");
         // TODO: Store identifier name
-        self.consume(.IDENTIFIER, "Expected identifier after '@'");
-        self.consume(.LPAREN, "Expected left paren to start function parameters");
+        self.consume(.identifier, "Expected identifier after '@'");
+        self.consume(.lparen, "Expected left paren to start function parameters");
         // TODO: Arguments
-        self.consume(.RPAREN, "Expected right paren after parameters");
+        self.consume(.rparen, "Expected right paren after parameters");
         // Return
-        self.consume(.ARROW, "Expected arrow to signify return type");
+        self.consume(.arrow, "Expected arrow to signify return type");
         // TODO: Store identifier name
-        self.consume(.IDENTIFIER, "Expected return type");
+        self.consume(.identifier, "Expected return type");
 
-        self.consume(.LBRACE, "Expected left brace to start function body");
+        self.consume(.lbrace, "Expected left brace to start function body");
 
-        while (self.current.tag != .RBRACE and self.current.tag != .EOF) {
+        while (self.current.tag != .rbrace and self.current.tag != .eof) {
             self.parseStmt();
         }
 
         // If we get here without right brace it's EOF
-        self.consume(.RBRACE, "Unexpected end of file");
+        self.consume(.rbrace, "Unexpected end of file");
     }
 
     fn parseStmt(self: *Self) void {
-        if (self.match(.DEBUG)) {
+        if (self.match(.debug)) {
             self.parseDebug();
         } else {
             _ = self.parseExpr() catch self.diagCurrent("Error parsing expression");
@@ -120,18 +120,18 @@ pub const Parser = struct {
     }
 
     fn parseDebug(self: *Self) void {
-        self.consume(.LPAREN, "Expected 'fn' keyword");
+        self.consume(.lparen, "Expected 'fn' keyword");
         _ = self.parseExpr() catch self.diagCurrent("Error parsing expression");
-        self.consume(.RPAREN, "Expected 'fn' keyword");
+        self.consume(.rparen, "Expected 'fn' keyword");
     }
 
     fn parseExpr(self: *Self) !Value {
-        return try self.parsePrecedence(.ASSIGN);
+        return try self.parsePrecedence(.assign);
     }
 
     fn parsePrecedence(self: *Self, prec: Precedence) !Value {
         // Just abort for non-numbers for now
-        if (self.current.tag != .NUM) {
+        if (self.current.tag != .num) {
             return error.ExpectedNumber;
         }
 
@@ -155,7 +155,7 @@ pub const Parser = struct {
     }
 
     fn parseNumber(self: *Self) !Value {
-        self.consume(.NUM, "Expected number");
+        self.consume(.num, "Expected number");
         const num_str = self.lexer.getTokString(self.previous);
         // No floats yet
         const num = try std.fmt.parseInt(i32, num_str, 10);
@@ -179,14 +179,14 @@ pub const Parser = struct {
 
     fn bindingPower(tag: Token.Tag) Precedence {
         return switch (tag) {
-            .EQ => .ASSIGN,
-            .PIPE_PIPE => .OR,
-            .AMP_AMP => .AND,
-            .EQ_EQ => .EQUAL,
-            .LESS, .LESS_EQ, .GREATER, .GREATER_EQ => .COMPARE,
-            .PLUS, .MINUS => .TERM,
-            .STAR, .SLASH => .FACTOR,
-            else => .NONE,
+            .eq => .assign,
+            .pipe_pipe => .or_,
+            .amp_amp => .and_,
+            .eq_eq => .equal,
+            .less, .less_eq, .greater, .greater_eq => .compare,
+            .plus, .minus => .term,
+            .star, .slash => .factor,
+            else => .none,
         };
     }
 

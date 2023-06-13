@@ -44,17 +44,17 @@ pub const Value = union(ValueKind) {
                 // Ignoring float ops for now, those may disappear and you
                 // just explicitly cast.
                 return switch (tag) {
-                    .EQ => .assign,
-                    .PLUS => .add,
-                    .MINUS => .sub,
-                    .STAR => .mul,
-                    .SLASH => .div,
-                    .AMP_AMP => .@"and",
-                    .PIPE_PIPE => .@"or",
-                    .LESS => .lt,
-                    .LESS_EQ => .le,
-                    .GREATER => .gt,
-                    .GREATER_EQ => .ge,
+                    .eq => .assign,
+                    .plus => .add,
+                    .minus => .sub,
+                    .star => .mul,
+                    .slash => .div,
+                    .amp_amp => .@"and",
+                    .pipe_pipe => .@"or",
+                    .less => .lt,
+                    .less_eq => .le,
+                    .greater => .gt,
+                    .greater_eq => .ge,
                     else => error.NotAnOperator,
                 };
             }

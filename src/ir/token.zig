@@ -2,46 +2,46 @@ pub const Token = struct {
     const Self = @This();
 
     pub const Tag = enum {
-        EOF,
-        LPAREN,
-        RPAREN,
-        LBRACE,
-        RBRACE,
-        ARROW,
-        AT,
-        COLON,
-        COMMA,
-        IDENTIFIER,
-        NUM,
+        eof,
+        lparen,
+        rparen,
+        lbrace,
+        rbrace,
+        arrow,
+        at,
+        colon,
+        comma,
+        identifier,
+        num,
 
-        EQ,
-        EQ_EQ,
-        PLUS,
-        MINUS,
-        STAR,
-        SLASH,
-        AMP_AMP,
-        PIPE_PIPE,
-        LESS,
-        LESS_EQ,
-        GREATER,
-        GREATER_EQ,
+        eq,
+        eq_eq,
+        plus,
+        minus,
+        star,
+        slash,
+        amp_amp,
+        pipe_pipe,
+        less,
+        less_eq,
+        greater,
+        greater_eq,
 
         // Keywords
-        FN,
-        DEBUG,
+        func,
+        debug,
         // Branch keywords
-        BR,
-        BRZ,
-        BRE,
-        BRL,
-        BRLE,
-        BRG,
-        BRGE,
+        br,
+        brz,
+        bre,
+        brl,
+        brle,
+        brg,
+        brge,
 
         // Default value of "undefined" token. Should not appear when lexing
         // normally.
-        NONE,
+        none,
     };
 
     // Like Zig compiler with start/end because it's just one stream.
@@ -64,17 +64,17 @@ pub const Token = struct {
     }
 
     pub fn none() Self {
-        return Self.init(.NONE, 0, 0);
+        return Self.init(.none, 0, 0);
     }
 
     pub fn isValid(self: Self) bool {
-        return self.tag != .NONE;
+        return self.tag != .none;
     }
 
     pub fn isOp(self: Self) bool {
         return switch(self.tag) {
-            .EQ, .PLUS, .MINUS, .STAR, .SLASH, .AMP_AMP, .PIPE_PIPE,
-            .LESS, .LESS_EQ, .GREATER, .GREATER_EQ => true,
+            .eq, .plus, .minus, .star, .slash, .amp_amp, .pipe_pipe,
+            .less, .less_eq, .greater, .greater_eq => true,
             else => false,
         };
     }

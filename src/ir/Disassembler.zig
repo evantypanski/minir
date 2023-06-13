@@ -15,7 +15,7 @@ var indent: usize = 0;
 
 pub fn disassemble(self: Disassembler) Writer.Error!void {
     for (self.program.functions) |function| {
-        try self.writer.print("fn @{s}(", .{function.name});
+        try self.writer.print("func @{s}(", .{function.name});
         try self.printParams(function.params);
         try self.writer.writeAll(") -> ");
         try self.disassembleType(function.ret_ty);
