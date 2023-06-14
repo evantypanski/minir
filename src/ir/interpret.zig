@@ -3,7 +3,7 @@ const std = @import("std");
 const ArrayList = std.ArrayList;
 
 const IrError = @import("errors.zig").IrError;
-const Function = @import("nodes/function.zig").Function;
+const Function = @import("nodes/decl.zig").Function;
 const Instr = @import("nodes/instruction.zig").Instr;
 const Program = @import("nodes/program.zig").Program;
 const Value = @import("nodes/value.zig").Value;

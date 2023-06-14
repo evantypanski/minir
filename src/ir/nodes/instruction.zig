@@ -1,3 +1,5 @@
+const std = @import("std");
+
 const Value = @import("value.zig").Value;
 const Type = @import("type.zig").Type;
 
@@ -121,6 +123,12 @@ pub const Instr = union(InstrKind) {
             .debug, .id, .value => return false,
             .branch, .ret => return true,
         }
+    }
+
+    // Intentionally blank
+    pub fn deinit(self: *Instr, allocator: std.mem.Allocator) void {
+        _ = self;
+        _ = allocator;
     }
 };
 

@@ -1,58 +1,64 @@
 const std = @import("std");
 
-const BasicBlockBuilder = @import("basic_block.zig").BasicBlockBuilder;
-const Function = @import("function.zig").Function;
-const FunctionBuilder = @import("function.zig").FunctionBuilder;
+const basic_block = @import("basic_block.zig");
+const BasicBlock = basic_block.BasicBlock;
+const BasicBlockBuilder = basic_block.BasicBlockBuilder;
+const Decl = @import("decl.zig").Decl;
+const FunctionBuilder = @import("decl.zig").FunctionBuilder;
 const Instr = @import("instruction.zig").Instr;
 
 pub const Program = struct {
-    functions: []Function,
+    decls: []Decl,
 
     pub fn deinit(self: *Program, allocator: std.mem.Allocator) void {
-        for (self.functions) |*function| {
-            function.deinit(allocator);
+        for (self.decls) |*decl| {
+            decl.deinit(allocator);
         }
-        allocator.free(self.functions);
+        allocator.free(self.decls);
     }
 };
 
 pub const ProgramBuilder = struct {
     const Self = @This();
 
-    functions: std.ArrayList(Function),
+    decls: std.ArrayList(Decl),
     main_idx: ?usize,
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
-            .functions = std.ArrayList(Function).init(allocator),
+            .decls = std.ArrayList(Decl).init(allocator),
             .main_idx = null,
         };
     }
 
-    pub fn addFunction(self: *Self, func: Function) !void {
-        const is_main = std.mem.eql(u8, func.name, "main");
+    pub fn addDecl(self: *Self, decl: Decl) !void {
+        const is_main = switch (decl) {
+            .function => |func| std.mem.eql(u8, func.name, "main"),
+            .bb_function => |func| std.mem.eql(u8, func.name, "main"),
+        };
+
         if (is_main) {
             if (self.main_idx != null) {
                 return error.DuplicateMain;
             } else {
-                self.main_idx = self.functions.items.len;
+                self.main_idx = self.decls.items.len;
             }
         }
 
-        try self.functions.append(func);
+        try self.decls.append(decl);
     }
 
     pub fn build(self: *Self) !Program {
         if (self.main_idx == null) {
             return error.NoMainFunction;
         }
-        return Program { .functions = try self.functions.toOwnedSlice() };
+        return Program { .decls = try self.decls.toOwnedSlice() };
     }
 };
 
 test "deinit works" {
     const Value = @import("value.zig").Value;
-    var func_builder = FunctionBuilder.init(std.testing.allocator, "main");
+    var func_builder = FunctionBuilder(BasicBlock).init(std.testing.allocator, "main");
     defer func_builder.deinit();
 
     var bb1_builder = BasicBlockBuilder.init(std.testing.allocator);
@@ -69,7 +75,7 @@ test "deinit works" {
     var hi_access = Value.initAccessName("hi");
     try bb1_builder.addInstruction(Instr{ .debug = hi_access });
     try bb1_builder.addInstruction(.{ .debug = Value.initCall("f", &.{}) });
-    try func_builder.addBasicBlock(try bb1_builder.build());
+    try func_builder.addElement(try bb1_builder.build());
 
     const func = try func_builder.build();
 
@@ -77,15 +83,15 @@ test "deinit works" {
     bb4_builder.setLabel("bb4");
     try bb4_builder.setTerminator(.{.ret = Value.initInt(5)});
 
-    var func2_builder = FunctionBuilder.init(std.testing.allocator, "f");
+    var func2_builder = FunctionBuilder(BasicBlock).init(std.testing.allocator, "f");
     defer func2_builder.deinit();
     func2_builder.setReturnType(.int);
-    try func2_builder.addBasicBlock(try bb4_builder.build());
+    try func2_builder.addElement(try bb4_builder.build());
     const func2 = try func2_builder.build();
 
     var prog_builder = ProgramBuilder.init(std.testing.allocator);
-    try prog_builder.addFunction(func);
-    try prog_builder.addFunction(func2);
+    try prog_builder.addDecl(Decl { .bb_function = func });
+    try prog_builder.addDecl(Decl { .bb_function = func2 });
 
     var program = try prog_builder.build();
     program.deinit(std.testing.allocator);

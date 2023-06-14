@@ -5,7 +5,7 @@ const instruction = @import("../nodes/instruction.zig");
 const Instr = instruction.Instr;
 const Branch = instruction.Branch;
 const VarDecl = instruction.VarDecl;
-const Function = @import("../nodes/function.zig").Function;
+const Function = @import("../nodes/decl.zig").Function;
 const Program = @import("../nodes/program.zig").Program;
 const Value = @import("../nodes/value.zig").Value;
 

@@ -1,7 +1,7 @@
 const std = @import("std");
 const ArrayList = std.ArrayList;
 
-const FunctionBuilder = @import("ir/nodes/function.zig").FunctionBuilder;
+const FunctionBuilder = @import("ir/nodes/decl.zig").FunctionBuilder;
 const BasicBlockBuilder = @import("ir/nodes/basic_block.zig").BasicBlockBuilder;
 const ProgramBuilder = @import("ir/nodes/program.zig").ProgramBuilder;
 const Instr = @import("ir/nodes/instruction.zig").Instr;
