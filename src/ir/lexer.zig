@@ -2,10 +2,7 @@ const std = @import("std");
 const ascii = std.ascii;
 
 const Token = @import("token.zig").Token;
-
-pub const LexError = error {
-    Unexpected,
-};
+const LexError = @import("errors.zig").LexError;
 
 pub const Lexer = struct {
     const Self = @This();

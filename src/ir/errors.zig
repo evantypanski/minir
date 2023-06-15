@@ -28,3 +28,22 @@ pub const NodeError = error{
 };
 
 pub const IrError = InterpError || NodeError;
+
+pub const TokenParseError = error {
+    Unexpected,
+    ExpectedNumber,
+    ExpectedAt,
+    ExpectedIdentifier,
+    ExpectedLParen,
+    ExpectedRParen,
+    ExpectedArrow,
+    ExpectedLBrace,
+    ExpectedRBrace,
+    ExpectedKeywordFunc,
+};
+
+pub const LexError = error {
+    Unexpected,
+};
+
+pub const ParseError = TokenParseError || NodeError || LexError;

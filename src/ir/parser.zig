@@ -6,15 +6,10 @@ const Token = @import("token.zig").Token;
 const Lexer = @import("lexer.zig").Lexer;
 const Value = @import("nodes/value.zig").Value;
 const Instr = @import("nodes/instruction.zig").Instr;
-const decl = @import("nodes/decl.zig");
-const Decl = decl.Decl;
-const Function = decl.Function;
-const FunctionBuilder = decl.FunctionBuilder;
-
-pub const ParseError = error {
-    Unexpected,
-    ExpectedNumber,
-};
+const Decl = @import("nodes/decl.zig").Decl;
+const Function = @import("nodes/decl.zig").Function;
+const FunctionBuilder = @import("nodes/decl.zig").FunctionBuilder;
+const ParseError = @import("errors.zig").ParseError;
 
 pub const Parser = struct {
     const Self = @This();
@@ -68,7 +63,11 @@ pub const Parser = struct {
         var builder = ProgramBuilder.init(self.allocator);
         // A program is just a bunch of decls.
         while (self.current.tag != .eof) : (self.advance()) {
-            try builder.addDecl(self.parseDecl());
+            if (self.parseDecl()) |decl| {
+                try builder.addDecl(decl);
+            } else |err| {
+                self.diagCurrent(err);
+            }
         }
 
         return builder.build();
@@ -81,74 +80,75 @@ pub const Parser = struct {
             if (self.lexer.lex()) |tok| {
                 self.current = tok;
                 return;
-            } else |err| switch (err) {
+            } else |err| {
                 // TODO: This diagnoses the previous token. Oops
-                error.Unexpected => self.diagCurrent("Unable to lex token"),
+                self.diagCurrent(err);
             }
         }
     }
 
-    fn consume(self: *Self, tag: Token.Tag, error_message: []const u8) void {
+    fn consume(self: *Self, tag: Token.Tag, err: ParseError) ParseError!void {
         if (self.current.tag == tag) {
             self.advance();
             return;
         }
 
-        self.diagCurrent(error_message);
+        //self.diagCurrent(error_message);
+        return err;
     }
 
-    fn parseDecl(self: *Self) Decl {
-        return Decl { .function = self.parseFnDecl() };
+    fn parseDecl(self: *Self) ParseError!Decl {
+        return Decl { .function = try self.parseFnDecl() };
     }
 
-    fn parseFnDecl(self: *Self) Function(Instr) {
-        self.consume(.func, "Expected 'func' keyword");
-        self.consume(.at, "Expected '@' before function identifier");
-        self.consume(.identifier, "Expected identifier after '@'");
+    fn parseFnDecl(self: *Self) ParseError!Function(Instr) {
+        try self.consume(.func, error.ExpectedKeywordFunc);
+        try self.consume(.at, error.ExpectedAt);
+        try self.consume(.identifier, error.ExpectedIdentifier);
         var builder = FunctionBuilder(Instr)
             .init(self.allocator, self.lexer.getTokString(self.previous));
-        self.consume(.lparen, "Expected left paren to start function parameters");
+        try self.consume(.lparen, error.ExpectedLParen);
         // TODO: Arguments
-        self.consume(.rparen, "Expected right paren after parameters");
+        try self.consume(.rparen, error.ExpectedRParen);
         // Return
-        self.consume(.arrow, "Expected arrow to signify return type");
+        try self.consume(.arrow, error.ExpectedArrow);
         // TODO: Store identifier name
-        self.consume(.identifier, "Expected return type");
+        try self.consume(.identifier, error.ExpectedIdentifier);
 
-        self.consume(.lbrace, "Expected left brace to start function body");
+        try self.consume(.lbrace, error.ExpectedLBrace);
 
         while (self.current.tag != .rbrace and self.current.tag != .eof) {
-            builder.addElement(self.parseStmt()) catch unreachable;
+            builder.addElement(try self.parseStmt()) catch unreachable;
         }
 
         // If we get here without right brace it's EOF
-        self.consume(.rbrace, "Unexpected end of file");
+        try self.consume(.rbrace, error.ExpectedRBrace);
 
         return builder.build() catch unreachable;
     }
 
-    fn parseStmt(self: *Self) Instr {
+    fn parseStmt(self: *Self) ParseError!Instr {
         if (self.match(.debug)) {
             return self.parseDebug();
         } else {
             return .{
-                .value = self.parseExpr() catch unreachable,
+                .value = try self.parseExpr(),
             };
         }
     }
 
-    fn parseDebug(self: *Self) Instr {
-        self.consume(.lparen, "Expected '(' after debug keyword");
-        const val = self.parseExpr() catch unreachable;
-        self.consume(.rparen, "Expected ')' at end of debug");
+    fn parseDebug(self: *Self) ParseError!Instr {
+        try self.consume(.lparen, error.ExpectedLParen);
+        const val = try self.parseExpr();
+        try self.consume(.rparen, error.ExpectedRParen);
         return .{ .debug = val };
     }
 
-    fn parseExpr(self: *Self) !Value {
+    fn parseExpr(self: *Self) ParseError!Value {
         return try self.parsePrecedence(.assign);
     }
 
-    fn parsePrecedence(self: *Self, prec: Precedence) !Value {
+    fn parsePrecedence(self: *Self, prec: Precedence) ParseError!Value {
         // Just abort for non-numbers for now
         if (self.current.tag != .num) {
             return error.ExpectedNumber;
@@ -162,8 +162,7 @@ pub const Parser = struct {
                 and this_prec.gte(prec)) {
                 // Unreachable since we theoretically guarantee `isOp` means
                 // this `fromTag` works.
-                const op_kind = Value.BinaryOp.Kind.fromTag(self.current.tag)
-                    catch unreachable;
+                const op_kind = try Value.BinaryOp.Kind.fromTag(self.current.tag);
                 self.advance();
                 var rhs = try self.parsePrecedence(this_prec.inc());
                 const lhs_ptr = self.allocator.create(Value) catch unreachable;
@@ -178,25 +177,25 @@ pub const Parser = struct {
         }
     }
 
-    fn parseNumber(self: *Self) !Value {
-        self.consume(.num, "Expected number");
+    fn parseNumber(self: *Self) ParseError!Value {
+        try self.consume(.num, error.ExpectedNumber);
         const num_str = self.lexer.getTokString(self.previous);
         // No floats yet
-        const num = try std.fmt.parseInt(i32, num_str, 10);
+        const num = std.fmt.parseInt(i32, num_str, 10) catch unreachable;
         return Value.initInt(num);
     }
 
-    fn diagCurrent(self: Self, message: []const u8) void {
-        self.diag(self.current, message);
+    fn diagCurrent(self: Self, err: ParseError) void {
+        self.diag(self.current, err);
     }
 
-    fn diag(self: Self, token: Token, message: []const u8) void {
+    fn diag(self: Self, token: Token, err: ParseError) void {
         // TODO: Make this better :)
         std.debug.print(
-            "\nError at token {s}: {s}\n",
+            "\nError at token {s}: {}\n",
             .{
                 self.lexer.getTokString(token),
-                message
+                err
             }
         );
     }
