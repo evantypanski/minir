@@ -81,8 +81,7 @@ pub const Parser = struct {
                 self.current = tok;
                 return;
             } else |err| {
-                // TODO: This diagnoses the previous token. Oops
-                self.diagCurrent(err);
+                self.diag(self.lexer.getLastString(), err);
             }
         }
     }
@@ -201,18 +200,13 @@ pub const Parser = struct {
     }
 
     fn diagCurrent(self: Self, err: ParseError) void {
-        self.diag(self.current, err);
+        self.diag(self.lexer.getTokString(self.current), err);
     }
 
-    fn diag(self: Self, token: Token, err: ParseError) void {
+    fn diag(self: Self, tok: []const u8, err: ParseError) void {
+        _ = self;
         // TODO: Make this better :)
-        std.debug.print(
-            "\nError at token {s}: {}\n",
-            .{
-                self.lexer.getTokString(token),
-                err
-            }
-        );
+        std.debug.print("\nError at token {s}: {}\n", .{ tok, err });
     }
 
     fn bindingPower(tag: Token.Tag) Precedence {
