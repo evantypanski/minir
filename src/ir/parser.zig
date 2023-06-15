@@ -1,9 +1,15 @@
 const std = @import("std");
 
 const Program = @import("nodes/program.zig").Program;
+const ProgramBuilder = @import("nodes/program.zig").ProgramBuilder;
 const Token = @import("token.zig").Token;
 const Lexer = @import("lexer.zig").Lexer;
 const Value = @import("nodes/value.zig").Value;
+const Instr = @import("nodes/instruction.zig").Instr;
+const decl = @import("nodes/decl.zig");
+const Decl = decl.Decl;
+const Function = decl.Function;
+const FunctionBuilder = decl.FunctionBuilder;
 
 pub const ParseError = error {
     Unexpected,
@@ -53,16 +59,19 @@ pub const Parser = struct {
         };
     }
 
-    pub fn parse(self: *Self) void {
+    pub fn parse(self: *Self) !Program {
         // We expect to be at the beginning. So we must advance once.
         if (!self.current.isValid()) {
             self.advance();
         }
 
-        // A program is just a bunch of function decls.
+        var builder = ProgramBuilder.init(self.allocator);
+        // A program is just a bunch of decls.
         while (self.current.tag != .eof) : (self.advance()) {
-            self.parseFnDecl();
+            try builder.addDecl(self.parseDecl());
         }
+
+        return builder.build();
     }
 
     fn advance(self: *Self) void {
@@ -88,11 +97,16 @@ pub const Parser = struct {
         self.diagCurrent(error_message);
     }
 
-    fn parseFnDecl(self: *Self) void {
-        self.consume(.func, "Expected 'fn' keyword");
+    fn parseDecl(self: *Self) Decl {
+        return Decl { .function = self.parseFnDecl() };
+    }
+
+    fn parseFnDecl(self: *Self) Function(Instr) {
+        self.consume(.func, "Expected 'func' keyword");
         self.consume(.at, "Expected '@' before function identifier");
-        // TODO: Store identifier name
         self.consume(.identifier, "Expected identifier after '@'");
+        var builder = FunctionBuilder(Instr)
+            .init(self.allocator, self.lexer.getTokString(self.previous));
         self.consume(.lparen, "Expected left paren to start function parameters");
         // TODO: Arguments
         self.consume(.rparen, "Expected right paren after parameters");
@@ -104,25 +118,30 @@ pub const Parser = struct {
         self.consume(.lbrace, "Expected left brace to start function body");
 
         while (self.current.tag != .rbrace and self.current.tag != .eof) {
-            self.parseStmt();
+            builder.addElement(self.parseStmt()) catch unreachable;
         }
 
         // If we get here without right brace it's EOF
         self.consume(.rbrace, "Unexpected end of file");
+
+        return builder.build() catch unreachable;
     }
 
-    fn parseStmt(self: *Self) void {
+    fn parseStmt(self: *Self) Instr {
         if (self.match(.debug)) {
-            self.parseDebug();
+            return self.parseDebug();
         } else {
-            _ = self.parseExpr() catch self.diagCurrent("Error parsing expression");
+            return .{
+                .value = self.parseExpr() catch unreachable,
+            };
         }
     }
 
-    fn parseDebug(self: *Self) void {
-        self.consume(.lparen, "Expected 'fn' keyword");
-        _ = self.parseExpr() catch self.diagCurrent("Error parsing expression");
-        self.consume(.rparen, "Expected 'fn' keyword");
+    fn parseDebug(self: *Self) Instr {
+        self.consume(.lparen, "Expected '(' after debug keyword");
+        const val = self.parseExpr() catch unreachable;
+        self.consume(.rparen, "Expected ')' at end of debug");
+        return .{ .debug = val };
     }
 
     fn parseExpr(self: *Self) !Value {
@@ -147,7 +166,12 @@ pub const Parser = struct {
                     catch unreachable;
                 self.advance();
                 var rhs = try self.parsePrecedence(this_prec.inc());
-                lhs = Value.initBinary(op_kind, &lhs, &rhs);
+                const lhs_ptr = self.allocator.create(Value) catch unreachable;
+                lhs_ptr.* = lhs;
+                const rhs_ptr = self.allocator.create(Value) catch unreachable;
+                rhs_ptr.* = rhs;
+
+                lhs = Value.initBinary(op_kind, lhs_ptr, rhs_ptr);
             } else {
                 return lhs;
             }

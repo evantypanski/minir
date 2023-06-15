@@ -1,4 +1,5 @@
-const fmt = @import("std").fmt;
+const std = @import("std");
+const fmt = std.fmt;
 const Writer = @import("std").fs.File.Writer;
 
 const Program = @import("nodes/program.zig").Program;
@@ -6,6 +7,9 @@ const Instr = @import("nodes/instruction.zig").Instr;
 const VarDecl = @import("nodes/instruction.zig").VarDecl;
 const Value = @import("nodes/value.zig").Value;
 const Type = @import("nodes/type.zig").Type;
+const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
+const Decl = @import("nodes/decl.zig").Decl;
+const Function = @import("nodes/decl.zig").Function;
 
 const Disassembler = @This();
 
@@ -14,42 +18,77 @@ program: Program,
 var indent: usize = 0;
 
 pub fn disassemble(self: Disassembler) Writer.Error!void {
-    for (self.program.functions) |function| {
-        try self.writer.print("func @{s}(", .{function.name});
-        try self.printParams(function.params);
-        try self.writer.writeAll(") -> ");
-        try self.disassembleType(function.ret_ty);
-        try self.writer.writeAll(" {");
+    for (self.program.decls) |decl| {
+        try self.disassembleDecl(decl);
+    }
+}
+
+pub fn disassembleDecl(self: Disassembler, decl: Decl) Writer.Error!void {
+    switch (decl) {
+        .function => |func| try self.disassembleFunction(func),
+        .bb_function => |func| try self.disassembleBBFunction(func),
+    }
+}
+
+pub fn disassembleFunction(
+    self: Disassembler,
+    function: Function(Instr)
+) Writer.Error!void {
+    try self.writer.print("func @{s}(", .{function.name});
+    try self.printParams(function.params);
+    try self.writer.writeAll(") -> ");
+    try self.disassembleType(function.ret_ty);
+    try self.writer.writeAll(" {");
+    indent += 1;
+    try self.newline();
+    for (function.elements) |instr| {
+        try self.disassembleInstr(instr);
+        try self.newline();
+    }
+    indent -= 1;
+    try self.newline();
+    try self.writer.writeAll("}");
+    try self.newline();
+}
+
+pub fn disassembleBBFunction(
+    self: Disassembler,
+    function: Function(BasicBlock),
+) Writer.Error!void {
+    try self.writer.print("func @{s}(", .{function.name});
+    try self.printParams(function.params);
+    try self.writer.writeAll(") -> ");
+    try self.disassembleType(function.ret_ty);
+    try self.writer.writeAll(" {");
+    indent += 1;
+    try self.newline();
+    for (function.elements) |bb| {
+        if (bb.label) |label| {
+            try self.writer.print("{s}: {{", .{label});
+        } else {
+            try self.writer.writeAll("{");
+        }
         indent += 1;
         try self.newline();
-        for (function.bbs) |bb| {
-            if (bb.label) |label| {
-                try self.writer.print("{s}: {{", .{label});
-            } else {
-                try self.writer.writeAll("{");
-            }
-            indent += 1;
-            try self.newline();
 
-            for (bb.instructions) |instr| {
-                try self.disassembleInstr(instr);
-                try self.newline();
-            }
-
-            if (bb.terminator) |terminator| {
-                try self.disassembleInstr(terminator);
-            }
-
-            indent -= 1;
-            try self.newline();
-            try self.writer.writeAll("}");
+        for (bb.instructions) |instr| {
+            try self.disassembleInstr(instr);
             try self.newline();
         }
+
+        if (bb.terminator) |terminator| {
+            try self.disassembleInstr(terminator);
+        }
+
         indent -= 1;
         try self.newline();
         try self.writer.writeAll("}");
         try self.newline();
     }
+    indent -= 1;
+    try self.newline();
+    try self.writer.writeAll("}");
+    try self.newline();
 }
 
 pub fn disassembleInstr(self: Disassembler, instr: Instr) Writer.Error!void {

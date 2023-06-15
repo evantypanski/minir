@@ -97,7 +97,7 @@ pub const Lexer = struct {
     fn identifierTag(self: Self, start: usize) Token.Tag {
         const token_len = self.current - start;
         switch (self.source[start]) {
-            'f' => return self.checkKeyword(start + 1, 1, "n", .func),
+            'f' => return self.checkKeyword(start + 1, 3, "unc", .func),
             'd' => return self.checkKeyword(start + 1, 4, "ebug", .debug),
             // Just do branches here because why not. This is a mess. Oops.
             'b' => if (token_len >= 2) {

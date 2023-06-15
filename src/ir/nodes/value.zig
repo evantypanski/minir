@@ -1,3 +1,5 @@
+const std = @import("std");
+
 const NodeError = @import("../errors.zig").NodeError;
 const Token = @import("../token.zig").Token;
 
@@ -59,6 +61,11 @@ pub const Value = union(ValueKind) {
                 };
             }
         };
+
+        pub fn deinit(self: *BinaryOp, allocator: std.mem.Allocator) void {
+            allocator.destroy(self.lhs);
+            allocator.destroy(self.rhs);
+        }
 
         kind: Kind,
 
@@ -141,6 +148,13 @@ pub const Value = union(ValueKind) {
         switch (self) {
             .float => |val| return val,
             else => return error.NotAFloat,
+        }
+    }
+
+    pub fn deinit(self: *Value, allocator: std.mem.Allocator) void {
+        switch (self.*) {
+            .binary => |*op| op.deinit(allocator),
+            else => {},
         }
     }
 };

@@ -127,8 +127,16 @@ pub const Instr = union(InstrKind) {
 
     // Intentionally blank
     pub fn deinit(self: *Instr, allocator: std.mem.Allocator) void {
-        _ = self;
-        _ = allocator;
+        switch (self.*) {
+            .debug => |*val| val.deinit(allocator),
+            .ret => |*ret| {
+                if (ret.*) |*val| {
+                    val.deinit(allocator);
+                }
+            },
+            .value => |*val| val.deinit(allocator),
+            else => {},
+        }
     }
 };
 

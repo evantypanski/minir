@@ -21,7 +21,14 @@ pub fn main() !void {
     const source = try file.readToEndAlloc(gpa, 10000);
     var lexer = Lexer.init(source);
     var parser = Parser.init(gpa, lexer);
-    parser.parse();
+    const program = try parser.parse();
+
+    var disassembler = Disassembler {
+        .writer = std.io.getStdErr().writer(),
+        .program = program,
+    };
+
+    try disassembler.disassemble();
 }
 
 test {
