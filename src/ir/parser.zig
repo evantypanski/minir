@@ -10,6 +10,7 @@ const Decl = @import("nodes/decl.zig").Decl;
 const Function = @import("nodes/decl.zig").Function;
 const FunctionBuilder = @import("nodes/decl.zig").FunctionBuilder;
 const ParseError = @import("errors.zig").ParseError;
+const Type = @import("nodes/type.zig").Type;
 
 pub const Parser = struct {
     const Self = @This();
@@ -113,6 +114,14 @@ pub const Parser = struct {
         try self.consume(.arrow, error.ExpectedArrow);
         // TODO: Store identifier name
         try self.consume(.identifier, error.ExpectedIdentifier);
+        const type_name = self.lexer.getTokString(self.previous);
+        const ty = if (Type.from_string(type_name)) |ty|
+                ty
+            else |err| blk: {
+                self.diagPrevious(err);
+                break :blk .none;
+            };
+        builder.setReturnType(ty);
 
         try self.consume(.lbrace, error.ExpectedLBrace);
 
@@ -201,6 +210,10 @@ pub const Parser = struct {
 
     fn diagCurrent(self: Self, err: ParseError) void {
         self.diag(self.lexer.getTokString(self.current), err);
+    }
+
+    fn diagPrevious(self: Self, err: ParseError) void {
+        self.diag(self.lexer.getTokString(self.previous), err);
     }
 
     fn diag(self: Self, tok: []const u8, err: ParseError) void {
