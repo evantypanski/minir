@@ -112,7 +112,6 @@ pub const Parser = struct {
         try self.consume(.rparen, error.ExpectedRParen);
         // Return
         try self.consume(.arrow, error.ExpectedArrow);
-        // TODO: Store identifier name
         try self.consume(.identifier, error.ExpectedIdentifier);
         const type_name = self.lexer.getTokString(self.previous);
         const ty = if (Type.from_string(type_name)) |ty|
@@ -161,13 +160,21 @@ pub const Parser = struct {
         return try self.parsePrecedence(.assign);
     }
 
-    fn parsePrecedence(self: *Self, prec: Precedence) ParseError!Value {
-        // Just abort for non-numbers for now
-        if (self.current.tag != .num) {
-            return error.ExpectedNumber;
-        }
+    fn parseGrouping(self: *Self) ParseError!Value {
+        // lparen
+        self.advance();
+        const val = try self.parsePrecedence(.assign);
+        try self.consume(.rparen, error.ExpectedRParen);
+        return val;
+    }
 
-        var lhs = try self.parseNumber();
+    fn parsePrecedence(self: *Self, prec: Precedence) ParseError!Value {
+        // Prefixes
+        // TODO: Unary ops
+        var lhs = if (self.current.tag == .lparen)
+            try self.parseGrouping()
+        else
+            try self.parseNumber();
 
         while (true) {
             const this_prec = bindingPower(self.current.tag);

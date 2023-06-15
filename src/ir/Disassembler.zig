@@ -184,6 +184,7 @@ pub fn disassembleValue(self: Disassembler, value: Value) Writer.Error!void {
 
 pub fn disassembleBinary(self: Disassembler, binary: Value.BinaryOp)
             Writer.Error!void {
+    try self.writer.writeAll("(");
     try self.disassembleValue(binary.lhs.*);
     const op = switch (binary.kind) {
         .assign => " = ",
@@ -204,6 +205,7 @@ pub fn disassembleBinary(self: Disassembler, binary: Value.BinaryOp)
     };
     try self.writer.writeAll(op);
     try self.disassembleValue(binary.rhs.*);
+    try self.writer.writeAll(")");
 }
 
 pub fn disassembleType(self: Disassembler, ty: Type) Writer.Error!void {
