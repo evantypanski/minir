@@ -118,13 +118,18 @@ pub const Parser = struct {
         try self.consume(.lbrace, error.ExpectedLBrace);
 
         while (self.current.tag != .rbrace and self.current.tag != .eof) {
-            builder.addElement(try self.parseStmt()) catch unreachable;
+            if (builder.addElement(try self.parseStmt())) {}
+            else |_| { return error.MemoryError; }
         }
 
         // If we get here without right brace it's EOF
         try self.consume(.rbrace, error.ExpectedRBrace);
 
-        return builder.build() catch unreachable;
+        const decl = if (builder.build()) |decl|
+                decl
+            else |_|
+                error.MemoryError;
+        return decl;
     }
 
     fn parseStmt(self: *Self) ParseError!Instr {
@@ -165,9 +170,16 @@ pub const Parser = struct {
                 const op_kind = try Value.BinaryOp.Kind.fromTag(self.current.tag);
                 self.advance();
                 var rhs = try self.parsePrecedence(this_prec.inc());
-                const lhs_ptr = self.allocator.create(Value) catch unreachable;
+                const lhs_ptr = if (self.allocator.create(Value)) |ptr|
+                        ptr
+                    else |_|
+                        return error.MemoryError;
                 lhs_ptr.* = lhs;
-                const rhs_ptr = self.allocator.create(Value) catch unreachable;
+                const rhs_ptr = if (self.allocator.create(Value)) |ptr|
+                        ptr
+                    else |_|
+                        return error.MemoryError;
+
                 rhs_ptr.* = rhs;
 
                 lhs = Value.initBinary(op_kind, lhs_ptr, rhs_ptr);
@@ -181,7 +193,10 @@ pub const Parser = struct {
         try self.consume(.num, error.ExpectedNumber);
         const num_str = self.lexer.getTokString(self.previous);
         // No floats yet
-        const num = std.fmt.parseInt(i32, num_str, 10) catch unreachable;
+        const num = if (std.fmt.parseInt(i32, num_str, 10)) |num|
+                num
+            else |_|
+                return error.NotANumber;
         return Value.initInt(num);
     }
 

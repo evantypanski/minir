@@ -40,6 +40,8 @@ pub const TokenParseError = error {
     ExpectedLBrace,
     ExpectedRBrace,
     ExpectedKeywordFunc,
+    MemoryError,
+    NotANumber,
 };
 
 pub const LexError = error {
