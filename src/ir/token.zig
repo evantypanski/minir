@@ -31,6 +31,8 @@ pub const Token = struct {
         func,
         debug,
         let,
+        true_,
+        false_,
         // Branch keywords
         br,
         brz,

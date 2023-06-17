@@ -43,6 +43,8 @@ pub const TokenParseError = error {
     ExpectedKeywordFunc,
     MemoryError,
     NotANumber,
+    NotALiteral,
+    NotABoolean,
 };
 
 pub const LexError = error {

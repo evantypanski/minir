@@ -180,7 +180,7 @@ pub const Parser = struct {
     }
 
     fn parsePrecedence(self: *Self, prec: Precedence) ParseError!Value {
-        // Prefixes. Numbers, parenthesized expressions, and ids can start an
+        // Prefixes. Literals, parenthesized expressions, and ids can start an
         // expression statement.
         // TODO: Unary ops
         var lhs = if (self.current.tag == .lparen)
@@ -188,7 +188,7 @@ pub const Parser = struct {
         else if (self.current.tag == .identifier)
             try self.parseIdentifier()
         else
-            try self.parseNumber();
+            try self.parseLiteral();
 
         while (true) {
             const this_prec = bindingPower(self.current.tag);
@@ -223,6 +223,24 @@ pub const Parser = struct {
         try self.consume(.identifier, error.ExpectedIdentifier);
         const name = self.lexer.getTokString(self.previous);
         return Value.initAccessName(name);
+    }
+
+    fn parseLiteral(self: *Self) ParseError!Value {
+        return if (self.current.tag == .true_ or self.current.tag == .false_)
+            try self.parseBoolean()
+        else if (self.current.tag == .num)
+            try self.parseNumber()
+        else
+            error.NotALiteral;
+    }
+
+    fn parseBoolean(self: *Self) ParseError!Value {
+        return if (self.match(.true_))
+            Value.initBool(true)
+        else if (self.match(.false_))
+            Value.initBool(false)
+        else
+            error.NotABoolean;
     }
 
     fn parseNumber(self: *Self) ParseError!Value {
