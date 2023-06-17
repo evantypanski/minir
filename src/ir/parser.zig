@@ -142,6 +142,17 @@ pub const Parser = struct {
     fn parseStmt(self: *Self) ParseError!Instr {
         if (self.match(.debug)) {
             return self.parseDebug();
+        } else if (self.match(.let)) {
+            try self.consume(.identifier, error.ExpectedIdentifier);
+            const var_name = self.lexer.getTokString(self.previous);
+            const val = if (self.match(.eq)) try self.parseExpr() else null;
+            return .{
+                .id = .{
+                    .name = var_name,
+                    .val = val,
+                    .ty = null,
+                }
+            };
         } else {
             return .{
                 .value = try self.parseExpr(),

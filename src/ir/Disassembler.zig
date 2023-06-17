@@ -99,7 +99,7 @@ pub fn disassembleInstr(self: Disassembler, instr: Instr) Writer.Error!void {
             try self.writer.writeAll(")");
         },
         .id => |decl| {
-            try self.writer.writeAll(decl.name);
+            try self.writer.print("let {s}", .{decl.name});
             if (decl.val) |value| {
                 try self.writer.writeAll(" = ");
                 try self.disassembleValue(value);
@@ -184,6 +184,7 @@ pub fn disassembleValue(self: Disassembler, value: Value) Writer.Error!void {
 
 pub fn disassembleBinary(self: Disassembler, binary: Value.BinaryOp)
             Writer.Error!void {
+    // TODO: Only print parens if necessary?
     try self.writer.writeAll("(");
     try self.disassembleValue(binary.lhs.*);
     const op = switch (binary.kind) {
@@ -224,8 +225,14 @@ fn printParams(self: Disassembler, params: []const VarDecl) !void {
         if (!first) {
             try self.writer.writeAll(", ");
         }
-        try self.disassembleType(param.ty);
-        try self.writer.print(" {s}", .{param.name});
+        // Type will probably be required from parsing but it may get here
+        // without the type so don't crash.
+        if (param.ty) |ty| {
+            try self.disassembleType(ty);
+            try self.writer.writeAll(" ");
+        }
+
+        try self.writer.print("{s}", .{param.name});
 
         first = false;
     }

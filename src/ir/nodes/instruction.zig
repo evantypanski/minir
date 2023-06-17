@@ -15,7 +15,7 @@ pub const VarDecl = struct {
     name: []const u8,
     // Initial decl
     val: ?Value,
-    ty: Type,
+    ty: ?Type,
 };
 
 pub const Jump = struct {

@@ -100,6 +100,7 @@ pub const Lexer = struct {
         switch (self.source[self.start]) {
             'f' => return self.checkKeyword(self.start + 1, 3, "unc", .func),
             'd' => return self.checkKeyword(self.start + 1, 4, "ebug", .debug),
+            'l' => return self.checkKeyword(self.start + 1, 2, "et", .let),
             // Just do branches here because why not. This is a mess. Oops.
             'b' => if (token_len >= 2) {
                     switch (self.source[self.start + 1]) {
