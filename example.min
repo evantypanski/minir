@@ -1,4 +1,4 @@
 func @main() -> void {
-  debug(1 + 2 * (3 + 4))
   let x = 5
+  debug(1 + x * (3 + 4))
 }

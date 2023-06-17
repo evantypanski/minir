@@ -180,10 +180,13 @@ pub const Parser = struct {
     }
 
     fn parsePrecedence(self: *Self, prec: Precedence) ParseError!Value {
-        // Prefixes
+        // Prefixes. Numbers, parenthesized expressions, and ids can start an
+        // expression statement.
         // TODO: Unary ops
         var lhs = if (self.current.tag == .lparen)
             try self.parseGrouping()
+        else if (self.current.tag == .identifier)
+            try self.parseIdentifier()
         else
             try self.parseNumber();
 
@@ -213,6 +216,13 @@ pub const Parser = struct {
                 return lhs;
             }
         }
+    }
+
+    // Parses an identifier as a value
+    fn parseIdentifier(self: *Self) ParseError!Value {
+        try self.consume(.identifier, error.ExpectedIdentifier);
+        const name = self.lexer.getTokString(self.previous);
+        return Value.initAccessName(name);
     }
 
     fn parseNumber(self: *Self) ParseError!Value {
