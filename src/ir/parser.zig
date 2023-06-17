@@ -246,12 +246,27 @@ pub const Parser = struct {
     fn parseNumber(self: *Self) ParseError!Value {
         try self.consume(.num, error.ExpectedNumber);
         const num_str = self.lexer.getTokString(self.previous);
-        // No floats yet
-        const num = if (std.fmt.parseInt(i32, num_str, 10)) |num|
-                num
-            else |_|
+        var is_float = false;
+        for (num_str) |char| {
+            if (char == '.') {
+                is_float = true;
+                break;
+            }
+        }
+        if (is_float) {
+            if (std.fmt.parseFloat(f32, num_str)) |num| {
+                return Value.initFloat(num);
+            } else |_| {
                 return error.NotANumber;
-        return Value.initInt(num);
+            }
+
+        } else {
+            if (std.fmt.parseInt(i32, num_str, 10)) |num| {
+                return Value.initInt(num);
+            } else |_| {
+                return error.NotANumber;
+            }
+        }
     }
 
     fn diagCurrent(self: Self, err: ParseError) void {
