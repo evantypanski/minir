@@ -2,8 +2,9 @@ const std = @import("std");
 
 const Value = @import("value.zig").Value;
 const Type = @import("type.zig").Type;
+const Loc = @import("../sourceloc.zig").Loc;
 
-const InstrKind = enum {
+const StmtTag = enum {
     debug,
     id,
     branch,
@@ -111,23 +112,44 @@ pub const Branch = union(BranchKind) {
 
 };
 
-pub const Instr = union(InstrKind) {
+pub const StmtKind = union(StmtTag) {
     debug: Value,
     id: VarDecl,
     branch: Branch,
     ret: ?Value,
     value: Value,
+};
 
-    pub fn isTerminator(self: Instr) bool {
-        switch (self) {
+pub const Stmt = struct {
+    stmt_kind: StmtKind,
+    label: ?[]const u8,
+    loc: Loc,
+
+    pub fn init(kind: StmtKind, loc: Loc) Stmt {
+        return .{
+            .stmt_kind = kind,
+            .label = null,
+            .loc = loc
+        };
+    }
+
+    pub fn initWithLabel(kind: StmtKind, label: []const u8, loc: Loc) Stmt {
+        return .{
+            .stmt_kind = kind,
+            .label = label,
+            .loc = loc
+        };
+    }
+
+    pub fn isTerminator(self: Stmt) bool {
+        switch (self.stmt_kind) {
             .debug, .id, .value => return false,
             .branch, .ret => return true,
         }
     }
 
-    // Intentionally blank
-    pub fn deinit(self: *Instr, allocator: std.mem.Allocator) void {
-        switch (self.*) {
+    pub fn deinit(self: *Stmt, allocator: std.mem.Allocator) void {
+        switch (self.*.stmt_kind) {
             .debug => |*val| val.deinit(allocator),
             .ret => |*ret| {
                 if (ret.*) |*val| {
@@ -139,4 +161,3 @@ pub const Instr = union(InstrKind) {
         }
     }
 };
-

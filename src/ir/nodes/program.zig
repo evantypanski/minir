@@ -5,7 +5,8 @@ const BasicBlock = basic_block.BasicBlock;
 const BasicBlockBuilder = basic_block.BasicBlockBuilder;
 const Decl = @import("decl.zig").Decl;
 const FunctionBuilder = @import("decl.zig").FunctionBuilder;
-const Instr = @import("instruction.zig").Instr;
+const Stmt = @import("statement.zig").Stmt;
+const Loc = @import("../sourceloc.zig").Loc;
 
 pub const Program = struct {
     decls: []Decl,
@@ -63,25 +64,43 @@ test "deinit works" {
 
     var bb1_builder = BasicBlockBuilder.init(std.testing.allocator);
     bb1_builder.setLabel("bb1");
-    try bb1_builder.addInstruction(
-        Instr {
-            .id = .{
-                .name = "hi",
-                .val = .{ .int = 99 },
-                .ty = .int,
-            }
-        }
+    try bb1_builder.addStatement(
+        Stmt.init(
+            .{
+                .id = .{
+                    .name = "hi",
+                    .val = .{ .int = 99 },
+                    .ty = .int,
+                }
+            },
+            Loc.default()
+        )
     );
     var hi_access = Value.initAccessName("hi");
-    try bb1_builder.addInstruction(Instr{ .debug = hi_access });
-    try bb1_builder.addInstruction(.{ .debug = Value.initCall("f", &.{}) });
+    try bb1_builder.addStatement(
+        Stmt.init(
+            .{ .debug = hi_access },
+            Loc.default()
+        )
+    );
+    try bb1_builder.addStatement(
+        Stmt.init(
+            .{ .debug = Value.initCall("f", &.{}) },
+            Loc.default()
+        )
+    );
     try func_builder.addElement(try bb1_builder.build());
 
     const func = try func_builder.build();
 
     var bb4_builder = BasicBlockBuilder.init(std.testing.allocator);
     bb4_builder.setLabel("bb4");
-    try bb4_builder.setTerminator(.{.ret = Value.initInt(5)});
+    try bb4_builder.setTerminator(
+        Stmt.init(
+            .{.ret = Value.initInt(5)},
+            Loc.default()
+        )
+    );
 
     var func2_builder = FunctionBuilder(BasicBlock).init(std.testing.allocator, "f");
     defer func2_builder.deinit();

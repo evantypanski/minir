@@ -1,3 +1,5 @@
+const Loc = @import("sourceloc.zig").Loc;
+
 pub const Token = struct {
     const Self = @This();
 
@@ -46,12 +48,6 @@ pub const Token = struct {
         // Default value of "undefined" token. Should not appear when lexing
         // normally.
         none,
-    };
-
-    // Like Zig compiler with start/end because it's just one stream.
-    pub const Loc = struct {
-        start: usize,
-        end: usize,
     };
 
     tag: Tag,

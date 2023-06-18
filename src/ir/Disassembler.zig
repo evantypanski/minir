@@ -3,8 +3,8 @@ const fmt = std.fmt;
 const Writer = @import("std").fs.File.Writer;
 
 const Program = @import("nodes/program.zig").Program;
-const Instr = @import("nodes/instruction.zig").Instr;
-const VarDecl = @import("nodes/instruction.zig").VarDecl;
+const Stmt = @import("nodes/statement.zig").Stmt;
+const VarDecl = @import("nodes/statement.zig").VarDecl;
 const Value = @import("nodes/value.zig").Value;
 const Type = @import("nodes/type.zig").Type;
 const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
@@ -32,7 +32,7 @@ pub fn disassembleDecl(self: Disassembler, decl: Decl) Writer.Error!void {
 
 pub fn disassembleFunction(
     self: Disassembler,
-    function: Function(Instr)
+    function: Function(Stmt)
 ) Writer.Error!void {
     try self.writer.print("func @{s}(", .{function.name});
     try self.printParams(function.params);
@@ -41,8 +41,8 @@ pub fn disassembleFunction(
     try self.writer.writeAll(" {");
     indent += 1;
     try self.newline();
-    for (function.elements) |instr| {
-        try self.disassembleInstr(instr);
+    for (function.elements) |stmt| {
+        try self.disassembleStmt(stmt);
         try self.newline();
     }
     indent -= 1;
@@ -71,13 +71,13 @@ pub fn disassembleBBFunction(
         indent += 1;
         try self.newline();
 
-        for (bb.instructions) |instr| {
-            try self.disassembleInstr(instr);
+        for (bb.statements) |stmt| {
+            try self.disassembleStmt(stmt);
             try self.newline();
         }
 
         if (bb.terminator) |terminator| {
-            try self.disassembleInstr(terminator);
+            try self.disassembleStmt(terminator);
         }
 
         indent -= 1;
@@ -91,8 +91,8 @@ pub fn disassembleBBFunction(
     try self.newline();
 }
 
-pub fn disassembleInstr(self: Disassembler, instr: Instr) Writer.Error!void {
-    switch (instr) {
+pub fn disassembleStmt(self: Disassembler, stmt: Stmt) Writer.Error!void {
+    switch (stmt.stmt_kind) {
         .debug => |val| {
             try self.writer.writeAll("debug(");
             try self.disassembleValue(val);

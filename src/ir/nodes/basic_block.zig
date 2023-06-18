@@ -1,40 +1,40 @@
 const std = @import("std");
 
-const Instr = @import("instruction.zig").Instr;
+const Stmt = @import("statement.zig").Stmt;
 
 pub const BasicBlock = struct {
-    instructions: []Instr,
-    terminator: ?Instr,
+    statements: []Stmt,
+    terminator: ?Stmt,
     label: ?[]const u8,
 
     pub fn deinit(self: *BasicBlock, allocator: std.mem.Allocator) void {
-        allocator.free(self.instructions);
+        allocator.free(self.statements);
     }
 };
 
 pub const BasicBlockBuilder = struct {
     const Self = @This();
 
-    instructions: std.ArrayList(Instr),
-    terminator: ?Instr,
+    statements: std.ArrayList(Stmt),
+    terminator: ?Stmt,
     label: ?[]const u8,
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
-            .instructions = std.ArrayList(Instr).init(allocator),
+            .statements = std.ArrayList(Stmt).init(allocator),
             .terminator = null,
             .label = null,
         };
     }
 
-    pub fn addInstruction(self: *Self, instr: Instr) !void {
-        if (instr.isTerminator()) {
+    pub fn addStatement(self: *Self, stmt: Stmt) !void {
+        if (stmt.isTerminator()) {
             return error.UnexpectedTerminator;
         }
-        try self.instructions.append(instr);
+        try self.statements.append(stmt);
     }
 
-    pub fn setTerminator(self: *Self, term: Instr) !void {
+    pub fn setTerminator(self: *Self, term: Stmt) !void {
         if (!term.isTerminator()) {
             return error.ExpectedTerminator;
         }
@@ -48,7 +48,7 @@ pub const BasicBlockBuilder = struct {
 
     pub fn build(self: *Self) !BasicBlock {
         return .{
-            .instructions = try self.instructions.toOwnedSlice(),
+            .statements = try self.statements.toOwnedSlice(),
             .terminator = self.terminator,
             .label = self.label,
         };

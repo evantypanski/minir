@@ -1,10 +1,10 @@
 const std = @import("std");
 
 const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
-const instruction = @import("../nodes/instruction.zig");
-const Instr = instruction.Instr;
-const Branch = instruction.Branch;
-const VarDecl = instruction.VarDecl;
+const statement = @import("../nodes/statement.zig");
+const Stmt = statement.Stmt;
+const Branch = statement.Branch;
+const VarDecl = statement.VarDecl;
 const Function = @import("../nodes/decl.zig").Function;
 const Program = @import("../nodes/program.zig").Program;
 const Value = @import("../nodes/value.zig").Value;
@@ -15,7 +15,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         visitFunction: VisitFunctionFn = defaultVisitFunction,
         visitBasicBlock: VisitBasicBlockFn = defaultVisitBasicBlock,
 
-        visitInstruction: VisitInstructionFn = defaultVisitInstruction,
+        visitStatement: VisitStatementFn = defaultVisitStatement,
         visitVarDecl: VisitVarDeclFn = defaultVisitVarDecl,
         visitBranch: VisitBranchFn = defaultVisitBranch,
 
@@ -31,8 +31,8 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const VisitFunctionFn = *const fn(self: Self, arg: ArgTy, function: *Function) RetTy;
         const VisitBasicBlockFn = *const fn(self: Self, arg: ArgTy, bb: *BasicBlock) RetTy;
 
-        // Instructions
-        const VisitInstructionFn = *const fn(self: Self, arg: ArgTy, instr: *Instr) RetTy;
+        // Statements
+        const VisitStatementFn = *const fn(self: Self, arg: ArgTy, stmt: *Stmt) RetTy;
         const VisitVarDeclFn = *const fn(self: Self, arg: ArgTy, decl: *VarDecl) RetTy;
         const VisitBranchFn = *const fn(self: Self, arg: ArgTy, branch: *Branch) RetTy;
 
@@ -55,13 +55,13 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         }
 
         pub fn walkBasicBlock(self: Self, arg: ArgTy, bb: *BasicBlock) RetTy {
-            for (bb.instructions) |*instr| {
-                try self.visitInstruction(self, arg, instr);
+            for (bb.statements) |*stmt| {
+                try self.visitStatement(self, arg, stmt);
             }
         }
 
-        pub fn walkInstruction(self: Self, arg: ArgTy, instr: *Instr) RetTy {
-            switch (instr.*) {
+        pub fn walkStatement(self: Self, arg: ArgTy, stmt: *Stmt) RetTy {
+            switch (stmt.*) {
                 .debug => |*val| try self.visitValue(self, arg, val),
                 .id => |*decl| try self.visitVarDecl(self, arg, decl),
                 .branch => |*branch| try self.visitBranch(self, arg, branch),
@@ -126,8 +126,8 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             try self.walkBasicBlock(arg, bb);
         }
 
-        pub fn defaultVisitInstruction(self: Self, arg: ArgTy, instr: *Instr) RetTy {
-            try self.walkInstruction(arg, instr);
+        pub fn defaultVisitStatement(self: Self, arg: ArgTy, stmt: *Stmt) RetTy {
+            try self.walkStatement(arg, stmt);
         }
 
         pub fn defaultVisitVarDecl(self: Self, arg: ArgTy, decl: *VarDecl) RetTy {

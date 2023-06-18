@@ -1,7 +1,7 @@
 const std = @import("std");
 
 const Function = @import("../nodes/decl.zig").Function;
-const VarDecl = @import("../nodes/instruction.zig").VarDecl;
+const VarDecl = @import("../nodes/statement.zig").VarDecl;
 const Value = @import("../nodes/value.zig").Value;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 

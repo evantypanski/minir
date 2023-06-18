@@ -321,6 +321,7 @@ test "binary ops" {
     try builder.addByte(c3);
     try builder.addOp(.sub);
     try builder.addOp(.debug);
+    try builder.addOp(.ret);
 
     var chunk = try builder.build();
 

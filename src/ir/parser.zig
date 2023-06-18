@@ -5,12 +5,13 @@ const ProgramBuilder = @import("nodes/program.zig").ProgramBuilder;
 const Token = @import("token.zig").Token;
 const Lexer = @import("lexer.zig").Lexer;
 const Value = @import("nodes/value.zig").Value;
-const Instr = @import("nodes/instruction.zig").Instr;
+const Stmt = @import("nodes/statement.zig").Stmt;
 const Decl = @import("nodes/decl.zig").Decl;
 const Function = @import("nodes/decl.zig").Function;
 const FunctionBuilder = @import("nodes/decl.zig").FunctionBuilder;
 const ParseError = @import("errors.zig").ParseError;
 const Type = @import("nodes/type.zig").Type;
+const Loc = @import("sourceloc.zig").Loc;
 
 pub const Parser = struct {
     const Self = @This();
@@ -101,11 +102,11 @@ pub const Parser = struct {
         return Decl { .function = try self.parseFnDecl() };
     }
 
-    fn parseFnDecl(self: *Self) ParseError!Function(Instr) {
+    fn parseFnDecl(self: *Self) ParseError!Function(Stmt) {
         try self.consume(.func, error.ExpectedKeywordFunc);
         try self.consume(.at, error.ExpectedAt);
         try self.consume(.identifier, error.ExpectedIdentifier);
-        var builder = FunctionBuilder(Instr)
+        var builder = FunctionBuilder(Stmt)
             .init(self.allocator, self.lexer.getTokString(self.previous));
         try self.consume(.lparen, error.ExpectedLParen);
         // TODO: Arguments
@@ -139,32 +140,42 @@ pub const Parser = struct {
         return decl;
     }
 
-    fn parseStmt(self: *Self) ParseError!Instr {
+    fn parseStmt(self: *Self) ParseError!Stmt {
         if (self.match(.debug)) {
             return self.parseDebug();
         } else if (self.match(.let)) {
+            const start = self.previous.loc.start;
             try self.consume(.identifier, error.ExpectedIdentifier);
             const var_name = self.lexer.getTokString(self.previous);
             const val = if (self.match(.eq)) try self.parseExpr() else null;
-            return .{
-                .id = .{
-                    .name = var_name,
-                    .val = val,
-                    .ty = null,
-                }
-            };
+            return Stmt.init(
+                .{
+                    .id = .{
+                        .name = var_name,
+                        .val = val,
+                        .ty = null,
+                    }
+                },
+                Loc.init(start, self.previous.loc.end),
+            );
         } else {
-            return .{
-                .value = try self.parseExpr(),
-            };
+            const start = self.current.loc.start;
+            return Stmt.init(
+                .{ .value = try self.parseExpr() },
+                Loc.init(start, self.previous.loc.end),
+            );
         }
     }
 
-    fn parseDebug(self: *Self) ParseError!Instr {
+    fn parseDebug(self: *Self) ParseError!Stmt {
+        const start = self.previous.loc.start;
         try self.consume(.lparen, error.ExpectedLParen);
         const val = try self.parseExpr();
         try self.consume(.rparen, error.ExpectedRParen);
-        return .{ .debug = val };
+        return Stmt.init(
+            .{ .debug = val },
+            Loc.init(start, self.previous.loc.end),
+        );
     }
 
     fn parseExpr(self: *Self) ParseError!Value {

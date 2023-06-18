@@ -4,7 +4,7 @@ const ArrayList = std.ArrayList;
 
 const IrError = @import("errors.zig").IrError;
 const Function = @import("nodes/decl.zig").Function;
-const Instr = @import("nodes/instruction.zig").Instr;
+const Stmt = @import("nodes/statement.zig").Stmt;
 const Program = @import("nodes/program.zig").Program;
 const Value = @import("nodes/value.zig").Value;
 
@@ -62,8 +62,8 @@ pub const Interpreter = struct {
             }
 
             const bb = function.bbs[bb_idx];
-            for (bb.instructions) |instr| {
-                try self.evalInstr(instr);
+            for (bb.statements) |stmt| {
+                try self.evalStmt(stmt);
             }
 
             if (bb.terminator) |terminator| {
@@ -76,8 +76,8 @@ pub const Interpreter = struct {
         }
     }
 
-    fn evalInstr(self: *Self, instr: Instr) IrError!void {
-        switch (instr) {
+    fn evalStmt(self: *Self, stmt: Stmt) IrError!void {
+        switch (stmt) {
             .debug => |value| {
                 try self.evalValue(value);
                 std.debug.print("{}\n", .{self.env.pop()});
@@ -98,8 +98,8 @@ pub const Interpreter = struct {
         }
     }
 
-    fn evalTerminator(self: *Self, instr: Instr) IrError!void {
-        switch (instr) {
+    fn evalTerminator(self: *Self, stmt: Stmt) IrError!void {
+        switch (stmt) {
             .debug, .id, .value => return error.ExpectedTerminator,
             .branch => |branch| {
                 const result = switch (branch) {

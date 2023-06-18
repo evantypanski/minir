@@ -1,7 +1,7 @@
 const std = @import("std");
 
-const instruction = @import("instruction.zig");
-const VarDecl = instruction.VarDecl;
+const statement = @import("statement.zig");
+const VarDecl = statement.VarDecl;
 const BasicBlock = @import("basic_block.zig").BasicBlock;
 const Type = @import("type.zig").Type;
 
@@ -86,7 +86,7 @@ pub const DeclKind = enum {
 };
 
 pub const Decl = union(DeclKind) {
-    function: Function(instruction.Instr),
+    function: Function(statement.Stmt),
     bb_function: Function(BasicBlock),
 
     pub fn deinit(self: *Decl, allocator: std.mem.Allocator) void {
