@@ -185,8 +185,11 @@ pub const Parser = struct {
         // TODO: Unary ops
         var lhs = if (self.current.tag == .lparen)
             try self.parseGrouping()
-        else if (self.current.tag == .identifier)
-            try self.parseIdentifier()
+        else if (self.match(.identifier))
+            if (self.current.tag == .lparen)
+                try self.parseCall()
+            else
+                try self.parseIdentifier()
         else
             try self.parseLiteral();
 
@@ -220,9 +223,30 @@ pub const Parser = struct {
 
     // Parses an identifier as a value
     fn parseIdentifier(self: *Self) ParseError!Value {
-        try self.consume(.identifier, error.ExpectedIdentifier);
+        // Already consumed identifier
         const name = self.lexer.getTokString(self.previous);
         return Value.initAccessName(name);
+    }
+
+    // Parses a function call, where the identifier is the previous token.
+    fn parseCall(self: *Self) ParseError!Value {
+        // Already consumed identifier
+        const name = self.lexer.getTokString(self.previous);
+        try self.consume(.lparen, error.ExpectedLParen);
+        var arguments = std.ArrayList(Value).init(self.allocator);
+        if (self.current.tag != .rparen) {
+            while (!self.lexer.isAtEnd()) {
+                const arg = try self.parseExpr();
+                arguments.append(arg) catch return error.MemoryError;
+                if (!self.match(.comma)) {
+                    break;
+                }
+            }
+        }
+        try self.consume(.rparen, error.ExpectedRParen);
+        const arg_slice = arguments.toOwnedSlice()
+            catch return error.MemoryError;
+        return Value.initCall(name, arg_slice);
     }
 
     fn parseLiteral(self: *Self) ParseError!Value {

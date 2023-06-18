@@ -41,6 +41,7 @@ pub const TokenParseError = error {
     ExpectedLBrace,
     ExpectedRBrace,
     ExpectedKeywordFunc,
+    ExpectedComma,
     MemoryError,
     NotANumber,
     NotALiteral,
