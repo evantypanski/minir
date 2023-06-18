@@ -230,6 +230,8 @@ pub const Parser = struct {
             try self.parseBoolean()
         else if (self.current.tag == .num)
             try self.parseNumber()
+        else if (self.match(.undefined_))
+            Value.initUndef()
         else
             error.NotALiteral;
     }

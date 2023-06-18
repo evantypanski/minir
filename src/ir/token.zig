@@ -33,6 +33,7 @@ pub const Token = struct {
         let,
         true_,
         false_,
+        undefined_,
         // Branch keywords
         br,
         brz,
