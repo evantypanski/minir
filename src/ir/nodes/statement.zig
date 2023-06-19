@@ -125,15 +125,7 @@ pub const Stmt = struct {
     label: ?[]const u8,
     loc: Loc,
 
-    pub fn init(kind: StmtKind, loc: Loc) Stmt {
-        return .{
-            .stmt_kind = kind,
-            .label = null,
-            .loc = loc
-        };
-    }
-
-    pub fn initWithLabel(kind: StmtKind, label: []const u8, loc: Loc) Stmt {
+    pub fn init(kind: StmtKind, label: ?[]const u8, loc: Loc) Stmt {
         return .{
             .stmt_kind = kind,
             .label = label,

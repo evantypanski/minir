@@ -141,27 +141,29 @@ pub const Parser = struct {
     }
 
     fn parseStmt(self: *Self) ParseError!Stmt {
+        const label = null;
         if (self.match(.debug)) {
-            return self.parseDebug();
+            return self.parseDebug(label);
         } else if (self.match(.let)) {
-            return self.parseLet();
+            return self.parseLet(label);
         } else {
-            return self.parseExprStmt();
+            return self.parseExprStmt(label);
         }
     }
 
-    fn parseDebug(self: *Self) ParseError!Stmt {
+    fn parseDebug(self: *Self, label: ?[]const u8) ParseError!Stmt {
         const start = self.previous.loc.start;
         try self.consume(.lparen, error.ExpectedLParen);
         const val = try self.parseExpr();
         try self.consume(.rparen, error.ExpectedRParen);
         return Stmt.init(
             .{ .debug = val },
+            label,
             Loc.init(start, self.previous.loc.end),
         );
     }
 
-    fn parseLet(self: *Self) ParseError!Stmt {
+    fn parseLet(self: *Self, label: ?[]const u8) ParseError!Stmt {
         const start = self.previous.loc.start;
         try self.consume(.identifier, error.ExpectedIdentifier);
         const var_name = self.lexer.getTokString(self.previous);
@@ -174,14 +176,16 @@ pub const Parser = struct {
                     .ty = null,
                 }
             },
+            label,
             Loc.init(start, self.previous.loc.end),
         );
     }
 
-    fn parseExprStmt(self: *Self) ParseError!Stmt {
+    fn parseExprStmt(self: *Self, label: ?[]const u8) ParseError!Stmt {
         const start = self.current.loc.start;
         return Stmt.init(
             .{ .value = try self.parseExpr() },
+            label,
             Loc.init(start, self.previous.loc.end),
         );
     }
