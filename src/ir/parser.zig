@@ -144,26 +144,9 @@ pub const Parser = struct {
         if (self.match(.debug)) {
             return self.parseDebug();
         } else if (self.match(.let)) {
-            const start = self.previous.loc.start;
-            try self.consume(.identifier, error.ExpectedIdentifier);
-            const var_name = self.lexer.getTokString(self.previous);
-            const val = if (self.match(.eq)) try self.parseExpr() else null;
-            return Stmt.init(
-                .{
-                    .id = .{
-                        .name = var_name,
-                        .val = val,
-                        .ty = null,
-                    }
-                },
-                Loc.init(start, self.previous.loc.end),
-            );
+            return self.parseLet();
         } else {
-            const start = self.current.loc.start;
-            return Stmt.init(
-                .{ .value = try self.parseExpr() },
-                Loc.init(start, self.previous.loc.end),
-            );
+            return self.parseExprStmt();
         }
     }
 
@@ -174,6 +157,31 @@ pub const Parser = struct {
         try self.consume(.rparen, error.ExpectedRParen);
         return Stmt.init(
             .{ .debug = val },
+            Loc.init(start, self.previous.loc.end),
+        );
+    }
+
+    fn parseLet(self: *Self) ParseError!Stmt {
+        const start = self.previous.loc.start;
+        try self.consume(.identifier, error.ExpectedIdentifier);
+        const var_name = self.lexer.getTokString(self.previous);
+        const val = if (self.match(.eq)) try self.parseExpr() else null;
+        return Stmt.init(
+            .{
+                .id = .{
+                    .name = var_name,
+                    .val = val,
+                    .ty = null,
+                }
+            },
+            Loc.init(start, self.previous.loc.end),
+        );
+    }
+
+    fn parseExprStmt(self: *Self) ParseError!Stmt {
+        const start = self.current.loc.start;
+        return Stmt.init(
+            .{ .value = try self.parseExpr() },
             Loc.init(start, self.previous.loc.end),
         );
     }
