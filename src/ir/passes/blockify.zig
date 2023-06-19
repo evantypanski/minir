@@ -44,6 +44,22 @@ pub const BlockifyPass = struct {
                 var bb_builder = BasicBlockBuilder.init(arg.allocator);
                 var empty_bb_builder = true;
                 for (func.*.elements) |*stmt| {
+                    // Labeled statements start a new basic block
+                    if (stmt.label) |label| {
+                        // Edge case: empty basic blocks shouldn't build
+                        if (!empty_bb_builder) {
+                            const bb = bb_builder.build()
+                                catch return error.MemoryError;
+                            fn_builder.addElement(bb)
+                                catch return error.MemoryError;
+                            bb_builder = BasicBlockBuilder.init(arg.allocator);
+                        }
+                        bb_builder.setLabel(label);
+                        // Remove its label
+                        stmt.label = null;
+                    }
+                    // Even if it has a label, we should go through this in
+                    // case that labeled statement is a terminator.
                     if (stmt.isTerminator()) {
                         empty_bb_builder = true;
                         bb_builder.setTerminator(stmt.*)
