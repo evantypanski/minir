@@ -104,7 +104,6 @@ pub const Parser = struct {
 
     fn parseFnDecl(self: *Self) ParseError!Function(Stmt) {
         try self.consume(.func, error.ExpectedKeywordFunc);
-        try self.consume(.at, error.ExpectedAt);
         try self.consume(.identifier, error.ExpectedIdentifier);
         var builder = FunctionBuilder(Stmt)
             .init(self.allocator, self.lexer.getTokString(self.previous));
@@ -141,7 +140,10 @@ pub const Parser = struct {
     }
 
     fn parseStmt(self: *Self) ParseError!Stmt {
-        const label = null;
+        const label = if (self.match(.at))
+                try self.parseLabel()
+            else
+                null;
         if (self.match(.debug)) {
             return self.parseDebug(label);
         } else if (self.match(.let)) {
@@ -149,6 +151,11 @@ pub const Parser = struct {
         } else {
             return self.parseExprStmt(label);
         }
+    }
+
+    fn parseLabel(self: *Self) ParseError![]const u8 {
+        try self.consume(.identifier, error.ExpectedIdentifier);
+        return self.lexer.getTokString(self.previous);
     }
 
     fn parseDebug(self: *Self, label: ?[]const u8) ParseError!Stmt {

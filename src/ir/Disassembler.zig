@@ -34,7 +34,7 @@ pub fn disassembleFunction(
     self: Disassembler,
     function: Function(Stmt)
 ) Writer.Error!void {
-    try self.writer.print("func @{s}(", .{function.name});
+    try self.writer.print("func {s}(", .{function.name});
     try self.printParams(function.params);
     try self.writer.writeAll(") -> ");
     try self.disassembleType(function.ret_ty);
@@ -55,7 +55,7 @@ pub fn disassembleBBFunction(
     self: Disassembler,
     function: Function(BasicBlock),
 ) Writer.Error!void {
-    try self.writer.print("func @{s}(", .{function.name});
+    try self.writer.print("func {s}(", .{function.name});
     try self.printParams(function.params);
     try self.writer.writeAll(") -> ");
     try self.disassembleType(function.ret_ty);
@@ -64,7 +64,7 @@ pub fn disassembleBBFunction(
     try self.newline();
     for (function.elements) |bb| {
         if (bb.label) |label| {
-            try self.writer.print("{s}: {{", .{label});
+            try self.writer.print("@{s} {{", .{label});
         } else {
             try self.writer.writeAll("{");
         }
@@ -92,6 +92,11 @@ pub fn disassembleBBFunction(
 }
 
 pub fn disassembleStmt(self: Disassembler, stmt: Stmt) Writer.Error!void {
+    if (stmt.label) |label| {
+        try self.writer.print("@{s}", .{label});
+        try self.newline();
+    }
+
     switch (stmt.stmt_kind) {
         .debug => |val| {
             try self.writer.writeAll("debug(");
