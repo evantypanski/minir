@@ -88,11 +88,4 @@ pub const BlockifyPass = struct {
             }
         }
     }
-
-    //pub fn visitFunction(self: VisitorTy, arg: *Self, function: *Function(Stmt)) BlockifyError!void {
-        //var fn_builder = FunctionBuilder(BasicBlock).init(allocator, function.name);
-        //var bb_builder = BasicBlockBuilder.init(self.allocator);
-        //_ = self;
-        //_ = arg;
-    //}
 };
