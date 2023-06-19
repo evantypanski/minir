@@ -31,6 +31,13 @@ pub fn Function(comptime ElementType: type) type {
             allocator.free(self.elements);
             allocator.free(self.params);
         }
+
+        // Dunno how else to do this. This will just free what this function
+        // directly allocated, not owning its elements.
+        pub fn shallowDeinit(self: *Self, allocator: std.mem.Allocator) void {
+            allocator.free(self.elements);
+            allocator.free(self.params);
+        }
     };
 }
 

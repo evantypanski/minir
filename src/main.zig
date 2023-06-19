@@ -12,6 +12,7 @@ const visitor = @import("ir/passes/visitor.zig");
 const Interpreter = @import("ir/interpret.zig").Interpreter;
 const Lexer = @import("ir/lexer.zig").Lexer;
 const Parser = @import("ir/parser.zig").Parser;
+const BlockifyPass = @import("ir/passes/blockify.zig").BlockifyPass;
 
 pub fn main() !void {
     var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
@@ -21,7 +22,7 @@ pub fn main() !void {
     const source = try file.readToEndAlloc(gpa, 10000);
     var lexer = Lexer.init(source);
     var parser = Parser.init(gpa, lexer);
-    const program = try parser.parse();
+    var program = try parser.parse();
 
     var disassembler = Disassembler {
         .writer = std.io.getStdErr().writer(),
@@ -29,6 +30,16 @@ pub fn main() !void {
     };
 
     try disassembler.disassemble();
+
+    var pass = BlockifyPass.init(gpa);
+    try pass.execute(&program);
+
+    var bb_disassembler = Disassembler {
+        .writer = std.io.getStdErr().writer(),
+        .program = program,
+    };
+
+    try bb_disassembler.disassemble();
 }
 
 test {

@@ -5,6 +5,7 @@ const statement = @import("../nodes/statement.zig");
 const Stmt = statement.Stmt;
 const Branch = statement.Branch;
 const VarDecl = statement.VarDecl;
+const Decl = @import("../nodes/decl.zig").Decl;
 const Function = @import("../nodes/decl.zig").Function;
 const Program = @import("../nodes/program.zig").Program;
 const Value = @import("../nodes/value.zig").Value;
@@ -12,7 +13,9 @@ const Value = @import("../nodes/value.zig").Value;
 pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
     return struct {
         visitProgram: VisitProgramFn = defaultVisitProgram,
+        visitDecl: VisitDeclFn = defaultVisitDecl,
         visitFunction: VisitFunctionFn = defaultVisitFunction,
+        visitBBFunction: VisitBBFunctionFn = defaultVisitBBFunction,
         visitBasicBlock: VisitBasicBlockFn = defaultVisitBasicBlock,
 
         visitStatement: VisitStatementFn = defaultVisitStatement,
@@ -28,7 +31,9 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
 
         // Containers
         const VisitProgramFn = *const fn(self: Self, arg: ArgTy, program: *Program) RetTy;
-        const VisitFunctionFn = *const fn(self: Self, arg: ArgTy, function: *Function) RetTy;
+        const VisitDeclFn = *const fn(self: Self, arg: ArgTy, decl: *Decl) RetTy;
+        const VisitFunctionFn = *const fn(self: Self, arg: ArgTy, function: *Function(Stmt)) RetTy;
+        const VisitBBFunctionFn = *const fn(self: Self, arg: ArgTy, bb_function: *Function(BasicBlock)) RetTy;
         const VisitBasicBlockFn = *const fn(self: Self, arg: ArgTy, bb: *BasicBlock) RetTy;
 
         // Statements
@@ -43,13 +48,26 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const VisitFuncCallFn = *const fn(self: Self, arg: ArgTy, call: *Value.FuncCall) RetTy;
 
         pub fn walkProgram(self: Self, arg: ArgTy, program: *Program) RetTy {
-            for (program.functions) |*function| {
-                try self.visitFunction(self, arg, function);
+            for (program.decls) |*function| {
+                try self.visitDecl(self, arg, function);
             }
         }
 
-        pub fn walkFunction(self: Self, arg: ArgTy, function: *Function) RetTy {
-            for (function.bbs) |*bb| {
+        pub fn walkDecl(self: Self, arg: ArgTy, decl: *Decl) RetTy {
+            switch (decl.*) {
+                .function => |*func| try self.visitFunction(self, arg, func),
+                .bb_function => |*bb_func| try self.visitBBFunction(self, arg, bb_func),
+            }
+        }
+
+        pub fn walkFunction(self: Self, arg: ArgTy, function: *Function(Stmt)) RetTy {
+            for (function.elements) |*stmt| {
+                try self.visitStatement(self, arg, stmt);
+            }
+        }
+
+        pub fn walkBBFunction(self: Self, arg: ArgTy, function: *Function(BasicBlock)) RetTy {
+            for (function.elements) |*bb| {
                 try self.visitBasicBlock(self, arg, bb);
             }
         }
@@ -61,7 +79,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         }
 
         pub fn walkStatement(self: Self, arg: ArgTy, stmt: *Stmt) RetTy {
-            switch (stmt.*) {
+            switch (stmt.*.stmt_kind) {
                 .debug => |*val| try self.visitValue(self, arg, val),
                 .id => |*decl| try self.visitVarDecl(self, arg, decl),
                 .branch => |*branch| try self.visitBranch(self, arg, branch),
@@ -118,8 +136,16 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             try self.walkProgram(arg, program);
         }
 
-        pub fn defaultVisitFunction(self: Self, arg: ArgTy, function: *Function) RetTy {
+        pub fn defaultVisitDecl(self: Self, arg: ArgTy, decl: *Decl) RetTy {
+            try self.walkDecl(arg, decl);
+        }
+
+        pub fn defaultVisitFunction(self: Self, arg: ArgTy, function: *Function(Stmt)) RetTy {
             try self.walkFunction(arg, function);
+        }
+
+        pub fn defaultVisitBBFunction(self: Self, arg: ArgTy, bb_function: *Function(BasicBlock)) RetTy {
+            try self.walkBBFunction(arg, bb_function);
         }
 
         pub fn defaultVisitBasicBlock(self: Self, arg: ArgTy, bb: *BasicBlock) RetTy {

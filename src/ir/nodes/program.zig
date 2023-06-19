@@ -73,6 +73,7 @@ test "deinit works" {
                     .ty = .int,
                 }
             },
+            null,
             Loc.default()
         )
     );
@@ -80,12 +81,14 @@ test "deinit works" {
     try bb1_builder.addStatement(
         Stmt.init(
             .{ .debug = hi_access },
+            null,
             Loc.default()
         )
     );
     try bb1_builder.addStatement(
         Stmt.init(
             .{ .debug = Value.initCall("f", &.{}) },
+            null,
             Loc.default()
         )
     );
@@ -98,6 +101,7 @@ test "deinit works" {
     try bb4_builder.setTerminator(
         Stmt.init(
             .{.ret = Value.initInt(5)},
+            null,
             Loc.default()
         )
     );
