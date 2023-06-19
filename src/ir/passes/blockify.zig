@@ -89,3 +89,102 @@ pub const BlockifyPass = struct {
         }
     }
 };
+
+test "Changes all functions into BB functions" {
+    const Loc = @import("../sourceloc.zig").Loc;
+    const ProgramBuilder = @import("../nodes/program.zig").ProgramBuilder;
+    var func_builder = FunctionBuilder(Stmt).init(std.testing.allocator, "main");
+    defer func_builder.deinit();
+
+    try func_builder.addElement(
+        Stmt.init(
+            .{
+                .id = .{
+                    .name = "hi",
+                    .val = .{ .int = 99 },
+                    .ty = .int,
+                }
+            },
+            null,
+            Loc.default()
+        )
+    );
+    var hi_access = Value.initAccessName("hi");
+    try func_builder.addElement(
+        Stmt.init(
+            .{ .debug = hi_access },
+            null,
+            Loc.default()
+        )
+    );
+    // Labeled so new basic block
+    try func_builder.addElement(
+        Stmt.init(
+            .{ .debug = Value.initCall("f", &.{}) },
+            "testme",
+            Loc.default()
+        )
+    );
+
+    const func = try func_builder.build();
+
+    var prog_builder = ProgramBuilder.init(std.testing.allocator);
+    try prog_builder.addDecl(Decl { .function = func });
+    var program = try prog_builder.build();
+
+    // Better way to expect a tagged union value?
+    switch (program.decls[0]) {
+        .function => |main_func|
+            try std.testing.expectEqual(main_func.elements.len, 3),
+        .bb_function => try std.testing.expect(false),
+    }
+
+    var pass = BlockifyPass.init(std.testing.allocator);
+    try pass.execute(&program);
+
+    // Now it should be blockified
+    switch (program.decls[0]) {
+        .function => try std.testing.expect(false),
+        .bb_function => |bb_func|
+            try std.testing.expectEqual(bb_func.elements.len, 2),
+    }
+
+    program.deinit(std.testing.allocator);
+}
+
+// This may not always be necessary, but right now we only act on programs so
+// it's all or nothing.
+test "Errors when already blockified" {
+    const Loc = @import("../sourceloc.zig").Loc;
+    const ProgramBuilder = @import("../nodes/program.zig").ProgramBuilder;
+
+    var func_builder = FunctionBuilder(BasicBlock).init(std.testing.allocator, "main");
+    defer func_builder.deinit();
+
+    var bb1_builder = BasicBlockBuilder.init(std.testing.allocator);
+    bb1_builder.setLabel("bb1");
+    try bb1_builder.addStatement(
+        Stmt.init(
+            .{
+                .id = .{
+                    .name = "hi",
+                    .val = .{ .int = 99 },
+                    .ty = .int,
+                }
+            },
+            null,
+            Loc.default()
+        )
+    );
+    try func_builder.addElement(try bb1_builder.build());
+    const func = try func_builder.build();
+
+    var prog_builder = ProgramBuilder.init(std.testing.allocator);
+    try prog_builder.addDecl(Decl { .bb_function = func });
+    var program = try prog_builder.build();
+
+    var pass = BlockifyPass.init(std.testing.allocator);
+    try std.testing.expectError(error.AlreadyBlockified, pass.execute(&program));
+
+    program.deinit(std.testing.allocator);
+}
