@@ -12,16 +12,16 @@ pub const DisassembleError = InvalidBytecodeError || Writer.Error;
 pub const Disassembler = struct {
     const Self = @This();
 
-    writer: Writer,
     chunk: Chunk,
+    writer: Writer,
 
     // Index into the chunk's instructions
     idx: usize,
 
-    pub fn init(writer: Writer, chunk: Chunk) Self {
+    pub fn init(chunk: Chunk, writer: Writer) Self {
         return .{
-            .writer = writer,
             .chunk = chunk,
+            .writer = writer,
             .idx = 0,
         };
     }

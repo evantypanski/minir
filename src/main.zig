@@ -9,10 +9,12 @@ const Value = @import("ir/nodes/value.zig").Value;
 const Disassembler = @import("ir/Disassembler.zig");
 const numify = @import("ir/passes/numify.zig");
 const visitor = @import("ir/passes/visitor.zig");
-const Interpreter = @import("ir/interpret.zig").Interpreter;
 const Lexer = @import("ir/lexer.zig").Lexer;
 const Parser = @import("ir/parser.zig").Parser;
 const BlockifyPass = @import("ir/passes/blockify.zig").BlockifyPass;
+const Lowerer = @import("ir/passes/lower.zig").Lowerer;
+const Interpreter = @import("bytecode/interpret.zig").Interpreter;
+const ByteDisassembler = @import("bytecode/disassembler.zig").Disassembler;
 
 pub fn main() !void {
     var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
@@ -40,6 +42,15 @@ pub fn main() !void {
     };
 
     try bb_disassembler.disassemble();
+
+    var lowerer = Lowerer.init(gpa);
+    try lowerer.execute(&program);
+
+    const chunk = try lowerer.builder.build();
+    var byte_disassembler = ByteDisassembler.init(chunk, std.io.getStdOut().writer());
+    try byte_disassembler.disassemble();
+    var interp = Interpreter.init(chunk, std.io.getStdOut().writer());
+    try interp.interpret();
 }
 
 test {
