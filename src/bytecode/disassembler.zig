@@ -41,6 +41,7 @@ pub const Disassembler = struct {
         try self.printAddress();
         switch (op) {
             .ret => try self.writer.writeAll("RET"),
+            .pop => try self.writer.writeAll("POP"),
             .constant => {
                 try self.writer.writeAll("CONSTANT");
                 const immediate = try self.getByte();

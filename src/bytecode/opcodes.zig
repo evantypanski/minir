@@ -6,6 +6,7 @@ pub const OpCode = enum(u8) {
     const value_size = @sizeOf(Value);
 
     ret,
+    pop,
     constant,
     debug,
     add,
@@ -40,7 +41,7 @@ pub const OpCode = enum(u8) {
              .jmpf, .call => 2,
              .constant, .set, .get => 1,
              .ret, .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
-             .alloc => 0,
+             .alloc, .pop => 0,
          };
     }
 
@@ -49,7 +50,7 @@ pub const OpCode = enum(u8) {
              .constant, .get => 1,
              .ret, .alloc, .call => 0,
              .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
-             .set, .jmpf => -1,
+             .set, .jmpf, .pop => -1,
          };
     }
 

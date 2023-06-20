@@ -22,6 +22,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         visitDebug: VisitDebugFn = defaultVisitDebug,
         visitVarDecl: VisitVarDeclFn = defaultVisitVarDecl,
         visitBranch: VisitBranchFn = defaultVisitBranch,
+        visitValueStmt: VisitValueStmtFn = defaultVisitValueStmt,
 
         visitValue: VisitValueFn = defaultVisitValue,
         visitUndef: VisitUndefFn = defaultVisitUndef,
@@ -46,6 +47,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const VisitDebugFn = *const fn(self: Self, arg: ArgTy, val: *Value) RetTy;
         const VisitVarDeclFn = *const fn(self: Self, arg: ArgTy, decl: *VarDecl) RetTy;
         const VisitBranchFn = *const fn(self: Self, arg: ArgTy, branch: *Branch) RetTy;
+        const VisitValueStmtFn = *const fn(self: Self, arg: ArgTy, val: *Value) RetTy;
 
         // Values
         const VisitValueFn = *const fn(self: Self, arg: ArgTy, val: *Value) RetTy;
@@ -93,7 +95,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
                 .debug => |*val| try self.visitDebug(self, arg, val),
                 .id => |*decl| try self.visitVarDecl(self, arg, decl),
                 .branch => |*branch| try self.visitBranch(self, arg, branch),
-                .value => |*value| try self.visitValue(self, arg, value),
+                .value => |*value| try self.visitValueStmt(self, arg, value),
                 .ret => |*opt_value| {
                     if (opt_value.*) |*value| {
                         try self.visitValue(self, arg, value);
@@ -180,6 +182,10 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
 
         pub fn defaultVisitVarDecl(self: Self, arg: ArgTy, decl: *VarDecl) RetTy {
             try self.walkVarDecl(arg, decl);
+        }
+
+        pub fn defaultVisitValueStmt(self: Self, arg: ArgTy, val: *Value) RetTy {
+            try self.walkValue(arg, val);
         }
 
         pub fn defaultVisitInt(self: Self, arg: ArgTy, i: *i32) RetTy {
