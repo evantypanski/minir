@@ -9,7 +9,9 @@ const Stmt = @import("../nodes/statement.zig").Stmt;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 const ChunkBuilder = @import("../../bytecode/chunk.zig").ChunkBuilder;
-const Value = @import("../../bytecode/value.zig").Value;
+const Value = @import("../nodes/value.zig").Value;
+const ByteValue = @import("../../bytecode/value.zig").Value;
+const OpCode = @import("../../bytecode/opcodes.zig").OpCode;
 
 const LowerError = error{
     MemoryError,
@@ -32,6 +34,7 @@ pub const Lowerer = struct {
 
     pub const LowerVisitor = VisitorTy {
         .visitInt = visitInt,
+        .visitBinaryOp = visitBinaryOp,
         .visitProgram = visitProgram,
     };
 
@@ -43,13 +46,32 @@ pub const Lowerer = struct {
         try self.walkProgram(arg, program);
         arg.builder.addOp(.ret) catch return error.BuilderError;
     }
+
+    pub fn visitBinaryOp(
+        self: VisitorTy,
+        arg: *Self,
+        op: *Value.BinaryOp)
+    LowerError!void {
+        // Ops are post order
+        try self.visitValue(self, arg, op.*.lhs);
+        try self.visitValue(self, arg, op.*.rhs);
+        const op_opcode = switch (op.*.kind) {
+            .add => OpCode.add,
+            .sub => OpCode.sub,
+            .mul => OpCode.mul,
+            .div => OpCode.div,
+            else => return,
+        };
+        arg.builder.addOp(op_opcode) catch return error.BuilderError;
+        arg.builder.addOp(.debug) catch return error.BuilderError;
+    }
+
     pub fn visitInt(self: VisitorTy, arg: *Self, i: *i32) LowerError!void {
         _ = self;
-        const val = Value.initInt(i.*);
+        const val = ByteValue.initInt(i.*);
         const idx = arg.builder.addValue(val) catch return error.BuilderError;
         arg.builder.addOp(.constant) catch return error.BuilderError;
         arg.builder.addByte(idx) catch return error.BuilderError;
-        arg.builder.addOp(.debug) catch return error.BuilderError;
         //std.debug.print("FOUND INT {}\n", .{i});
     }
 };
