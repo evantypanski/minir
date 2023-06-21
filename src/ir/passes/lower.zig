@@ -36,6 +36,7 @@ pub const Lowerer = struct {
         .visitInt = visitInt,
         .visitDebug = visitDebug,
         .visitValueStmt = visitValueStmt,
+        .visitRet = visitRet,
         .visitBinaryOp = visitBinaryOp,
         .visitProgram = visitProgram,
     };
@@ -46,7 +47,6 @@ pub const Lowerer = struct {
 
     pub fn visitProgram(self: VisitorTy, arg: *Self, program: *Program) LowerError!void {
         try self.walkProgram(arg, program);
-        arg.builder.addOp(.ret) catch return error.BuilderError;
     }
 
     pub fn visitDebug(
@@ -65,6 +65,17 @@ pub const Lowerer = struct {
     LowerError!void {
         try self.visitValue(self, arg, val);
         arg.builder.addOp(.pop) catch return error.BuilderError;
+    }
+
+    pub fn visitRet(
+        self: VisitorTy,
+        arg: *Self,
+        opt_val: *?Value)
+    LowerError!void {
+        _ = self;
+        _ = opt_val;
+        // TODO: Return value
+        arg.builder.addOp(.ret) catch return error.BuilderError;
     }
 
     pub fn visitBinaryOp(

@@ -148,6 +148,8 @@ pub const Parser = struct {
             return self.parseDebug(label);
         } else if (self.match(.let)) {
             return self.parseLet(label);
+        } else if (self.match(.ret)) {
+            return self.parseRet(label);
         } else {
             return self.parseExprStmt(label);
         }
@@ -183,6 +185,16 @@ pub const Parser = struct {
                     .ty = null,
                 }
             },
+            label,
+            Loc.init(start, self.previous.loc.end),
+        );
+    }
+
+    fn parseRet(self: *Self, label: ?[]const u8) ParseError!Stmt {
+        const start = self.previous.loc.start;
+        // TODO: Return values
+        return Stmt.init(
+            .{ .ret = null },
             label,
             Loc.init(start, self.previous.loc.end),
         );

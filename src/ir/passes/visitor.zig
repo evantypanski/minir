@@ -23,6 +23,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         visitVarDecl: VisitVarDeclFn = defaultVisitVarDecl,
         visitBranch: VisitBranchFn = defaultVisitBranch,
         visitValueStmt: VisitValueStmtFn = defaultVisitValueStmt,
+        visitRet: VisitRetFn = defaultVisitRet,
 
         visitValue: VisitValueFn = defaultVisitValue,
         visitUndef: VisitUndefFn = defaultVisitUndef,
@@ -48,6 +49,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const VisitVarDeclFn = *const fn(self: Self, arg: ArgTy, decl: *VarDecl) RetTy;
         const VisitBranchFn = *const fn(self: Self, arg: ArgTy, branch: *Branch) RetTy;
         const VisitValueStmtFn = *const fn(self: Self, arg: ArgTy, val: *Value) RetTy;
+        const VisitRetFn = *const fn(self: Self, arg: ArgTy, opt_val: *?Value) RetTy;
 
         // Values
         const VisitValueFn = *const fn(self: Self, arg: ArgTy, val: *Value) RetTy;
@@ -88,6 +90,9 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             for (bb.statements) |*stmt| {
                 try self.visitStatement(self, arg, stmt);
             }
+            if (bb.terminator) |*term| {
+                try self.visitStatement(self, arg, term);
+            }
         }
 
         pub fn walkStatement(self: Self, arg: ArgTy, stmt: *Stmt) RetTy {
@@ -96,11 +101,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
                 .id => |*decl| try self.visitVarDecl(self, arg, decl),
                 .branch => |*branch| try self.visitBranch(self, arg, branch),
                 .value => |*value| try self.visitValueStmt(self, arg, value),
-                .ret => |*opt_value| {
-                    if (opt_value.*) |*value| {
-                        try self.visitValue(self, arg, value);
-                    }
-                }
+                .ret => |*opt_value| try self.visitRet(self, arg, opt_value),
             }
         }
 
@@ -186,6 +187,12 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
 
         pub fn defaultVisitValueStmt(self: Self, arg: ArgTy, val: *Value) RetTy {
             try self.walkValue(arg, val);
+        }
+
+        pub fn defaultVisitRet(self: Self, arg: ArgTy, opt_val: *?Value) RetTy {
+            if (opt_val.*) |*val| {
+                try self.walkValue(arg, val);
+            }
         }
 
         pub fn defaultVisitInt(self: Self, arg: ArgTy, i: *i32) RetTy {
