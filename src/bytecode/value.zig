@@ -15,6 +15,10 @@ pub const Value = union(ValueKind) {
     float: f32,
     boolean: bool,
 
+    pub fn initUndef() Value {
+        return .undef;
+    }
+
     pub fn initInt(i: i32) Value {
         return Self {
             .int = i,

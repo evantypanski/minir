@@ -59,7 +59,6 @@ pub const Disassembler = struct {
             .ge => try self.writer.writeAll("GE"),
             .lt => try self.writer.writeAll("LT"),
             .le => try self.writer.writeAll("LE"),
-            .alloc => try self.writer.writeAll("ALLOC"),
             .set => {
                 try self.writer.writeAll("SET");
                 const immediate = try self.getByte();

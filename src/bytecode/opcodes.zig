@@ -22,7 +22,6 @@ pub const OpCode = enum(u8) {
     lt,
     le,
 
-    alloc,
     set,
     // Gets a variable at the next offset.
     // The immediate value is a signed byte for the offset from the current
@@ -41,14 +40,14 @@ pub const OpCode = enum(u8) {
              .jmpf, .call => 2,
              .constant, .set, .get => 1,
              .ret, .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
-             .alloc, .pop => 0,
+             .pop => 0,
          };
     }
 
     pub fn stackEffect(self: Self) isize {
          return switch (self) {
              .constant, .get => 1,
-             .ret, .alloc, .call => 0,
+             .ret, .call => 0,
              .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
              .set, .jmpf, .pop => -1,
          };

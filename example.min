@@ -2,5 +2,10 @@ func main() -> void {
   debug(1 + 2)
   debug(2 + 3)
   2 + 5
+  let i = 42
+  let j = 45
+  debug(i)
+  debug(j)
+  debug(i + j)
   ret
 }

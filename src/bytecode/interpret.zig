@@ -125,7 +125,6 @@ pub const Interpreter = struct {
 
                 try self.pushValue(result);
             },
-            .alloc => self.sp += 1,
             .set => {
                 const new_val = try self.popVal();
                 const offset = try self.getByte();
