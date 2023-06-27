@@ -12,6 +12,7 @@ const FunctionBuilder = @import("nodes/decl.zig").FunctionBuilder;
 const ParseError = @import("errors.zig").ParseError;
 const Type = @import("nodes/type.zig").Type;
 const Loc = @import("sourceloc.zig").Loc;
+const VarDecl = @import("nodes/statement.zig").VarDecl;
 
 pub const Parser = struct {
     const Self = @This();
@@ -64,11 +65,12 @@ pub const Parser = struct {
 
         var builder = ProgramBuilder.init(self.allocator);
         // A program is just a bunch of decls.
-        while (self.current.tag != .eof) : (self.advance()) {
+        while (self.current.tag != .eof) {
             if (self.parseDecl()) |decl| {
                 try builder.addDecl(decl);
             } else |err| {
                 self.diagCurrent(err);
+                self.advance();
             }
         }
 
@@ -108,7 +110,20 @@ pub const Parser = struct {
         var builder = FunctionBuilder(Stmt)
             .init(self.allocator, self.lexer.getTokString(self.previous));
         try self.consume(.lparen, error.ExpectedLParen);
-        // TODO: Arguments
+        while (self.match(.identifier)) {
+            // TODO: Types of parameters should be specified. For now it'll
+            // be dynamic
+            const param = VarDecl {
+                .name = self.lexer.getTokString(self.previous),
+                .val = null,
+                .ty = null,
+            };
+            builder.addParam(param) catch return error.MemoryError;
+
+            if (!self.match(.comma)) {
+                break;
+            }
+        }
         try self.consume(.rparen, error.ExpectedRParen);
         // Return
         try self.consume(.arrow, error.ExpectedArrow);

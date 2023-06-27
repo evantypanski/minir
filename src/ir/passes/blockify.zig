@@ -41,6 +41,9 @@ pub const BlockifyPass = struct {
             .function => |*func| {
                 var fn_builder = FunctionBuilder(BasicBlock)
                     .init(arg.allocator, func.name);
+                for (func.*.params) |*param| {
+                    fn_builder.addParam(param.*) catch return error.MemoryError;
+                }
                 var bb_builder = BasicBlockBuilder.init(arg.allocator);
                 var empty_bb_builder = true;
                 for (func.*.elements) |*stmt| {

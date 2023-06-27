@@ -29,6 +29,9 @@ pub const Lowerer = struct {
     // Variables in scope.
     variables: [256] []const u8,
     num_locals: u8,
+    // Number of parameters to the current function. This is used to determine
+    // the offset signed/unsigned for getting locals.
+    num_params: usize,
     builder: ChunkBuilder,
 
     pub fn init(allocator: std.mem.Allocator) Self {
@@ -36,6 +39,7 @@ pub const Lowerer = struct {
             .allocator = allocator,
             .variables = .{""} ** 256,
             .num_locals = 0,
+            .num_params = 0,
             .builder = ChunkBuilder.init(allocator),
         };
     }
@@ -48,6 +52,8 @@ pub const Lowerer = struct {
         .visitRet = visitRet,
         .visitBinaryOp = visitBinaryOp,
         .visitProgram = visitProgram,
+        .visitFunction = visitFunction,
+        .visitBBFunction = visitBBFunction,
         .visitVarAccess = visitVarAccess,
     };
 
@@ -65,6 +71,33 @@ pub const Lowerer = struct {
         const idx = arg.builder.addValue(val) catch return error.BuilderError;
         std.debug.assert(idx == 0);
         try self.walkProgram(arg, program);
+    }
+
+    pub fn visitFunction(
+        self: VisitorTy,
+        arg: *Self,
+        function: *Function(Stmt)
+    ) LowerError!void {
+        try arg.addParams(function.*.params);
+        try self.walkFunction(arg, function);
+    }
+
+    pub fn visitBBFunction(
+        self: VisitorTy,
+        arg: *Self,
+        function: *Function(BasicBlock)
+    ) LowerError!void {
+        try arg.addParams(function.*.params);
+        try self.walkBBFunction(arg, function);
+    }
+
+    fn addParams(self: *Self, params: []VarDecl) LowerError!void {
+        self.num_locals = 0;
+        self.*.num_params = params.len;
+        for (params) |param| {
+            self.variables[self.num_locals] = param.name;
+            self.num_locals += 1;
+        }
     }
 
     pub fn visitDebug(
@@ -170,7 +203,7 @@ pub const Lowerer = struct {
         var i: u8 = 0;
         while (i < self.num_locals) : (i += 1) {
             if (std.mem.eql(u8, self.variables[i], name)) {
-                return @intCast(i8, i);
+                return @intCast(i8, i) - @intCast(i8, self.*.num_params);
             }
         }
 
