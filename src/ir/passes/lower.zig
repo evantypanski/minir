@@ -18,6 +18,7 @@ const LowerError = error{
     MemoryError,
     BuilderError,
     VarNotInScope,
+    InvalidLHS,
 };
 
 pub const Lowerer = struct {
@@ -54,7 +55,11 @@ pub const Lowerer = struct {
         try LowerVisitor.visitProgram(LowerVisitor, self, program);
     }
 
-    pub fn visitProgram(self: VisitorTy, arg: *Self, program: *Program) LowerError!void {
+    pub fn visitProgram(
+        self: VisitorTy,
+        arg: *Self,
+        program: *Program
+    ) LowerError!void {
         // Add an undef value, index 0 will be undefined for all variables
         const val = ByteValue.initUndef();
         const idx = arg.builder.addValue(val) catch return error.BuilderError;
@@ -112,6 +117,23 @@ pub const Lowerer = struct {
         arg: *Self,
         op: *Value.BinaryOp)
     LowerError!void {
+        // Assign is special
+        if (op.*.kind == .assign) {
+            // This will need to change when we can set based on pointers etc.
+            // Grab the variable offset.
+            const offset = switch (op.*.lhs.*) {
+                .access => |access| try arg.getOffsetForName(access.name.?),
+                else => return error.InvalidLHS,
+            };
+            try self.visitValue(self, arg, op.*.rhs);
+            try arg.setVarOffset(offset);
+
+            // Assign also pushes the value to the top of the stack
+            try arg.getVarOffset(offset);
+
+            return;
+        }
+
         // Ops are post order
         try self.visitValue(self, arg, op.*.lhs);
         try self.visitValue(self, arg, op.*.rhs);
@@ -133,18 +155,40 @@ pub const Lowerer = struct {
         arg.builder.addByte(idx) catch return error.BuilderError;
     }
 
-        pub fn visitVarAccess(self: VisitorTy, arg: *Self, access: *Value.VarAccess) LowerError!void {
-            _ = self;
-            var i: u8 = 0;
-            while (i < arg.num_locals) : (i += 1) {
-                if (std.mem.eql(u8, arg.variables[i], access.*.name.?)) {
-                    arg.builder.addOp(.get) catch return error.BuilderError;
-                    arg.builder.addByte(i) catch return error.BuilderError;
-                    return;
-                }
-            }
-            return error.VarNotInScope;
+    pub fn visitVarAccess(
+        self: VisitorTy,
+        arg: *Self,
+        access: *Value.VarAccess
+    ) LowerError!void {
+        _ = self;
+        const offset = try arg.getOffsetForName(access.*.name.?);
+        try arg.getVarOffset(offset);
+        return;
+    }
 
+    fn getOffsetForName(self: *Self, name: []const u8) LowerError!i8 {
+        var i: u8 = 0;
+        while (i < self.num_locals) : (i += 1) {
+            if (std.mem.eql(u8, self.variables[i], name)) {
+                return @intCast(i8, i);
+            }
         }
+
+        return error.VarNotInScope;
+    }
+
+    // Gets variable at offset and pushes it to the stack.
+    fn getVarOffset(self: *Self, offset: i8) LowerError!void {
+        self.builder.addOp(.get) catch return error.BuilderError;
+        self.builder.addByte(@bitCast(u8, offset))
+            catch return error.BuilderError;
+    }
+
+    // Sets variable at offset with variable at the top of the stack.
+    fn setVarOffset(self: *Self, offset: i8) LowerError!void {
+        self.builder.addOp(.set) catch return error.BuilderError;
+        self.builder.addByte(@bitCast(u8, offset))
+            catch return error.BuilderError;
+    }
 };
 

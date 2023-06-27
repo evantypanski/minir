@@ -7,5 +7,8 @@ func main() -> void {
   debug(i)
   debug(j)
   debug(i + j)
+  debug(j = 50 - (i = i + 1))
+  debug(i)
+  debug(j)
   ret
 }
