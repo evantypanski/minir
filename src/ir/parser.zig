@@ -207,9 +207,15 @@ pub const Parser = struct {
 
     fn parseRet(self: *Self, label: ?[]const u8) ParseError!Stmt {
         const start = self.previous.loc.start;
-        // TODO: Return values
+        // Return is apparently always at the end of a block, I guess. That
+        // will probably change.
+        const val = if (self.current.tag == .rbrace)
+            null
+        else
+            try self.parseExpr();
+
         return Stmt.init(
-            .{ .ret = null },
+            .{ .ret = val },
             label,
             Loc.init(start, self.previous.loc.end),
         );

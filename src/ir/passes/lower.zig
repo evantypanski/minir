@@ -19,6 +19,7 @@ const LowerError = error{
     BuilderError,
     VarNotInScope,
     InvalidLHS,
+    NoSuchFunction,
 };
 
 pub const Lowerer = struct {
@@ -33,6 +34,13 @@ pub const Lowerer = struct {
     // the offset signed/unsigned for getting locals.
     num_params: usize,
     builder: ChunkBuilder,
+    // For function resolution, we keep a string map from function name to all
+    // of the indexes in the chunk that need that absolute address. This should
+    // eventually be replaced with some function table in the bytecode as a
+    // header or something. But right now I don't care.
+    placeholder_map: std.StringHashMap(*std.ArrayList(usize)),
+    // Function name -> absolute address. Again shouldn't be necessary eventually
+    fn_map: std.StringHashMap(u16),
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
@@ -41,6 +49,9 @@ pub const Lowerer = struct {
             .num_locals = 0,
             .num_params = 0,
             .builder = ChunkBuilder.init(allocator),
+            .placeholder_map =
+                std.StringHashMap(*std.ArrayList(usize)).init(allocator),
+            .fn_map = std.StringHashMap(u16).init(allocator),
         };
     }
 
@@ -55,6 +66,7 @@ pub const Lowerer = struct {
         .visitFunction = visitFunction,
         .visitBBFunction = visitBBFunction,
         .visitVarAccess = visitVarAccess,
+        .visitFuncCall = visitFuncCall,
     };
 
     pub fn execute(self: *Self, program: *Program) LowerError!void {
@@ -71,6 +83,21 @@ pub const Lowerer = struct {
         const idx = self.builder.addValue(val) catch return error.BuilderError;
         std.debug.assert(idx == 0);
         try visitor.walkProgram(self, program);
+        try self.resolveFunctionCalls();
+    }
+
+    fn resolveFunctionCalls(self: *Self) LowerError!void {
+        var it = self.*.placeholder_map.iterator();
+        var opt_entry = it.next();
+        while (opt_entry) |entry| {
+            const addr = self.*.fn_map.get(entry.key_ptr.*)
+                orelse return error.NoSuchFunction;
+            for (entry.value_ptr.*.*.items) |placeholder| {
+                self.builder.setPlaceholderShort(placeholder, addr)
+                    catch return error.BuilderError;
+            }
+            opt_entry = it.next();
+        }
     }
 
     pub fn visitFunction(
@@ -79,6 +106,10 @@ pub const Lowerer = struct {
         function: *Function(Stmt)
     ) LowerError!void {
         try self.addParams(function.*.params);
+        self.fn_map.put(
+            function.*.name,
+            @intCast(u16, self.builder.currentByte())
+        ) catch return error.MemoryError;
         try visitor.walkFunction(self, function);
     }
 
@@ -88,6 +119,10 @@ pub const Lowerer = struct {
         function: *Function(BasicBlock)
     ) LowerError!void {
         try self.addParams(function.*.params);
+        self.fn_map.put(
+            function.*.name,
+            @intCast(u16, self.builder.currentByte())
+        ) catch return error.MemoryError;
         try visitor.walkBBFunction(self, function);
     }
 
@@ -139,9 +174,13 @@ pub const Lowerer = struct {
         self: *Self,
         opt_val: *?Value)
     LowerError!void {
-        _ = visitor;
-        _ = opt_val;
-        // TODO: Return value
+        // If there's a return value, it goes on the slot before parameters.
+        // Otherwise it's already set as undefined
+        if (opt_val.*) |*val| {
+            try visitor.visitValue(visitor, self, val);
+            try self.setVarOffset(-1 * @intCast(i8, self.num_params) - 1);
+        }
+
         self.builder.addOp(.ret) catch return error.BuilderError;
     }
 
@@ -196,6 +235,40 @@ pub const Lowerer = struct {
         _ = visitor;
         const offset = try self.getOffsetForName(access.*.name.?);
         try self.getVarOffset(offset);
+    }
+
+    pub fn visitFuncCall(
+        visitor: VisitorTy,
+        self: *Self,
+        call: *Value.FuncCall
+    ) LowerError!void {
+        // Return value goes here
+        self.builder.addOp(.constant) catch return error.BuilderError;
+        // 0 is undef
+        self.builder.addByte(0) catch return error.BuilderError;
+
+        for (call.*.arguments) |*arg| {
+            try visitor.visitValue(visitor, self, arg);
+        }
+
+        self.builder.addOp(.call) catch return error.BuilderError;
+        const placeholder = self.builder.addPlaceholderShort()
+            catch return error.BuilderError;
+
+        const list = self.placeholder_map.get(call.*.function) orelse blk: {
+            const list = self.allocator.create(std.ArrayList(usize))
+                catch return error.MemoryError;
+            list.* = std.ArrayList(usize).init(self.allocator);
+            self.placeholder_map.put(call.*.function, list)
+                catch return error.MemoryError;
+            break :blk list;
+        };
+        list.append(placeholder) catch return error.MemoryError;
+
+        // Pop each argument
+        for (call.*.arguments) |_| {
+            self.builder.addOp(.pop) catch return error.BuilderError;
+        }
     }
 
     fn getOffsetForName(self: *Self, name: []const u8) LowerError!i8 {

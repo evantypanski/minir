@@ -127,7 +127,7 @@ pub const Interpreter = struct {
             },
             .set => {
                 const new_val = try self.popVal();
-                const offset = try self.getByte();
+                const offset = try self.getSignedByte();
                 var lhs = try self.getVar(offset);
                 lhs.* = new_val;
             },

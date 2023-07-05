@@ -4,7 +4,14 @@ func main() -> void {
   test(i)
   test(j)
   test(i + j)
+  let returned = addone(39)
+  test(returned)
+  test(addone(49))
   ret
+}
+
+func addone(i) -> int {
+  ret i + 1
 }
 
 func test(k) -> void {
