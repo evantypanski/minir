@@ -62,33 +62,33 @@ pub const Lowerer = struct {
     }
 
     pub fn visitProgram(
-        self: VisitorTy,
-        arg: *Self,
+        visitor: VisitorTy,
+        self: *Self,
         program: *Program
     ) LowerError!void {
         // Add an undef value, index 0 will be undefined for all variables
         const val = ByteValue.initUndef();
-        const idx = arg.builder.addValue(val) catch return error.BuilderError;
+        const idx = self.builder.addValue(val) catch return error.BuilderError;
         std.debug.assert(idx == 0);
-        try self.walkProgram(arg, program);
+        try visitor.walkProgram(self, program);
     }
 
     pub fn visitFunction(
-        self: VisitorTy,
-        arg: *Self,
+        visitor: VisitorTy,
+        self: *Self,
         function: *Function(Stmt)
     ) LowerError!void {
-        try arg.addParams(function.*.params);
-        try self.walkFunction(arg, function);
+        try self.addParams(function.*.params);
+        try visitor.walkFunction(self, function);
     }
 
     pub fn visitBBFunction(
-        self: VisitorTy,
-        arg: *Self,
+        visitor: VisitorTy,
+        self: *Self,
         function: *Function(BasicBlock)
     ) LowerError!void {
-        try arg.addParams(function.*.params);
-        try self.walkBBFunction(arg, function);
+        try self.addParams(function.*.params);
+        try visitor.walkBBFunction(self, function);
     }
 
     fn addParams(self: *Self, params: []VarDecl) LowerError!void {
@@ -101,53 +101,53 @@ pub const Lowerer = struct {
     }
 
     pub fn visitDebug(
-        self: VisitorTy,
-        arg: *Self,
+        visitor: VisitorTy,
+        self: *Self,
         val: *Value)
     LowerError!void {
-        try self.visitValue(self, arg, val);
-        arg.builder.addOp(.debug) catch return error.BuilderError;
+        try visitor.visitValue(visitor, self, val);
+        self.builder.addOp(.debug) catch return error.BuilderError;
     }
 
     pub fn visitVarDecl(
-        self: VisitorTy,
-        arg: *Self,
+        visitor: VisitorTy,
+        self: *Self,
         decl: *VarDecl)
     LowerError!void {
-        arg.variables[arg.num_locals] = decl.*.name;
-        arg.num_locals += 1;
+        self.variables[self.num_locals] = decl.*.name;
+        self.num_locals += 1;
         if (decl.*.val) |*val| {
-            try self.visitValue(self, arg, val);
+            try visitor.visitValue(visitor, self, val);
         } else {
-            arg.builder.addOp(.constant) catch return error.BuilderError;
+            self.builder.addOp(.constant) catch return error.BuilderError;
             // 0 is undef
-            arg.builder.addByte(0) catch return error.BuilderError;
+            self.builder.addByte(0) catch return error.BuilderError;
         }
     }
 
     pub fn visitValueStmt(
-        self: VisitorTy,
-        arg: *Self,
+        visitor: VisitorTy,
+        self: *Self,
         val: *Value)
     LowerError!void {
-        try self.visitValue(self, arg, val);
-        arg.builder.addOp(.pop) catch return error.BuilderError;
+        try visitor.visitValue(visitor, self, val);
+        self.builder.addOp(.pop) catch return error.BuilderError;
     }
 
     pub fn visitRet(
-        self: VisitorTy,
-        arg: *Self,
+        visitor: VisitorTy,
+        self: *Self,
         opt_val: *?Value)
     LowerError!void {
-        _ = self;
+        _ = visitor;
         _ = opt_val;
         // TODO: Return value
-        arg.builder.addOp(.ret) catch return error.BuilderError;
+        self.builder.addOp(.ret) catch return error.BuilderError;
     }
 
     pub fn visitBinaryOp(
-        self: VisitorTy,
-        arg: *Self,
+        visitor: VisitorTy,
+        self: *Self,
         op: *Value.BinaryOp)
     LowerError!void {
         // Assign is special
@@ -155,21 +155,21 @@ pub const Lowerer = struct {
             // This will need to change when we can set based on pointers etc.
             // Grab the variable offset.
             const offset = switch (op.*.lhs.*) {
-                .access => |access| try arg.getOffsetForName(access.name.?),
+                .access => |access| try self.getOffsetForName(access.name.?),
                 else => return error.InvalidLHS,
             };
-            try self.visitValue(self, arg, op.*.rhs);
-            try arg.setVarOffset(offset);
+            try visitor.visitValue(visitor, self, op.*.rhs);
+            try self.setVarOffset(offset);
 
             // Assign also pushes the value to the top of the stack
-            try arg.getVarOffset(offset);
+            try self.getVarOffset(offset);
 
             return;
         }
 
         // Ops are post order
-        try self.visitValue(self, arg, op.*.lhs);
-        try self.visitValue(self, arg, op.*.rhs);
+        try visitor.visitValue(visitor, self, op.*.lhs);
+        try visitor.visitValue(visitor, self, op.*.rhs);
         const op_opcode = switch (op.*.kind) {
             .add => OpCode.add,
             .sub => OpCode.sub,
@@ -177,26 +177,25 @@ pub const Lowerer = struct {
             .div => OpCode.div,
             else => return,
         };
-        arg.builder.addOp(op_opcode) catch return error.BuilderError;
+        self.builder.addOp(op_opcode) catch return error.BuilderError;
     }
 
-    pub fn visitInt(self: VisitorTy, arg: *Self, i: *i32) LowerError!void {
-        _ = self;
+    pub fn visitInt(visitor: VisitorTy, self: *Self, i: *i32) LowerError!void {
+        _ = visitor;
         const val = ByteValue.initInt(i.*);
-        const idx = arg.builder.addValue(val) catch return error.BuilderError;
-        arg.builder.addOp(.constant) catch return error.BuilderError;
-        arg.builder.addByte(idx) catch return error.BuilderError;
+        const idx = self.builder.addValue(val) catch return error.BuilderError;
+        self.builder.addOp(.constant) catch return error.BuilderError;
+        self.builder.addByte(idx) catch return error.BuilderError;
     }
 
     pub fn visitVarAccess(
-        self: VisitorTy,
-        arg: *Self,
+        visitor: VisitorTy,
+        self: *Self,
         access: *Value.VarAccess
     ) LowerError!void {
-        _ = self;
-        const offset = try arg.getOffsetForName(access.*.name.?);
-        try arg.getVarOffset(offset);
-        return;
+        _ = visitor;
+        const offset = try self.getOffsetForName(access.*.name.?);
+        try self.getVarOffset(offset);
     }
 
     fn getOffsetForName(self: *Self, name: []const u8) LowerError!i8 {
