@@ -37,6 +37,10 @@ pub const Token = struct {
         false_,
         undefined_,
         ret,
+        float,
+        int,
+        boolean,
+        none,
         // Branch keywords
         br,
         brz,
@@ -45,10 +49,6 @@ pub const Token = struct {
         brle,
         brg,
         brge,
-
-        // Default value of "undefined" token. Should not appear when lexing
-        // normally.
-        none,
     };
 
     tag: Tag,
@@ -62,10 +62,6 @@ pub const Token = struct {
                 .end = end,
             },
         };
-    }
-
-    pub fn none() Self {
-        return Self.init(.none, 0, 0);
     }
 
     pub fn isValid(self: Self) bool {

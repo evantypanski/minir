@@ -93,8 +93,7 @@ pub const Lexer = struct {
     /// Gets the tag associated with the current token. Efficiently matches
     /// keywords :)
     ///
-    /// It's pretty overkill with so few. But oh well. Grabbed this tiny trie
-    /// impl from crafting interpreters.
+    /// Grabbed this tiny trie impl from crafting interpreters.
     fn identifierTag(self: Self) Token.Tag {
         const token_len = self.current - self.start;
         switch (self.source[self.start]) {
@@ -102,13 +101,16 @@ pub const Lexer = struct {
                     switch (self.source[self.start + 1]) {
                         'u' => return self.checkKeyword(self.start + 2, 2, "nc", .func),
                         'a' => return self.checkKeyword(self.start + 2, 3, "lse", .false_),
+                        'l' => return self.checkKeyword(self.start + 2, 2, "oat", .float),
                         else => return .identifier,
                     }
                 } else {
                     return .identifier;
                 },
             'd' => return self.checkKeyword(self.start + 1, 4, "ebug", .debug),
+            'i' => return self.checkKeyword(self.start + 1, 2, "nt", .int),
             'l' => return self.checkKeyword(self.start + 1, 2, "et", .let),
+            'n' => return self.checkKeyword(self.start + 1, 2, "one", .none),
             't' => return self.checkKeyword(self.start + 1, 3, "rue", .true_),
             'u' => return self.checkKeyword(self.start + 1, 8, "ndefined", .undefined_),
             'r' => return self.checkKeyword(self.start + 1, 2, "et", .ret),
@@ -135,6 +137,7 @@ pub const Lexer = struct {
                                     else => .identifier,
                                 };
                         },
+                        'o' => return self.checkKeyword(self.start + 1, 5, "olean", .boolean),
                         else => return .identifier,
                     }
                 } else {

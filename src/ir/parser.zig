@@ -127,14 +127,13 @@ pub const Parser = struct {
         try self.consume(.rparen, error.ExpectedRParen);
         // Return
         try self.consume(.arrow, error.ExpectedArrow);
-        try self.consume(.identifier, error.ExpectedIdentifier);
-        const type_name = self.lexer.getTokString(self.previous);
-        const ty = if (Type.from_string(type_name)) |ty|
-                ty
-            else |err| blk: {
-                self.diagPrevious(err);
-                break :blk .none;
-            };
+        const ty = if (self.parseType()) |ty|
+            ty
+        else |err| blk: {
+            self.diagPrevious(err);
+            break :blk .none;
+        };
+
         builder.setReturnType(ty);
 
         try self.consume(.lbrace, error.ExpectedLBrace);
@@ -356,6 +355,18 @@ pub const Parser = struct {
                 return error.NotANumber;
             }
         }
+    }
+
+    // Parses a type name
+    fn parseType(self: *Self) ParseError!Type {
+        self.advance();
+        return switch (self.previous.tag) {
+            .int => .int,
+            .float => .float,
+            .boolean => .boolean,
+            .none => .none,
+            else => error.InvalidTypeName,
+        };
     }
 
     fn diagCurrent(self: Self, err: ParseError) void {

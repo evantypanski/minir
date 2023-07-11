@@ -219,7 +219,7 @@ pub fn disassembleType(self: Disassembler, ty: Type) Writer.Error!void {
         .int => "int",
         .float => "float",
         .boolean => "boolean",
-        .none => "void",
+        .none => "none",
     };
     try self.writer.writeAll(name);
 }
