@@ -1,5 +1,5 @@
-func main() -> void {
-  let i = 42
+func main() -> none {
+  let i: int = 42
   let j = 45
   test(i)
   test(j)

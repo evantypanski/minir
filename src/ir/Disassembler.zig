@@ -105,6 +105,10 @@ pub fn disassembleStmt(self: Disassembler, stmt: Stmt) Writer.Error!void {
         },
         .id => |decl| {
             try self.writer.print("let {s}", .{decl.name});
+            if (decl.ty) |ty| {
+                try self.writer.writeAll(": ");
+                try self.disassembleType(ty);
+            }
             if (decl.val) |value| {
                 try self.writer.writeAll(" = ");
                 try self.disassembleValue(value);

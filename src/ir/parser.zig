@@ -190,13 +190,23 @@ pub const Parser = struct {
         const start = self.previous.loc.start;
         try self.consume(.identifier, error.ExpectedIdentifier);
         const var_name = self.lexer.getTokString(self.previous);
+        // The type will be set if explicit or null if not. Note that
+        // it's not .none if not set.
+        const ty = if (self.match(.colon)) blk: {
+            if (self.parseType()) |ty|
+                break :blk ty
+            else |err| {
+                self.diagPrevious(err);
+                break :blk .none;
+            }
+        } else null;
         const val = if (self.match(.eq)) try self.parseExpr() else null;
         return Stmt.init(
             .{
                 .id = .{
                     .name = var_name,
                     .val = val,
-                    .ty = null,
+                    .ty = ty,
                 }
             },
             label,
