@@ -6,6 +6,8 @@ const Token = @import("token.zig").Token;
 const Lexer = @import("lexer.zig").Lexer;
 const Value = @import("nodes/value.zig").Value;
 const Stmt = @import("nodes/statement.zig").Stmt;
+const Branch = @import("nodes/statement.zig").Branch;
+const ConditionalBranch = @import("nodes/statement.zig").ConditionalBranch;
 const Decl = @import("nodes/decl.zig").Decl;
 const Function = @import("nodes/decl.zig").Function;
 const FunctionBuilder = @import("nodes/decl.zig").FunctionBuilder;
@@ -164,6 +166,8 @@ pub const Parser = struct {
             return self.parseLet(label);
         } else if (self.match(.ret)) {
             return self.parseRet(label);
+        } else if (self.current.tag.isBranch()) {
+            return self.parseBranch(label);
         } else {
             return self.parseExprStmt(label);
         }
@@ -225,6 +229,55 @@ pub const Parser = struct {
 
         return Stmt.init(
             .{ .ret = val },
+            label,
+            Loc.init(start, self.previous.loc.end),
+        );
+    }
+
+    fn parseBranch(self: *Self, label: ?[]const u8) ParseError!Stmt {
+        const start = self.previous.loc.start;
+        const branch_tag = self.current.tag;
+        self.advance();
+        try self.consume(.identifier, error.ExpectedIdentifier);
+        const to = self.lexer.getTokString(self.previous);
+        if (branch_tag == .br) {
+            // Unconditional jump
+            return Stmt.init(
+                .{ .branch = Branch.initJump(to) },
+                label,
+                Loc.init(start, self.previous.loc.end),
+            );
+        } else if (branch_tag == .brz) {
+            // brz only has one argument
+            const is_this_zero = try self.parseExpr();
+            return Stmt.init(
+                .{ .branch = Branch.initIfZero(to, is_this_zero) },
+                label,
+                Loc.init(start, self.previous.loc.end),
+            );
+        }
+
+        // Else this branch compares two expressions in some way
+        const conditional_kind: ConditionalBranch.Kind =
+            switch (branch_tag) {
+                .bre => .eq,
+                .brl => .less,
+                .brle => .less_eq,
+                .brg => .greater,
+                .brge => .greater_eq,
+                else => return error.NotABranch,
+            };
+        const lhs = try self.parseExpr();
+        const rhs = try self.parseExpr();
+        return Stmt.init(
+            .{
+                .branch = Branch.initBinaryConditional(
+                    to,
+                    conditional_kind,
+                    lhs,
+                    rhs
+                )
+            },
             label,
             Loc.init(start, self.previous.loc.end),
         );

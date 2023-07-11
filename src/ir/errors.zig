@@ -26,6 +26,7 @@ pub const NodeError = error{
     NoMainFunction,
     NotAnOperator,
     InvalidTypeName,
+    NotABranch,
 };
 
 pub const IrError = InterpError || NodeError;

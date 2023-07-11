@@ -5,6 +5,8 @@ func main() -> none {
   test(j)
   test(i + j)
   let returned = addone(39)
+  br hi
+  brle hi 2 3
   test(returned)
   test(addone(49))
   ret
