@@ -67,6 +67,28 @@ pub const Value = union(ValueKind) {
         }
     }
 
+    pub fn and_(self: Self, other: Self) RuntimeError!Self {
+        const result = switch (self) {
+            .undef => return error.InvalidOperand,
+            .int => return error.InvalidOperand,
+            .float => return error.InvalidOperand,
+            .boolean => |b| b and try other.asBool(),
+        };
+
+        return Self.initBool(result);
+    }
+
+    pub fn or_(self: Self, other: Self) RuntimeError!Self {
+        const result = switch (self) {
+            .undef => return error.InvalidOperand,
+            .int => return error.InvalidOperand,
+            .float => return error.InvalidOperand,
+            .boolean => |b| b or try other.asBool(),
+        };
+
+        return Self.initBool(result);
+    }
+
     pub fn eq(self: Self, other: Self) RuntimeError!Self {
         const result = switch (self) {
             .undef => return error.InvalidOperand,

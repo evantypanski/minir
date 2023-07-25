@@ -14,6 +14,8 @@ pub const OpCode = enum(u8) {
     mul,
     div,
 
+    and_,
+    or_,
     // Comparisons
     eq,
     ne,
@@ -42,7 +44,7 @@ pub const OpCode = enum(u8) {
              .jmp, .jmpt, .call => 2,
              .constant, .set, .get => 1,
              .ret, .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
-             .pop => 0,
+             .pop, .and_, .or_ => 0,
          };
     }
 
@@ -51,7 +53,7 @@ pub const OpCode = enum(u8) {
              .constant, .get => 1,
              .ret, .call, .jmp => 0,
              .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
-             .set, .jmpt, .pop => -1,
+             .set, .jmpt, .pop, .and_, .or_ => -1,
          };
     }
 

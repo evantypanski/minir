@@ -113,8 +113,6 @@ pub const Lowerer = struct {
         }
     }
 
-    // TODO: Should this be combined with function since it's just the
-    // map name difference?
     fn resolveBranches(self: *Self) LowerError!void {
         var it = self.*.label_placeholder_map.iterator();
         var opt_entry = it.next();
@@ -122,10 +120,14 @@ pub const Lowerer = struct {
             const addr = self.*.label_map.get(entry.key_ptr.*)
                 orelse return error.NoSuchLabel;
             for (entry.value_ptr.*.*.items) |placeholder| {
-                const offset_from = self.builder.getPlaceholderShort(placeholder);
-                const relative = @intCast(i16, addr) - @intCast(i16, offset_from);
-                self.builder.setPlaceholderShort(placeholder, @bitCast(u16, relative))
-                    catch return error.BuilderError;
+                const offset_from =
+                    self.builder.getPlaceholderShort(placeholder);
+                const relative =
+                    @intCast(i16, addr) - @intCast(i16, offset_from);
+                self.builder.setPlaceholderShort(
+                    placeholder,
+                    @bitCast(u16, relative)
+                ) catch return error.BuilderError;
             }
             opt_entry = it.next();
         }
@@ -269,11 +271,17 @@ pub const Lowerer = struct {
         try visitor.visitValue(visitor, self, op.*.lhs);
         try visitor.visitValue(visitor, self, op.*.rhs);
         const op_opcode = switch (op.*.kind) {
+            .eq => OpCode.eq,
             .add => OpCode.add,
             .sub => OpCode.sub,
             .mul => OpCode.mul,
             .div => OpCode.div,
+            .and_ => OpCode.and_,
+            .or_ => OpCode.or_,
             .lt => OpCode.lt,
+            .le => OpCode.le,
+            .gt => OpCode.gt,
+            .ge => OpCode.ge,
             else => return,
         };
         self.builder.addOp(op_opcode) catch return error.BuilderError;

@@ -23,19 +23,14 @@ pub const Value = union(ValueKind) {
         pub const Kind = enum {
             assign,
 
+            eq,
             add,
             sub,
             mul,
             div,
 
-            // Float operators
-            fadd,
-            fsub,
-            fmul,
-            fdiv,
-
-            @"and",
-            @"or",
+            and_,
+            or_,
 
             lt,
             le,
@@ -47,12 +42,13 @@ pub const Value = union(ValueKind) {
                 // just explicitly cast.
                 return switch (tag) {
                     .eq => .assign,
+                    .eq_eq => .eq,
                     .plus => .add,
                     .minus => .sub,
                     .star => .mul,
                     .slash => .div,
-                    .amp_amp => .@"and",
-                    .pipe_pipe => .@"or",
+                    .amp_amp => .and_,
+                    .pipe_pipe => .or_,
                     .less => .lt,
                     .less_eq => .le,
                     .greater => .gt,

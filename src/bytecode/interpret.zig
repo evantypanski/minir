@@ -108,12 +108,14 @@ pub const Interpreter = struct {
                     else => unreachable,
                 }
             },
-            .eq, .ne, .gt, .ge, .lt, .le => {
+            .and_, .or_, .eq, .ne, .gt, .ge, .lt, .le => {
                 // These don't replace the value since they change the type.
                 const rhs = try self.popVal();
                 const lhs = try self.popVal();
 
                 const result = switch (op) {
+                    .and_ => try lhs.and_(rhs),
+                    .or_ => try lhs.or_(rhs),
                     .eq => try lhs.eq(rhs),
                     .ne => try lhs.ne(rhs),
                     .gt => try lhs.gt(rhs),

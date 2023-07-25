@@ -72,7 +72,7 @@ pub const Token = struct {
 
     pub fn isOp(self: Self) bool {
         return switch(self.tag) {
-            .eq, .plus, .minus, .star, .slash, .amp_amp, .pipe_pipe,
+            .eq, .eq_eq, .plus, .minus, .star, .slash, .amp_amp, .pipe_pipe,
             .less, .less_eq, .greater, .greater_eq => true,
             else => false,
         };
