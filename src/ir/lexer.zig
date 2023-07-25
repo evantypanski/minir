@@ -66,13 +66,13 @@ pub const Lexer = struct {
                     else
                         return error.Unexpected,
             '<' => if (self.match('='))
-                        Token.init(.greater_eq, self.start, self.current)
-                    else
-                        Token.init(.greater, self.start, self.current),
-            '>' => if (self.match('='))
                         Token.init(.less_eq, self.start, self.current)
                     else
                         Token.init(.less, self.start, self.current),
+            '>' => if (self.match('='))
+                        Token.init(.greater_eq, self.start, self.current)
+                    else
+                        Token.init(.greater, self.start, self.current),
 
             else => error.Unexpected,
         };
@@ -114,28 +114,17 @@ pub const Lexer = struct {
             't' => return self.checkKeyword(self.start + 1, 3, "rue", .true_),
             'u' => return self.checkKeyword(self.start + 1, 8, "ndefined", .undefined_),
             'r' => return self.checkKeyword(self.start + 1, 2, "et", .ret),
-            // Just do branches here because why not. This is a mess. Oops.
             'b' => if (token_len >= 2) {
                     switch (self.source[self.start + 1]) {
                         'r' => {
                             if (token_len == 2)
                                 return .br
                             else
-                                return switch (self.source[self.start + 2]) {
-                                    'z' => .brz,
-                                    'e' => .bre,
-                                    'l' => if (token_len > 3)
-                                                self.checkKeyword(self.start + 2, 2,
-                                                        "le", .brle)
-                                            else
-                                                .brl,
-                                    'g' => if (token_len > 3)
-                                                self.checkKeyword(self.start + 2, 2,
-                                                        "ge", .brge)
-                                            else
-                                                .brg,
-                                    else => .identifier,
-                                };
+                                if (token_len == 3 and
+                                    self.source[self.start + 2] == 'c')
+                                    return .brc
+                                else
+                                    return .identifier;
                         },
                         'o' => return self.checkKeyword(self.start + 1, 5, "olean", .boolean),
                         else => return .identifier,

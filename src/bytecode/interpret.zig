@@ -119,7 +119,7 @@ pub const Interpreter = struct {
                     .gt => try lhs.gt(rhs),
                     .ge => try lhs.ge(rhs),
                     .lt => try lhs.lt(rhs),
-                    .le => try lhs.lt(rhs),
+                    .le => try lhs.le(rhs),
                     else => unreachable,
                 };
 
@@ -137,11 +137,19 @@ pub const Interpreter = struct {
                 const offset = try self.getSignedByte();
                 try self.pushValue((try self.getVar(offset)).*);
             },
-            .jmpf => {
+            .jmp => {
+                const old_pc = self.pc;
+                const offset = try self.getShort();
+                self.pc = @intCast(usize, @intCast(isize, old_pc) + offset);
+            },
+            .jmpt => {
+                const old_pc = self.pc;
                 const condition = try self.popVal();
                 const offset = try self.getShort();
-                if (!(try condition.asBool())) {
-                    self.pc = @intCast(usize, @intCast(isize, self.pc) + offset);
+                if (try condition.asBool()) {
+                    self.pc = @intCast(usize, @intCast(isize, old_pc) + offset);
+                } else {
+                    self.pc += 1;
                 }
             },
             .call => {

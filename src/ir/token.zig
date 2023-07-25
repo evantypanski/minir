@@ -43,16 +43,11 @@ pub const Token = struct {
         none,
         // Branch keywords
         br,
-        brz,
-        bre,
-        brl,
-        brle,
-        brg,
-        brge,
+        brc,
 
         pub fn isBranch(self: Tag) bool {
             return switch (self) {
-                .br, .brz, .bre, .brl, .brle, .brg, .brge => true,
+                .br, .brc => true,
                 else => false,
             };
         }

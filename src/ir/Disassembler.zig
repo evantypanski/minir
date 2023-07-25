@@ -115,28 +115,11 @@ pub fn disassembleStmt(self: Disassembler, stmt: Stmt) Writer.Error!void {
             }
         },
         .branch => |branch| {
-            switch (branch) {
-                .jump =>
-                    try self.writer.print("br {s}", .{branch.labelName()}),
-                .conditional => |conditional| {
-                    const instr_name = switch (conditional.kind) {
-                        .zero => "brz",
-                        .eq => "bre",
-                        .less => "brl",
-                        .less_eq => "brle",
-                        .greater => "brg",
-                        .greater_eq => "brge",
-                    };
-                    try self.writer.print(
-                        "{s} {s} ",
-                        .{instr_name, branch.labelName()}
-                    );
-                    try self.disassembleValue(conditional.lhs);
-                    if (conditional.rhs) |value| {
-                        try self.writer.writeAll(" ");
-                        try self.disassembleValue(value);
-                    }
-                }
+            if (branch.expr) |expr| {
+                try self.writer.print("brc {s} ", .{branch.labelName()});
+                try self.disassembleValue(expr);
+            } else {
+                try self.writer.print("br {s}", .{branch.labelName()});
             }
         },
         .ret => |opt_value| {

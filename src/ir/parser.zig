@@ -7,7 +7,6 @@ const Lexer = @import("lexer.zig").Lexer;
 const Value = @import("nodes/value.zig").Value;
 const Stmt = @import("nodes/statement.zig").Stmt;
 const Branch = @import("nodes/statement.zig").Branch;
-const ConditionalBranch = @import("nodes/statement.zig").ConditionalBranch;
 const Decl = @import("nodes/decl.zig").Decl;
 const Function = @import("nodes/decl.zig").Function;
 const FunctionBuilder = @import("nodes/decl.zig").FunctionBuilder;
@@ -247,40 +246,16 @@ pub const Parser = struct {
                 label,
                 Loc.init(start, self.previous.loc.end),
             );
-        } else if (branch_tag == .brz) {
-            // brz only has one argument
-            const is_this_zero = try self.parseExpr();
+        } else if (branch_tag == .brc) {
+            const if_true = try self.parseExpr();
             return Stmt.init(
-                .{ .branch = Branch.initIfZero(to, is_this_zero) },
+                .{ .branch = Branch.initConditional(to, if_true) },
                 label,
                 Loc.init(start, self.previous.loc.end),
             );
         }
 
-        // Else this branch compares two expressions in some way
-        const conditional_kind: ConditionalBranch.Kind =
-            switch (branch_tag) {
-                .bre => .eq,
-                .brl => .less,
-                .brle => .less_eq,
-                .brg => .greater,
-                .brge => .greater_eq,
-                else => return error.NotABranch,
-            };
-        const lhs = try self.parseExpr();
-        const rhs = try self.parseExpr();
-        return Stmt.init(
-            .{
-                .branch = Branch.initBinaryConditional(
-                    to,
-                    conditional_kind,
-                    lhs,
-                    rhs
-                )
-            },
-            label,
-            Loc.init(start, self.previous.loc.end),
-        );
+        return error.NotABranch;
     }
 
     fn parseExprStmt(self: *Self, label: ?[]const u8) ParseError!Stmt {

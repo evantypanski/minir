@@ -71,8 +71,15 @@ pub const Disassembler = struct {
                 try self.writer.writeAll(" ");
                 try self.disassembleOffset(immediate);
             },
-            .jmpf => {
-                try self.writer.writeAll("JMPF");
+            .jmp => {
+                try self.writer.writeAll("JMP");
+                const b1 = try self.getByte();
+                const b2 = try self.getByte();
+                const relative = @bitCast(i16, (@intCast(u16, b1) << 8) | @intCast(u16, b2));
+                try self.writer.print(" {}", .{relative});
+            },
+            .jmpt => {
+                try self.writer.writeAll("JMPT");
                 const b1 = try self.getByte();
                 const b2 = try self.getByte();
                 const relative = @bitCast(i16, (@intCast(u16, b1) << 8) | @intCast(u16, b2));

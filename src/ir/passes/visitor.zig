@@ -114,14 +114,8 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         // This could be split but the conditional/unconditional split isn't
         // that big of a deal.
         pub fn walkBranch(self: Self, arg: ArgTy, branch: *Branch) RetTy {
-            switch (branch.*) {
-                .jump => {},
-                .conditional => |*conditional| {
-                    try self.visitValue(self, arg, &conditional.lhs);
-                    if (conditional.rhs) |*rhs| {
-                        try self.visitValue(self, arg, rhs);
-                    }
-                },
+            if (branch.expr) |*expr| {
+                try self.visitValue(self, arg, expr);
             }
         }
 

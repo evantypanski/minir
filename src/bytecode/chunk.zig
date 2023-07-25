@@ -58,6 +58,13 @@ pub const ChunkBuilder = struct {
             @intCast(u8, short & 0xFF);
     }
 
+    // Gets the placeholder already at a placeholder. Useful if using it to
+    // store a value used later when resolved.
+    pub fn getPlaceholderShort(self: *Self, placeholder: usize) u16 {
+        return (@intCast(u16, self.bytes.items[placeholder]) << 8) +
+            self.bytes.items[placeholder + 1];
+    }
+
     pub fn addValue(self: *Self, value: Value) !u8 {
         const idx = self.values.items.len;
         if (idx > std.math.maxInt(u8)) {

@@ -29,15 +29,17 @@ pub const OpCode = enum(u8) {
     // are locals in the current frame.
     get,
 
-    // Jump if false
-    jmpf,
+    // Unconditional jump
+    jmp,
+    // Jump if top of stack is true
+    jmpt,
 
     // Call an absolute address
     call,
 
     pub fn numImmediates(self: Self) usize {
          return switch (self) {
-             .jmpf, .call => 2,
+             .jmp, .jmpt, .call => 2,
              .constant, .set, .get => 1,
              .ret, .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
              .pop => 0,
@@ -47,9 +49,9 @@ pub const OpCode = enum(u8) {
     pub fn stackEffect(self: Self) isize {
          return switch (self) {
              .constant, .get => 1,
-             .ret, .call => 0,
+             .ret, .call, .jmp => 0,
              .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
-             .set, .jmpf, .pop => -1,
+             .set, .jmpt, .pop => -1,
          };
     }
 
@@ -57,7 +59,7 @@ pub const OpCode = enum(u8) {
     // be incremented after these instructions
     pub fn updatesPC(self: Self) bool {
         return switch (self) {
-            .ret, .call => true,
+            .ret, .call, .jmp, .jmpt => true,
             else => false,
         };
     }

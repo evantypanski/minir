@@ -48,7 +48,6 @@ pub fn FunctionBuilder(comptime ElementType: type) type {
         name: []const u8,
         elements: std.ArrayList(ElementType),
         params: std.ArrayList(VarDecl),
-        label_map: std.StringHashMap(usize),
         ret_ty: ?Type,
 
         pub fn init(allocator: std.mem.Allocator, name: []const u8) Self {
@@ -56,15 +55,8 @@ pub fn FunctionBuilder(comptime ElementType: type) type {
                 .name = name,
                 .elements = std.ArrayList(ElementType).init(allocator),
                 .params = std.ArrayList(VarDecl).init(allocator),
-                .label_map = std.StringHashMap(usize).init(allocator),
                 .ret_ty = null,
             };
-        }
-
-        // Only frees memory owned by this builder, not what would be owned by
-        // what it creates.
-        pub fn deinit(self: *Self) void {
-            self.label_map.deinit();
         }
 
         pub fn addElement(self: *Self, element: ElementType) !void {

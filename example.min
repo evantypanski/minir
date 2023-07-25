@@ -1,14 +1,9 @@
 func main() -> none {
   let i: int = 42
-  let j = 45
+@loop
   test(i)
-  test(j)
-  test(i + j)
-  let returned = addone(39)
-  br hi
-  brle hi 2 3
-  test(returned)
-  test(addone(49))
+  i = addone(i)
+  brc loop i < 50
   ret
 }
 
