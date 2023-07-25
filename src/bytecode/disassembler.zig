@@ -110,8 +110,16 @@ pub const Disassembler = struct {
     }
 
     fn disassembleOffset(self: *Self, offset: u8) DisassembleError!void {
-        try self.writer.writeAll("var @fp-");
-        try fmt.formatInt(offset, 10, .lower, .{}, self.writer);
+        const signed_offset = @bitCast(i8, offset);
+        try self.writer.writeAll("var @fp");
+
+        // Explicitly write plus for clarity. This includes zero, because
+        // `var @fp` would look weird.
+        if (signed_offset >= 0) {
+            try self.writer.writeAll("+");
+        }
+
+        try fmt.formatInt(signed_offset, 10, .lower, .{}, self.writer);
     }
 
     // Gets the next byte and increments the index, returning an error if
