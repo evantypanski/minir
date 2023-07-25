@@ -108,6 +108,11 @@ pub const Interpreter = struct {
                     else => unreachable,
                 }
             },
+            .not => {
+                const val = try self.popVal();
+                const b = try val.asBool();
+                try self.pushValue(Value.initBool(!b));
+            },
             .and_, .or_, .eq, .ne, .gt, .ge, .lt, .le => {
                 // These don't replace the value since they change the type.
                 const rhs = try self.popVal();

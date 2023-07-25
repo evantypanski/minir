@@ -16,6 +16,8 @@ pub const Token = struct {
         identifier,
         num,
 
+        bang,
+
         eq,
         eq_eq,
         plus,
@@ -70,7 +72,14 @@ pub const Token = struct {
         return self.tag != .none;
     }
 
-    pub fn isOp(self: Self) bool {
+    pub fn isUnaryOp(self: Self) bool {
+        return switch(self.tag) {
+            .bang => true,
+            else => false,
+        };
+    }
+
+    pub fn isBinaryOp(self: Self) bool {
         return switch(self.tag) {
             .eq, .eq_eq, .plus, .minus, .star, .slash, .amp_amp, .pipe_pipe,
             .less, .less_eq, .greater, .greater_eq => true,

@@ -14,6 +14,7 @@ pub const OpCode = enum(u8) {
     mul,
     div,
 
+    not,
     and_,
     or_,
     // Comparisons

@@ -9,6 +9,7 @@ const ValueKind = enum {
     int,
     float,
     bool,
+    unary,
     binary,
     call,
 };
@@ -17,6 +18,27 @@ pub const Value = union(ValueKind) {
     pub const VarAccess = struct {
         name: ?[]const u8,
         offset: ?isize,
+    };
+
+    pub const UnaryOp = struct {
+        pub const Kind = enum {
+            not,
+
+            pub fn fromTag(tag: Token.Tag) !Kind {
+                return switch (tag) {
+                    .bang => .not,
+                    else => error.NotAnOperator,
+                };
+            }
+        };
+
+        kind: Kind,
+        val: *Value,
+
+        pub fn deinit(self: *UnaryOp, allocator: std.mem.Allocator) void {
+            allocator.destroy(self.val);
+        }
+
     };
 
     pub const BinaryOp = struct {
@@ -38,8 +60,6 @@ pub const Value = union(ValueKind) {
             ge,
 
             pub fn fromTag(tag: Token.Tag) !Kind {
-                // Ignoring float ops for now, those may disappear and you
-                // just explicitly cast.
                 return switch (tag) {
                     .eq => .assign,
                     .eq_eq => .eq,
@@ -79,6 +99,7 @@ pub const Value = union(ValueKind) {
     int: i32,
     float: f32,
     bool: u1,
+    unary: UnaryOp,
     binary: BinaryOp,
     call: FuncCall,
 
@@ -106,6 +127,13 @@ pub const Value = union(ValueKind) {
         return .{
             .bool = @boolToInt(val),
         };
+    }
+
+    pub fn initUnary(kind: UnaryOp.Kind, val: *Value) Value {
+        return .{ .unary = .{
+            .kind = kind,
+            .val = val,
+        } };
     }
 
     pub fn initBinary(kind: BinaryOp.Kind, lhs: *Value, rhs: *Value) Value {
@@ -149,6 +177,7 @@ pub const Value = union(ValueKind) {
 
     pub fn deinit(self: *Value, allocator: std.mem.Allocator) void {
         switch (self.*) {
+            .unary => |*op| op.deinit(allocator),
             .binary => |*op| op.deinit(allocator),
             else => {},
         }

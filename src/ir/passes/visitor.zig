@@ -31,6 +31,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         visitInt: VisitIntFn = defaultVisitInt,
         visitFloat: VisitFloatFn = defaultVisitFloat,
         visitBool: VisitBoolFn = defaultVisitBool,
+        visitUnaryOp: VisitUnaryOpFn = defaultVisitUnaryOp,
         visitBinaryOp: VisitBinaryOpFn = defaultVisitBinaryOp,
         visitFuncCall: VisitFuncCallFn = defaultVisitFuncCall,
 
@@ -58,6 +59,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const VisitIntFn = *const fn(self: Self, arg: ArgTy, i: *i32) RetTy;
         const VisitFloatFn = *const fn(self: Self, arg: ArgTy, f: *f32) RetTy;
         const VisitBoolFn = *const fn(self: Self, arg: ArgTy, b: *u1) RetTy;
+        const VisitUnaryOpFn = *const fn(self: Self, arg: ArgTy, uo: *Value.UnaryOp) RetTy;
         const VisitBinaryOpFn = *const fn(self: Self, arg: ArgTy, bo: *Value.BinaryOp) RetTy;
         const VisitFuncCallFn = *const fn(self: Self, arg: ArgTy, call: *Value.FuncCall) RetTy;
 
@@ -126,9 +128,14 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
                 .int => |*i| try self.visitInt(self, arg, i),
                 .float => |*f| try self.visitFloat(self, arg, f),
                 .bool => |*b| try self.visitBool(self, arg, b),
+                .unary => |*uo| try self.visitUnaryOp(self, arg, uo),
                 .binary => |*bo| try self.visitBinaryOp(self, arg, bo),
                 .call => |*call| try self.visitFuncCall(self, arg, call),
             }
+        }
+
+        pub fn walkUnaryOp(self: Self, arg: ArgTy, uo: *Value.UnaryOp) RetTy {
+            try self.visitValue(self, arg, uo.val);
         }
 
         pub fn walkBinaryOp(self: Self, arg: ArgTy, bo: *Value.BinaryOp) RetTy {
@@ -216,6 +223,10 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         }
 
         pub fn defaultVisitVarAccess(_: Self, _: ArgTy, _: *Value.VarAccess) RetTy {
+        }
+
+        pub fn defaultVisitUnaryOp(self: Self, arg: ArgTy, uo: *Value.UnaryOp) RetTy {
+            try self.walkUnaryOp(arg, uo);
         }
 
         pub fn defaultVisitBinaryOp(self: Self, arg: ArgTy, bo: *Value.BinaryOp) RetTy {

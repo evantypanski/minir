@@ -282,7 +282,6 @@ pub const Parser = struct {
     fn parsePrecedence(self: *Self, prec: Precedence) ParseError!Value {
         // Prefixes. Literals, parenthesized expressions, and ids can start an
         // expression statement.
-        // TODO: Unary ops
         var lhs = if (self.current.tag == .lparen)
             try self.parseGrouping()
         else if (self.match(.identifier))
@@ -290,16 +289,16 @@ pub const Parser = struct {
                 try self.parseCall()
             else
                 try self.parseIdentifier()
+        else if (self.current.isUnaryOp())
+            try self.parseUnary()
         else
             try self.parseLiteral();
 
         while (true) {
             const this_prec = bindingPower(self.current.tag);
-            if (self.current.isOp()
-                and this_prec.gte(prec)) {
-                // Unreachable since we theoretically guarantee `isOp` means
-                // this `fromTag` works.
-                const op_kind = try Value.BinaryOp.Kind.fromTag(self.current.tag);
+            if (self.current.isBinaryOp() and this_prec.gte(prec)) {
+                const op_kind =
+                    try Value.BinaryOp.Kind.fromTag(self.current.tag);
                 self.advance();
                 var rhs = try self.parsePrecedence(this_prec.inc());
                 const lhs_ptr = if (self.allocator.create(Value)) |ptr|
@@ -347,6 +346,20 @@ pub const Parser = struct {
         const arg_slice = arguments.toOwnedSlice()
             catch return error.MemoryError;
         return Value.initCall(name, arg_slice);
+    }
+
+    // Parses a unary op
+    fn parseUnary(self: *Self) ParseError!Value {
+        const op_kind = try Value.UnaryOp.Kind.fromTag(self.current.tag);
+        self.advance();
+        const val = try self.parsePrecedence(.unary);
+        const val_ptr = if (self.allocator.create(Value)) |ptr|
+                ptr
+            else |_|
+                return error.MemoryError;
+        val_ptr.* = val;
+
+        return Value.initUnary(op_kind, val_ptr);
     }
 
     fn parseLiteral(self: *Self) ParseError!Value {
@@ -423,6 +436,7 @@ pub const Parser = struct {
 
     fn bindingPower(tag: Token.Tag) Precedence {
         return switch (tag) {
+            .bang => .unary,
             .eq => .assign,
             .pipe_pipe => .or_,
             .amp_amp => .and_,

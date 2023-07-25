@@ -39,6 +39,7 @@ pub const Lexer = struct {
         }
 
         return switch (c) {
+            '!' => Token.init(.bang, self.start, self.current),
             '(' => Token.init(.lparen, self.start, self.current),
             ')' => Token.init(.rparen, self.start, self.current),
             '{' => Token.init(.lbrace, self.start, self.current),

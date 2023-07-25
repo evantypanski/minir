@@ -155,6 +155,7 @@ pub fn disassembleValue(self: Disassembler, value: Value) Writer.Error!void {
                 try self.writer.writeAll("false");
             }
         },
+        .unary => |unary| try self.disassembleUnary(unary),
         .binary => |binary| try self.disassembleBinary(binary),
         .call => |call| {
             try self.writer.writeAll(call.function);
@@ -172,6 +173,16 @@ pub fn disassembleValue(self: Disassembler, value: Value) Writer.Error!void {
             try self.writer.writeAll(")");
         },
     }
+}
+
+pub fn disassembleUnary(self: Disassembler, unary: Value.UnaryOp)
+            Writer.Error!void {
+    const op = switch (unary.kind) {
+        .not => "!",
+    };
+
+    try self.writer.writeAll(op);
+    try self.disassembleValue(unary.val.*);
 }
 
 pub fn disassembleBinary(self: Disassembler, binary: Value.BinaryOp)

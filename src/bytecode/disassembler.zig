@@ -53,6 +53,7 @@ pub const Disassembler = struct {
             .sub => try self.writer.writeAll("SUB"),
             .mul => try self.writer.writeAll("MUL"),
             .div => try self.writer.writeAll("DIV"),
+            .not => try self.writer.writeAll("NOT"),
             .and_ => try self.writer.writeAll("AND"),
             .or_ => try self.writer.writeAll("OR"),
             .eq => try self.writer.writeAll("EQ"),

@@ -72,6 +72,7 @@ pub const Lowerer = struct {
         .visitVarDecl = visitVarDecl,
         .visitValueStmt = visitValueStmt,
         .visitRet = visitRet,
+        .visitUnaryOp = visitUnaryOp,
         .visitBinaryOp = visitBinaryOp,
         .visitProgram = visitProgram,
         .visitFunction = visitFunction,
@@ -243,6 +244,18 @@ pub const Lowerer = struct {
         }
 
         self.builder.addOp(.ret) catch return error.BuilderError;
+    }
+
+    pub fn visitUnaryOp(
+        visitor: VisitorTy,
+        self: *Self,
+        op: *Value.UnaryOp
+    ) LowerError!void {
+        try visitor.visitValue(visitor, self, op.*.val);
+        const op_opcode = switch (op.*.kind) {
+            .not => OpCode.not,
+        };
+        self.builder.addOp(op_opcode) catch return error.BuilderError;
     }
 
     pub fn visitBinaryOp(
