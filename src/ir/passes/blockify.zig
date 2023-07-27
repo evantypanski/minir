@@ -98,7 +98,6 @@ test "Changes all functions into BB functions" {
     const Loc = @import("../sourceloc.zig").Loc;
     const ProgramBuilder = @import("../nodes/program.zig").ProgramBuilder;
     var func_builder = FunctionBuilder(Stmt).init(std.testing.allocator, "main");
-    defer func_builder.deinit();
 
     try func_builder.addElement(
         Stmt.init(
@@ -163,7 +162,6 @@ test "Errors when already blockified" {
     const ProgramBuilder = @import("../nodes/program.zig").ProgramBuilder;
 
     var func_builder = FunctionBuilder(BasicBlock).init(std.testing.allocator, "main");
-    defer func_builder.deinit();
 
     var bb1_builder = BasicBlockBuilder.init(std.testing.allocator);
     bb1_builder.setLabel("bb1");

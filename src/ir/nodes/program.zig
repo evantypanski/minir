@@ -60,7 +60,6 @@ pub const ProgramBuilder = struct {
 test "deinit works" {
     const Value = @import("value.zig").Value;
     var func_builder = FunctionBuilder(BasicBlock).init(std.testing.allocator, "main");
-    defer func_builder.deinit();
 
     var bb1_builder = BasicBlockBuilder.init(std.testing.allocator);
     bb1_builder.setLabel("bb1");
@@ -107,7 +106,6 @@ test "deinit works" {
     );
 
     var func2_builder = FunctionBuilder(BasicBlock).init(std.testing.allocator, "f");
-    defer func2_builder.deinit();
     func2_builder.setReturnType(.int);
     try func2_builder.addElement(try bb4_builder.build());
     const func2 = try func2_builder.build();
