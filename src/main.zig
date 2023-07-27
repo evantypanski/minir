@@ -13,6 +13,8 @@ const Lexer = @import("ir/lexer.zig").Lexer;
 const Parser = @import("ir/parser.zig").Parser;
 const BlockifyPass = @import("ir/passes/blockify.zig").BlockifyPass;
 const Lowerer = @import("ir/passes/lower.zig").Lowerer;
+const SourceManager = @import("ir/source_manager.zig").SourceManager;
+const Diagnostics = @import("ir/diagnostics_engine.zig").Diagnostics;
 const Interpreter = @import("bytecode/interpret.zig").Interpreter;
 const ByteDisassembler = @import("bytecode/disassembler.zig").Disassembler;
 
@@ -20,10 +22,10 @@ pub fn main() !void {
     var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
     const gpa = general_purpose_allocator.allocator();
 
-    const file = try std.fs.cwd().openFile("example.min", .{ .mode = .read_only });
-    const source = try file.readToEndAlloc(gpa, 10000);
-    var lexer = Lexer.init(source);
-    var parser = Parser.init(gpa, lexer);
+    var source_mgr = try SourceManager.initFilename(gpa, "example.min");
+    const diag_engine = Diagnostics.init(source_mgr);
+    var lexer = Lexer.init(source_mgr);
+    var parser = Parser.init(gpa, lexer, diag_engine);
     var program = try parser.parse();
 
     var disassembler = Disassembler {
@@ -45,6 +47,8 @@ pub fn main() !void {
 
     var lowerer = Lowerer.init(gpa);
     try lowerer.execute(&program);
+
+    source_mgr.deinit();
 
     const chunk = try lowerer.builder.build();
     var byte_disassembler = ByteDisassembler.init(chunk, std.io.getStdOut().writer());

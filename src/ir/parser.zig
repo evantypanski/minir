@@ -14,6 +14,7 @@ const ParseError = @import("errors.zig").ParseError;
 const Type = @import("nodes/type.zig").Type;
 const Loc = @import("sourceloc.zig").Loc;
 const VarDecl = @import("nodes/statement.zig").VarDecl;
+const Diagnostics = @import("diagnostics_engine.zig").Diagnostics;
 
 pub const Parser = struct {
     const Self = @This();
@@ -48,13 +49,19 @@ pub const Parser = struct {
     lexer: Lexer,
     current: Token,
     previous: Token,
+    diag_engine: Diagnostics,
 
-    pub fn init(allocator: std.mem.Allocator, lexer: Lexer) Self {
+    pub fn init(
+        allocator: std.mem.Allocator,
+        lexer: Lexer,
+        diag_engine: Diagnostics
+    ) Self {
         return .{
             .allocator = allocator,
             .lexer = lexer,
             .current = Token.init(.none, 0, 0),
             .previous = Token.init(.none, 0, 0),
+            .diag_engine = diag_engine
         };
     }
 
@@ -86,7 +93,8 @@ pub const Parser = struct {
                 self.current = tok;
                 return;
             } else |err| {
-                self.diag(self.lexer.getLastString(), err);
+                // TODO start and end correct????
+                self.diag(self.previous.loc, err);
             }
         }
     }
@@ -421,17 +429,15 @@ pub const Parser = struct {
     }
 
     fn diagCurrent(self: Self, err: ParseError) void {
-        self.diag(self.lexer.getTokString(self.current), err);
+        self.diag(self.current.loc, err);
     }
 
     fn diagPrevious(self: Self, err: ParseError) void {
-        self.diag(self.lexer.getTokString(self.previous), err);
+        self.diag(self.previous.loc, err);
     }
 
-    fn diag(self: Self, tok: []const u8, err: ParseError) void {
-        _ = self;
-        // TODO: Make this better :)
-        std.debug.print("\nError at token {s}: {}\n", .{ tok, err });
+    fn diag(self: Self, loc: Loc, err: ParseError) void {
+        self.diag_engine.diag(err, loc);
     }
 
     fn bindingPower(tag: Token.Tag) Precedence {

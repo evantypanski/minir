@@ -3,19 +3,20 @@ const ascii = std.ascii;
 
 const Token = @import("token.zig").Token;
 const LexError = @import("errors.zig").LexError;
+const SourceManager = @import("source_manager.zig").SourceManager;
 
 pub const Lexer = struct {
     const Self = @This();
 
-    source: []u8,
+    source_mgr: SourceManager,
     current: usize,
     // Store the start in the lexer so we can grab an invalid token without
     // returning some fake error token
     start: usize,
 
-    pub fn init(source: []u8) Self {
+    pub fn init(source_mgr: SourceManager) Self {
         return .{
-            .source = source,
+            .source_mgr = source_mgr,
             .current = 0,
             .start = 0,
         };
@@ -27,7 +28,11 @@ pub const Lexer = struct {
 
         if (self.isAtEnd()) {
             // EOF token has the last character as its slice
-            return Token.init(.eof, self.source.len - 1, self.source.len - 1);
+            return Token.init(
+                .eof,
+                self.source_mgr.len() - 1,
+                self.source_mgr.len() - 1
+            );
         }
 
         var c = self.advance();
@@ -97,9 +102,9 @@ pub const Lexer = struct {
     /// Grabbed this tiny trie impl from crafting interpreters.
     fn identifierTag(self: Self) Token.Tag {
         const token_len = self.current - self.start;
-        switch (self.source[self.start]) {
+        switch (self.source_mgr.get(self.start)) {
             'f' => if (token_len >= 2) {
-                    switch (self.source[self.start + 1]) {
+                    switch (self.source_mgr.get(self.start + 1)) {
                         'u' => return self.checkKeyword(self.start + 2, 2, "nc", .func),
                         'a' => return self.checkKeyword(self.start + 2, 3, "lse", .false_),
                         'l' => return self.checkKeyword(self.start + 2, 2, "oat", .float),
@@ -116,13 +121,13 @@ pub const Lexer = struct {
             'u' => return self.checkKeyword(self.start + 1, 8, "ndefined", .undefined_),
             'r' => return self.checkKeyword(self.start + 1, 2, "et", .ret),
             'b' => if (token_len >= 2) {
-                    switch (self.source[self.start + 1]) {
+                    switch (self.source_mgr.get(self.start + 1)) {
                         'r' => {
                             if (token_len == 2)
                                 return .br
                             else
                                 if (token_len == 3 and
-                                    self.source[self.start + 2] == 'c')
+                                    self.source_mgr.get(self.start + 2) == 'c')
                                     return .brc
                                 else
                                     return .identifier;
@@ -140,8 +145,12 @@ pub const Lexer = struct {
     fn checkKeyword(self: Self, start: usize, len: usize,
         rest: []const u8, tag: Token.Tag) Token.Tag {
         if (self.current - start == len
-            and std.mem.eql(u8, self.source[start..self.current], rest)) {
-            return tag;
+            and std.mem.eql(
+                u8,
+                self.source_mgr.snip(start, self.current),
+                rest)
+            ) {
+                return tag;
         }
 
         return .identifier;
@@ -156,31 +165,25 @@ pub const Lexer = struct {
         return Token.init(self.identifierTag(), self.start, self.current);
     }
 
-    pub inline fn isAtEnd(self: Self) bool {
-        return self.current >= self.source.len;
-    }
-
-    // This should probably be a source manager of some type. Gets the token from
-    // the source information.
     pub fn getTokString(self: Self, token: Token) []const u8 {
-        return self.source[token.loc.start..token.loc.end];
+        return self.source_mgr.snip(token.loc.start, token.loc.end);
     }
 
     /// Gets the string for the last token lexed or failed to lex
     pub fn getLastString(self: Self) []const u8 {
-        return self.source[self.start..self.current];
+        return self.source_mgr.snip(self.start, self.current);
     }
 
     fn advance(self: *Self) u8 {
         self.current += 1;
-        return self.source[self.current - 1];
+        return self.source_mgr.get(self.current - 1);
     }
 
     fn match(self: *Self, expected: u8) bool {
         if (self.isAtEnd()) {
             return false;
         }
-        if (self.source[self.current] != expected) {
+        if (self.source_mgr.get(self.current) != expected) {
             return false;
         }
 
@@ -189,19 +192,23 @@ pub const Lexer = struct {
     }
 
     fn peek(self: Self) u8 {
-        return self.source[self.current];
+        return self.source_mgr.get(self.current);
     }
 
     fn peekNext(self: Self) u8 {
         if (self.isAtEnd()) {
             return 0;
         }
-        return self.source[self.current + 1];
+        return self.source_mgr.get(self.current + 1);
     }
 
     fn skipWhitespace(self: *Self) void {
-        while (self.current < self.source.len
+        while (self.current < self.source_mgr.len()
             and ascii.isWhitespace(self.peek()))
             : (self.current += 1) {}
+    }
+
+    pub inline fn isAtEnd(self: Self) bool {
+        return self.current >= self.source_mgr.len();
     }
 };
