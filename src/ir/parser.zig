@@ -93,8 +93,7 @@ pub const Parser = struct {
                 self.current = tok;
                 return;
             } else |err| {
-                // TODO start and end correct????
-                self.diag(self.previous.loc, err);
+                self.diag(self.lexer.getLastLoc(), err);
             }
         }
     }

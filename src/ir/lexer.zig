@@ -4,6 +4,7 @@ const ascii = std.ascii;
 const Token = @import("token.zig").Token;
 const LexError = @import("errors.zig").LexError;
 const SourceManager = @import("source_manager.zig").SourceManager;
+const Loc = @import("sourceloc.zig").Loc;
 
 pub const Lexer = struct {
     const Self = @This();
@@ -169,9 +170,9 @@ pub const Lexer = struct {
         return self.source_mgr.snip(token.loc.start, token.loc.end);
     }
 
-    /// Gets the string for the last token lexed or failed to lex
-    pub fn getLastString(self: Self) []const u8 {
-        return self.source_mgr.snip(self.start, self.current);
+    /// Gets the Loc for the last token lexed or failed to lex
+    pub fn getLastLoc(self: Self) Loc {
+        return Loc.init(self.start, self.current);
     }
 
     fn advance(self: *Self) u8 {
