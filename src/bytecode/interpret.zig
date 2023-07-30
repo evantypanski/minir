@@ -32,8 +32,7 @@ pub const Interpreter = struct {
     stack: [array_size]Value,
     sp: usize,
 
-    // Index into the chunk's instructions. Eventually needs to be a stack
-    // with calls
+    // Index into the chunk's instructions.
     pc: usize,
 
     pub fn init(chunk: Chunk, writer: Writer) Self {
@@ -98,8 +97,6 @@ pub const Interpreter = struct {
                 var lhs = try self.peekVal();
 
                 // Just to reuse code we have another switch to get the op
-                // TODO: Maybe make this not pop the LHS and just modify that
-                // Value?
                 switch (op) {
                     .add => try lhs.add(rhs),
                     .sub => try lhs.sub(rhs),
@@ -139,8 +136,6 @@ pub const Interpreter = struct {
                 lhs.* = new_val;
             },
             .get => {
-                // TODO: Maybe this should point to the same Value so we can update it
-                // without separate set?
                 const offset = try self.getSignedByte();
                 try self.pushValue((try self.getVar(offset)).*);
             },
