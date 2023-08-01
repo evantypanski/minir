@@ -119,12 +119,21 @@ pub const Parser = struct {
             .init(self.allocator, self.lexer.getTokString(self.previous));
         try self.consume(.lparen, error.ExpectedLParen);
         while (self.match(.identifier)) {
-            // TODO: Types of parameters should be specified. For now it'll
-            // be dynamic
+            const name = self.lexer.getTokString(self.previous);
+            const opt_ty = if (!self.match(.colon)) blk: {
+                self.diag(self.current.loc, error.ExpectedColon);
+                break :blk null;
+            } else if (self.parseType()) |ty|
+                ty
+            else |err| blk: {
+                self.diag(self.current.loc, err);
+                break :blk null;
+            };
+
             const param = VarDecl {
-                .name = self.lexer.getTokString(self.previous),
+                .name = name,
                 .val = null,
-                .ty = null,
+                .ty = opt_ty,
             };
             builder.addParam(param) catch return error.MemoryError;
 

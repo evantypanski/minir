@@ -7,11 +7,11 @@ func main() -> none {
   ret
 }
 
-func addone(i) -> int {
+func addone(i: int) -> int {
   ret i + 1
 }
 
-func test(k) -> none {
+func test(k: int) -> none {
   debug(k)
   ret
 }
