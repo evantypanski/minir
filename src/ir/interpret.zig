@@ -1,6 +1,9 @@
 // This file will probably disappear when a good enough bytecode gets up to speed
 const std = @import("std");
+const fmt = std.fmt;
+const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
+const Writer = std.fs.File.Writer;
 
 const IrError = @import("errors.zig").IrError;
 const Function = @import("nodes/decl.zig").Function;
@@ -18,6 +21,7 @@ const Frame = struct {
 pub const Interpreter = struct {
     const Self = @This();
 
+    writer: Writer,
     program: Program,
     // The current basic block's index getting executed.
     // Will start and end as null.
@@ -25,8 +29,9 @@ pub const Interpreter = struct {
     env: ArrayList(Value),
     call_stack: ArrayList(Frame),
 
-    pub fn init(allocator: std.mem.Allocator, program: Program) !Self {
+    pub fn init(allocator: Allocator, writer: Writer, program: Program) !Self {
         return .{
+            .writer = writer,
             .program = program,
             .current_ele = null,
             .env = try ArrayList(Value).initCapacity(allocator, 50),
@@ -103,8 +108,9 @@ pub const Interpreter = struct {
     fn evalStmt(self: *Self, stmt: Stmt) IrError!void {
         switch (stmt.stmt_kind) {
             .debug => |value| {
+                // Evaluate binary ops etc.
                 try self.evalValue(value);
-                std.debug.print("{}\n", .{self.env.pop()});
+                try self.printValue(self.env.pop());
             },
             .id => |vd| {
                 if (vd.val) |val| {
@@ -406,6 +412,34 @@ pub const Interpreter = struct {
 
     fn pushValue(self: *Self, value: Value) IrError!void {
         self.env.append(value) catch return error.StackError;
+    }
+
+    fn printValue(self: *Self, value: Value) IrError!void {
+        switch (value) {
+            .undef => self.writer.writeAll("undefined")
+                    catch return error.WriterError,
+            .access => |va| {
+                if (va.name) |name| {
+                    self.writer.writeAll(name)
+                            catch return error.WriterError;
+                }
+            },
+            .int => |i| fmt.formatInt(i, 10, .lower, .{}, self.writer)
+                    catch return error.WriterError,
+            .float => |f| fmt.formatFloatDecimal(f, .{}, self.writer)
+                    catch return error.WriterError,
+            .bool => |b| self.writer.print("{}", .{b})
+                    catch return error.WriterError,
+            .call => |call| {
+                self.writer.print("{s}(", .{call.function})
+                        catch return error.WriterError;
+                self.writer.writeAll(")")
+                        catch return error.WriterError;
+            },
+            else => return error.InvalidValue,
+        }
+
+        self.writer.writeAll("\n") catch return error.WriterError;
     }
 };
 

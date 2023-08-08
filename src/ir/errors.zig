@@ -14,6 +14,8 @@ pub const InterpError = error{
     ExpectedReturn,
     FrameError,
     StackError,
+    InvalidValue,
+    WriterError,
 };
 
 pub const NodeError = error{

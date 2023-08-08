@@ -36,7 +36,7 @@ pub fn main() !void {
     try disassembler.disassemble();
 
     try stdout.print("Tree walking interpreter result:\n", .{});
-    var treewalk_interp = try TreewalkInterpreter.init(gpa, program);
+    var treewalk_interp = try TreewalkInterpreter.init(gpa, stdout, program);
     try treewalk_interp.interpret();
 
     var lowerer = Lowerer.init(gpa);
