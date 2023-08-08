@@ -7,10 +7,12 @@ const Function = @import("nodes/decl.zig").Function;
 const Stmt = @import("nodes/statement.zig").Stmt;
 const Program = @import("nodes/program.zig").Program;
 const Value = @import("nodes/value.zig").Value;
+const Decl = @import("nodes/decl.zig").Decl;
+const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 
 const Frame = struct {
     frame_env_begin: usize,
-    return_bb_index: usize,
+    return_ele_index: usize,
 };
 
 pub const Interpreter = struct {
@@ -19,49 +21,71 @@ pub const Interpreter = struct {
     program: Program,
     // The current basic block's index getting executed.
     // Will start and end as null.
-    current_bb: ?usize,
+    current_ele: ?usize,
     env: ArrayList(Value),
     call_stack: ArrayList(Frame),
 
     pub fn init(allocator: std.mem.Allocator, program: Program) !Self {
         return .{
             .program = program,
-            .current_bb = null,
+            .current_ele = null,
             .env = try ArrayList(Value).initCapacity(allocator, 50),
             .call_stack = ArrayList(Frame).init(allocator),
         };
     }
 
     pub fn interpret(self: *Self) IrError!void {
-        var main_fn: ?Function = null;
-        for (self.program.functions) |function| {
-            if (std.mem.eql(u8, function.name, "main")) {
-                main_fn = function;
+        var main_fn: ?Decl = null;
+        for (self.program.decls) |decl| {
+            if (std.mem.eql(u8, decl.name(), "main")) {
+                main_fn = decl;
                 break;
             }
         } else {
             return error.NoMainFunction;
         }
 
-        self.current_bb = if (main_fn.?.bbs.len > 0)
-            0
-        else
-            null;
-
+        self.current_ele = 0;
         try self.pushFrame();
         // For now ignore main return
-        try self.interpretFn(main_fn.?);
+        try self.interpretDecl(main_fn.?);
         _ = self.popFrame();
     }
 
-    pub fn interpretFn(self: *Self, function: Function) IrError!void {
-        while (self.current_bb) |bb_idx| {
+    pub fn interpretDecl(self: *Self, decl: Decl) IrError!void {
+        switch (decl) {
+            .function => |function| try self.interpretFn(function),
+            .bb_function => |bb_function| try self.interpretBBFn(bb_function),
+        }
+    }
+
+    pub fn interpretFn(self: *Self, function: Function(Stmt)) IrError!void {
+        self.current_ele = 0;
+        while (self.current_ele) |idx| {
             // May go off edge
-            if (function.bbs.len <= bb_idx) {
+            if (function.elements.len <= idx) {
                 return;
             }
 
-            const bb = function.bbs[bb_idx];
+            const stmt = function.elements[idx];
+            try self.evalStmt(stmt);
+            if (!stmt.isTerminator()) {
+                if (self.current_ele) |*current_ele| {
+                    current_ele.* += 1;
+                }
+            }
+        }
+    }
+
+    pub fn interpretBBFn(self: *Self, function: Function(BasicBlock)) IrError!void {
+        self.current_ele = 0;
+        while (self.current_ele) |bb_idx| {
+            // May go off edge
+            if (function.elements.len <= bb_idx) {
+                return;
+            }
+
+            const bb = function.elements[bb_idx];
             for (bb.statements) |stmt| {
                 try self.evalStmt(stmt);
             }
@@ -69,15 +93,15 @@ pub const Interpreter = struct {
             if (bb.terminator) |terminator| {
                 try self.evalTerminator(terminator);
             } else {
-                if (self.current_bb) |*current_bb| {
-                    current_bb.* += 1;
+                if (self.current_ele) |*current_ele| {
+                    current_ele.* += 1;
                 }
             }
         }
     }
 
     fn evalStmt(self: *Self, stmt: Stmt) IrError!void {
-        switch (stmt) {
+        switch (stmt.stmt_kind) {
             .debug => |value| {
                 try self.evalValue(value);
                 std.debug.print("{}\n", .{self.env.pop()});
@@ -94,62 +118,31 @@ pub const Interpreter = struct {
                 // Remove the value pushed to stack
                 _ = self.env.pop();
             },
-            .branch, .ret => return error.UnexpectedTerminator,
+            .branch, .ret => try self.evalTerminator(stmt),
         }
     }
 
     fn evalTerminator(self: *Self, stmt: Stmt) IrError!void {
-        switch (stmt) {
+        switch (stmt.stmt_kind) {
             .debug, .id, .value => return error.ExpectedTerminator,
             .branch => |branch| {
-                const result = switch (branch) {
-                    .conditional => |conditional| blk: {
-                        try self.evalValue(conditional.lhs);
-                        const lhs = self.env.pop();
-                        // Evaluate the condition and abort if it's false
-                        switch (conditional.kind) {
-                            .zero => break :blk try lhs.asInt() == 0,
-                            .eq => {
-                                try self.evalValue(conditional.rhs.?);
-                                const rhs = self.env.pop();
-                                break :blk try lhs.asInt() == try rhs.asInt();
-                            },
-                            .less => {
-                                try self.evalValue(conditional.rhs.?);
-                                const rhs = self.env.pop();
-                                break :blk try lhs.asInt() < try rhs.asInt();
-                            },
-                            .less_eq => {
-                                try self.evalValue(conditional.rhs.?);
-                                const rhs = self.env.pop();
-                                break :blk try lhs.asInt() <= try rhs.asInt();
-                            },
-                            .greater => {
-                                try self.evalValue(conditional.rhs.?);
-                                const rhs = self.env.pop();
-                                break :blk try lhs.asInt() > try rhs.asInt();
-                            },
-                            .greater_eq => {
-                                try self.evalValue(conditional.rhs.?);
-                                const rhs = self.env.pop();
-                                break :blk try lhs.asInt() >= try rhs.asInt();
-                            },
+                if (branch.expr) |val| {
+                    try self.evalValue(val);
+                    const result = self.env.pop();
+                    if (!try (try self.evalBool(result)).asBool()) {
+                        // Go to next basic block and return
+                        if (self.current_ele) |*current_ele| {
+                            current_ele.* += 1;
                         }
-                    },
-                    else => true,
-                };
 
-                if (!result) {
-                    // Go to next basic block and return
-                    if (self.current_bb) |*current_bb| {
-                        current_bb.* += 1;
+                        return;
                     }
                 }
 
-                self.current_bb = branch.labelIndex();
+                self.current_ele = branch.dest_index;
             },
             .ret => |opt_val| {
-                self.current_bb = null;
+                self.current_ele = null;
                 if (opt_val) |val| {
                     try self.pushValue(val);
                 }
@@ -157,11 +150,11 @@ pub const Interpreter = struct {
         }
     }
 
-    fn getFunction(self: Self, name: []const u8) IrError!Function {
+    fn getFunction(self: Self, name: []const u8) IrError!Decl {
         // Just linear search for now
-        for (self.program.functions) |function| {
-            if (std.mem.eql(u8, function.name, name)) {
-                return function;
+        for (self.program.decls) |decl| {
+            if (std.mem.eql(u8, decl.name(), name)) {
+                return decl;
             }
         }
 
@@ -169,7 +162,8 @@ pub const Interpreter = struct {
     }
 
     fn getAbsoluteOffset(self: Self, offset: isize) usize {
-        const index = @intCast(isize, self.call_stack.getLast().frame_env_begin) + offset;
+        const frame_begin = self.call_stack.getLast().frame_env_begin;
+        const index = @intCast(isize, frame_begin) + offset;
         return @intCast(usize, index);
     }
 
@@ -200,11 +194,31 @@ pub const Interpreter = struct {
                     return error.ExpectedReturn;
                 }
             },
+            .unary => {
+                self.evalValue(value) catch return error.InvalidBool;
+                const val = self.env.pop();
+                return self.evalBool(val) catch return error.InvalidBool;
+            },
             .binary => {
                 self.evalValue(value) catch return error.InvalidBool;
                 const val = self.env.pop();
                 return self.evalBool(val) catch return error.InvalidBool;
             },
+        }
+    }
+
+    fn evalUnaryOp(self: *Self, op: Value.UnaryOp) IrError!void {
+        switch (op.kind) {
+            .not => {
+                self.evalValue(op.val.*) catch return error.OperandError;
+                var boolVal = try self.evalBool(self.env.getLast());
+                // This will always be boolean but recover nicely anyway
+                switch (boolVal) {
+                    .bool => |*b| b.* = @boolToInt(b.* != 1),
+                    else => return error.InvalidBool,
+                }
+                try self.pushValue(boolVal);
+            }
         }
     }
 
@@ -229,7 +243,7 @@ pub const Interpreter = struct {
                 self.env.items[self.getAbsoluteOffset(index)] = rhs;
                 return;
             },
-            .@"and" => {
+            .and_ => {
                 self.evalValue(op.lhs.*) catch return error.OperandError;
                 const newLHS = try self.evalBool(self.env.getLast());
                 // No error so pop it
@@ -248,7 +262,7 @@ pub const Interpreter = struct {
                 try self.pushValue(newRHS);
                 return;
             },
-            .@"or" => {
+            .or_ => {
                 self.evalValue(op.lhs.*) catch return error.OperandError;
                 const newLHS = try self.evalBool(self.env.getLast());
                 // No error so pop it
@@ -276,6 +290,11 @@ pub const Interpreter = struct {
         const rhs = self.env.pop();
 
         switch (op.kind) {
+            .eq => {
+                try self.pushValue(
+                    Value.initBool(try lhs.asInt() == try rhs.asInt())
+                );
+            },
             .add => {
                 try self.pushValue(
                     Value.initInt(try lhs.asInt() + try rhs.asInt())
@@ -294,26 +313,6 @@ pub const Interpreter = struct {
             .div => {
                 try self.pushValue(
                     Value.initInt(@divTrunc(try lhs.asInt(), try rhs.asInt()))
-                );
-            },
-            .fadd => {
-                try self.pushValue(
-                    Value.initFloat(try lhs.asFloat() + try rhs.asFloat())
-                );
-            },
-            .fsub => {
-                try self.pushValue(
-                    Value.initFloat(try lhs.asFloat() - try rhs.asFloat())
-                );
-            },
-            .fmul => {
-                try self.pushValue(
-                    Value.initFloat(try lhs.asFloat() * try rhs.asFloat())
-                );
-            },
-            .fdiv => {
-                try self.pushValue(
-                    Value.initFloat(try lhs.asFloat() / try rhs.asFloat())
                 );
             },
             .lt => {
@@ -353,13 +352,16 @@ pub const Interpreter = struct {
             .int => try self.pushValue(value),
             .float => try self.pushValue(value),
             .bool => try self.pushValue(value),
+            .unary => |op| {
+                try self.evalUnaryOp(op);
+            },
             .binary => |op| {
                 try self.evalBinaryOp(op);
             },
             .call => |call| {
                 const ret = try self.evalCall(call);
                 if (ret) |val| {
-                    return self.evalValue(val);
+                    try self.pushValue(val);//self.evalValue(val);
                 } else {
                     // Void function should get undef pushed. This should be
                     // done better.
@@ -379,10 +381,11 @@ pub const Interpreter = struct {
         try self.pushFrame();
         defer {
             const frame = self.popFrame();
-            self.current_bb = frame.return_bb_index;
+            self.current_ele = frame.return_ele_index;
         }
-        try self.interpretFn(func);
-        if (func.ret_ty != .none) {
+        try self.interpretDecl(func);
+        if (func.ty() != .none) {
+            try self.evalValue(self.env.pop());
             const ret = self.env.pop();
             return ret;
         }
@@ -393,7 +396,7 @@ pub const Interpreter = struct {
     fn pushFrame(self: *Self) IrError!void {
         self.call_stack.append(.{
             .frame_env_begin = self.env.items.len,
-            .return_bb_index = self.current_bb.?
+            .return_ele_index = self.current_ele.?
         }) catch return error.FrameError;
     }
 

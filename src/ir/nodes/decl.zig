@@ -88,6 +88,20 @@ pub const Decl = union(DeclKind) {
     function: Function(statement.Stmt),
     bb_function: Function(BasicBlock),
 
+    pub fn name(self: Decl) []const u8 {
+        return switch (self) {
+            .function => |function| function.name,
+            .bb_function => |bb_function| bb_function.name,
+        };
+    }
+
+    pub fn ty(self: Decl) Type {
+        return switch (self) {
+            .function => |function| function.ret_ty,
+            .bb_function => |bb_function| bb_function.ret_ty,
+        };
+    }
+
     pub fn deinit(self: *Decl, allocator: std.mem.Allocator) void {
         switch (self.*) {
             .function => |*func| func.deinit(allocator),
