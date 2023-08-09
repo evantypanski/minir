@@ -29,7 +29,7 @@ pub const ChunkBuilder = struct {
 
     // Wrapper for addByte that does the enum cast
     pub fn addOp(self: *Self, op: OpCode) !void {
-        try self.addByte(@enumToInt(op));
+        try self.addByte(@intFromEnum(op));
     }
 
     pub fn addByte(self: *Self, byte: u8) !void {
@@ -37,8 +37,9 @@ pub const ChunkBuilder = struct {
     }
 
     pub fn addShort(self: *Self, short: i16) !void {
-        try self.bytes.append(@bitCast(u8, @intCast(i8, short >> 8)));
-        try self.bytes.append(@truncate(u8, @bitCast(u16, short)));
+        try self.bytes.append(@bitCast(@as(i8, short >> 8)));
+        const unsigned_bits: u16 = @bitCast(short);
+        try self.bytes.append(@truncate(unsigned_bits));
     }
 
     // Adds a short and returns the index it was added to. This can then be
@@ -53,15 +54,15 @@ pub const ChunkBuilder = struct {
     pub fn setPlaceholderShort(self: *Self, placeholder: usize, short: u16)
             !void {
         self.bytes.items[placeholder] =
-            @intCast(u8, short >> 8);
+            @intCast(short >> 8);
         self.bytes.items[placeholder + 1] =
-            @intCast(u8, short & 0xFF);
+            @intCast(short & 0xFF);
     }
 
     // Gets the placeholder already at a placeholder. Useful if using it to
     // store a value used later when resolved.
     pub fn getPlaceholderShort(self: *Self, placeholder: usize) u16 {
-        return (@intCast(u16, self.bytes.items[placeholder]) << 8) +
+        return (@as(u16, self.bytes.items[placeholder]) << 8) +
             self.bytes.items[placeholder + 1];
     }
 
@@ -71,7 +72,7 @@ pub const ChunkBuilder = struct {
             return error.TooManyConstants;
         }
         try self.values.append(value);
-        return @intCast(u8, idx);
+        return @intCast(idx);
     }
 
     // Returns the current length of the chunk, which is where we will append

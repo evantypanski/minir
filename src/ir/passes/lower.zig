@@ -123,11 +123,12 @@ pub const Lowerer = struct {
             for (entry.value_ptr.*.*.items) |placeholder| {
                 const offset_from =
                     self.builder.getPlaceholderShort(placeholder);
-                const relative =
-                    @intCast(i16, addr) - @intCast(i16, offset_from);
+                const signed_addr: i16 = @intCast(addr);
+                const signed_offset: i16 = @intCast(offset_from);
+                const relative = signed_addr - signed_offset;
                 self.builder.setPlaceholderShort(
                     placeholder,
-                    @bitCast(u16, relative)
+                    @bitCast(relative)
                 ) catch return error.BuilderError;
             }
             opt_entry = it.next();
@@ -142,7 +143,7 @@ pub const Lowerer = struct {
         try self.addParams(function.*.params);
         self.fn_map.put(
             function.*.name,
-            @intCast(u16, self.builder.currentByte())
+            @intCast(self.builder.currentByte())
         ) catch return error.MemoryError;
         try visitor.walkFunction(self, function);
     }
@@ -155,7 +156,7 @@ pub const Lowerer = struct {
         try self.addParams(function.*.params);
         self.fn_map.put(
             function.*.name,
-            @intCast(u16, self.builder.currentByte())
+            @intCast(self.builder.currentByte())
         ) catch return error.MemoryError;
         try visitor.walkBBFunction(self, function);
     }
@@ -177,7 +178,7 @@ pub const Lowerer = struct {
         if (stmt.*.label) |label| {
             self.label_map.put(
                 label,
-                @intCast(u16, self.builder.currentByte())
+                @intCast(self.builder.currentByte())
             ) catch return error.MemoryError;
         }
         try visitor.walkStatement(self, stmt);
@@ -191,7 +192,7 @@ pub const Lowerer = struct {
         if (bb.*.label) |label| {
             self.label_map.put(
                 label,
-                @intCast(u16, self.builder.currentByte())
+                @intCast(self.builder.currentByte())
             ) catch return error.MemoryError;
         }
         try visitor.walkBasicBlock(self, bb);
@@ -240,7 +241,8 @@ pub const Lowerer = struct {
         // Otherwise it's already set as undefined
         if (opt_val.*) |*val| {
             try visitor.visitValue(visitor, self, val);
-            try self.setVarOffset(-1 * @intCast(i8, self.num_params) - 1);
+            const num_params: i8 = @intCast(self.num_params);
+            try self.setVarOffset(-1 * num_params - 1);
         }
 
         self.builder.addOp(.ret) catch return error.BuilderError;
@@ -374,7 +376,7 @@ pub const Lowerer = struct {
         // replaced with the relative address
         self.builder.setPlaceholderShort(
             placeholder,
-            @intCast(u16, from_relative)
+            @intCast(from_relative)
         ) catch return error.BuilderError;
 
 
@@ -394,7 +396,9 @@ pub const Lowerer = struct {
         var i: u8 = 0;
         while (i < self.num_locals) : (i += 1) {
             if (std.mem.eql(u8, self.variables[i], name)) {
-                return @intCast(i8, i) - @intCast(i8, self.*.num_params);
+                const signed_i: i8 = @intCast(i);
+                const signed_num_params: i8 = @intCast(self.*.num_params);
+                return signed_i - signed_num_params;
             }
         }
 
@@ -404,14 +408,14 @@ pub const Lowerer = struct {
     // Gets variable at offset and pushes it to the stack.
     fn getVarOffset(self: *Self, offset: i8) LowerError!void {
         self.builder.addOp(.get) catch return error.BuilderError;
-        self.builder.addByte(@bitCast(u8, offset))
+        self.builder.addByte(@bitCast(offset))
             catch return error.BuilderError;
     }
 
     // Sets variable at offset with variable at the top of the stack.
     fn setVarOffset(self: *Self, offset: i8) LowerError!void {
         self.builder.addOp(.set) catch return error.BuilderError;
-        self.builder.addByte(@bitCast(u8, offset))
+        self.builder.addByte(@bitCast(offset))
             catch return error.BuilderError;
     }
 };

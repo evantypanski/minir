@@ -62,14 +62,15 @@ fn handleFnStart(self: *Self, params: []VarDecl) NumifyError!void {
     self.num_vars = 0;
     var i: usize = params.len;
     for (params) |*param| {
-        self.map.put(param.name, -1 * @intCast(isize, i))
+        const signed_i: isize = @intCast(i);
+        self.map.put(param.name, -1 * signed_i)
                 catch return error.MapError;
         i -= 1;
     }
 }
 
 pub fn visitVarDecl(_: VisitorTy, self: *Self, decl: *VarDecl) NumifyError!void {
-    self.map.put(decl.name, @intCast(isize, self.num_vars)) catch return error.MapError;
+    self.map.put(decl.name, @intCast(self.num_vars)) catch return error.MapError;
     self.num_vars += 1;
 }
 

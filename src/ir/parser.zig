@@ -33,7 +33,7 @@ pub const Parser = struct {
         primary,
 
         pub fn gte(self: Precedence, other: Precedence) bool {
-            return @enumToInt(self) >= @enumToInt(other);
+            return @intFromEnum(self) >= @intFromEnum(other);
         }
 
         pub fn inc(self: Precedence) Precedence {
@@ -41,7 +41,7 @@ pub const Parser = struct {
                 return .primary;
             }
 
-            return @intToEnum(Precedence, @enumToInt(self) + 1);
+            return @enumFromInt(@intFromEnum(self) + 1);
         }
     };
 

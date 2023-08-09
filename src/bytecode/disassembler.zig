@@ -28,7 +28,7 @@ pub const Disassembler = struct {
 
     pub fn disassemble(self: *Self) DisassembleError!void {
         while (self.idx < self.chunk.bytes.len) : (self.idx += 1) {
-            const op = @intToEnum(OpCode, self.chunk.bytes[self.idx]);
+            const op: OpCode = @enumFromInt(self.chunk.bytes[self.idx]);
             self.disassembleOp(op) catch |e| {
                 std.log.scoped(.disassembler)
                     .err("Found error while disassembling: {}", .{e});
@@ -76,23 +76,26 @@ pub const Disassembler = struct {
             },
             .jmp => {
                 try self.writer.writeAll("JMP");
-                const b1 = try self.getByte();
-                const b2 = try self.getByte();
-                const relative = @bitCast(i16, (@intCast(u16, b1) << 8) | @intCast(u16, b2));
+                // U16 even tho they're bytes to shift later
+                const b1: u16 = @intCast(try self.getByte());
+                const b2: u16 = @intCast(try self.getByte());
+                const relative: i16 = @bitCast((b1 << 8) | b2);
                 try self.writer.print(" {}", .{relative});
             },
             .jmpt => {
                 try self.writer.writeAll("JMPT");
-                const b1 = try self.getByte();
-                const b2 = try self.getByte();
-                const relative = @bitCast(i16, (@intCast(u16, b1) << 8) | @intCast(u16, b2));
+                // U16 even tho they're bytes to shift later
+                const b1: u16 = @intCast(try self.getByte());
+                const b2: u16 = @intCast(try self.getByte());
+                const relative: i16 = @bitCast((b1 << 8) | b2);
                 try self.writer.print(" {}", .{relative});
             },
             .call => {
                 try self.writer.writeAll("CALL ");
-                const b1 = try self.getByte();
-                const b2 = try self.getByte();
-                const absolute = (@intCast(u16, b1) << 8) | @intCast(u16, b2);
+                // U16 even tho they're bytes to shift later
+                const b1: u16 = @intCast(try self.getByte());
+                const b2: u16 = @intCast(try self.getByte());
+                const absolute = (b1 << 8) | b2;
                 try fmt.formatInt(absolute, 16, .upper, .{.fill = '0', .width = 8 }, self.writer);
             },
         }
@@ -110,7 +113,7 @@ pub const Disassembler = struct {
     }
 
     fn disassembleOffset(self: *Self, offset: u8) DisassembleError!void {
-        const signed_offset = @bitCast(i8, offset);
+        const signed_offset: i8 = @bitCast(offset);
         try self.writer.writeAll("var @fp");
 
         // Explicitly write plus for clarity. This includes zero, because

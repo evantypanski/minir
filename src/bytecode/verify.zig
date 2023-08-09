@@ -32,7 +32,7 @@ pub const Verifier = struct {
                 self.diag("Not an opcode {}\n", .{byte});
                 continue;
             }
-            const op = @intToEnum(OpCode, byte);
+            const op = @enumFromInt(byte);
             if (self.sp + op.stackEffect() < 0) {
                 self.diag("Underflowing stack!\n", .{});
             }

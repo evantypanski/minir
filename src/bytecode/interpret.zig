@@ -57,7 +57,7 @@ pub const Interpreter = struct {
                 return error.ReachedEndNoReturn;
             }
 
-            const op = @intToEnum(OpCode, self.chunk.bytes[self.pc]);
+            const op: OpCode = @enumFromInt(self.chunk.bytes[self.pc]);
             self.interpretOp(op) catch |e| {
                 // All error handling goes here :)
                 //
@@ -142,14 +142,16 @@ pub const Interpreter = struct {
             .jmp => {
                 const old_pc = self.pc;
                 const offset = try self.getShort();
-                self.pc = @intCast(usize, @intCast(isize, old_pc) + offset);
+                const signed_old_pc: isize = @intCast(old_pc);
+                self.pc = @intCast(signed_old_pc + offset);
             },
             .jmpt => {
                 const old_pc = self.pc;
                 const condition = try self.popVal();
                 const offset = try self.getShort();
                 if (try condition.asBool()) {
-                    self.pc = @intCast(usize, @intCast(isize, old_pc) + offset);
+                    const signed_old_pc: isize = @intCast(old_pc);
+                    self.pc = @intCast(signed_old_pc + offset);
                 } else {
                     self.pc += 1;
                 }
@@ -239,7 +241,7 @@ pub const Interpreter = struct {
     // Gets the next byte as a signed byte
     fn getSignedByte(self: *Self) InterpreterError!i8 {
         const byte = try self.getByte();
-        return @bitCast(i8, byte);
+        return @bitCast(byte);
     }
 
 
@@ -252,7 +254,7 @@ pub const Interpreter = struct {
         self.pc += 2;
         const b1 = self.chunk.bytes[self.pc - 1];
         const b2 = self.chunk.bytes[self.pc];
-        return @bitCast(i16, (@intCast(u16, b1) << 8) | @intCast(u16, b2));
+        return @bitCast((@as(u16, b1) << 8) | @as(u16, b2));
     }
 
     // Gets the next two bytes as an unsigned short (u16)
@@ -264,7 +266,7 @@ pub const Interpreter = struct {
         self.pc += 2;
         const b1 = self.chunk.bytes[self.pc - 1];
         const b2 = self.chunk.bytes[self.pc];
-        return (@intCast(u16, b1) << 8) | @intCast(u16, b2);
+        return (@as(u16, b1) << 8) | @as(u16, b2);
     }
 
     // Gets a value at the specified index, returning an error if it's invalid.
@@ -279,12 +281,12 @@ pub const Interpreter = struct {
     // Gets a pointer to the value at offset on stack
     fn getVar(self: *Self, relativeOffset: isize) InterpreterError!*Value {
         if (self.peekFrame()) |frame| {
-            const absolute = @intCast(isize, frame.frame_stack_begin)
-                    + relativeOffset;
+            const signed_frame_begin: isize = @intCast(frame.frame_stack_begin);
+            const absolute = signed_frame_begin + relativeOffset;
             if (absolute < 0) {
                 return error.InvalidStackIndex;
             }
-            return &self.stack[@intCast(usize, absolute)];
+            return &self.stack[@intCast(absolute)];
         }
 
         return error.NoValidFrame;

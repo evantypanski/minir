@@ -125,7 +125,7 @@ pub const Value = union(ValueKind) {
 
     pub fn initBool(val: bool) Value {
         return .{
-            .bool = @boolToInt(val),
+            .bool = @intFromBool(val),
         };
     }
 

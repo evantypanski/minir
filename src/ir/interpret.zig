@@ -169,8 +169,9 @@ pub const Interpreter = struct {
 
     fn getAbsoluteOffset(self: Self, offset: isize) usize {
         const frame_begin = self.call_stack.getLast().frame_env_begin;
-        const index = @intCast(isize, frame_begin) + offset;
-        return @intCast(usize, index);
+        const signed_begin: isize = @intCast(frame_begin);
+        const index = signed_begin + offset;
+        return @intCast(index);
     }
 
     // Gets the current runtime value from an offset
@@ -220,7 +221,7 @@ pub const Interpreter = struct {
                 var boolVal = try self.evalBool(self.env.getLast());
                 // This will always be boolean but recover nicely anyway
                 switch (boolVal) {
-                    .bool => |*b| b.* = @boolToInt(b.* != 1),
+                    .bool => |*b| b.* = @intFromBool(b.* != 1),
                     else => return error.InvalidBool,
                 }
                 try self.pushValue(boolVal);
