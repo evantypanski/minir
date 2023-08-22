@@ -10,6 +10,7 @@ const Branch = @import("../nodes/statement.zig").Branch;
 const VarDecl = @import("../nodes/statement.zig").VarDecl;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
+const Chunk = @import("../../bytecode/chunk.zig").Chunk;
 const ChunkBuilder = @import("../../bytecode/chunk.zig").ChunkBuilder;
 const Value = @import("../nodes/value.zig").Value;
 const ByteValue = @import("../../bytecode/value.zig").Value;
@@ -82,8 +83,9 @@ pub const Lowerer = struct {
         .visitBranch = visitBranch,
     };
 
-    pub fn execute(self: *Self, program: *Program) LowerError!void {
+    pub fn execute(self: *Self, program: *Program) LowerError!Chunk {
         try LowerVisitor.visitProgram(LowerVisitor, self, program);
+        return self.builder.build();
     }
 
     pub fn visitProgram(

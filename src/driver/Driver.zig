@@ -14,6 +14,7 @@ const Numify = @import("../ir/passes/numify.zig");
 const visitor = @import("../ir/passes/visitor.zig");
 const Lexer = @import("../ir/lexer.zig").Lexer;
 const Parser = @import("../ir/parser.zig").Parser;
+const PassManager = @import("../ir/passes/pass_manager.zig").PassManager;
 const BlockifyPass = @import("../ir/passes/blockify.zig").BlockifyPass;
 const Lowerer = @import("../ir/passes/lower.zig").Lowerer;
 const SourceManager = @import("../ir/source_manager.zig").SourceManager;
@@ -50,16 +51,15 @@ pub fn drive(self: Self) !void {
     var lexer = Lexer.init(source_mgr);
     var parser = Parser.init(self.allocator, lexer, diag_engine);
     var program = try parser.parse();
-    var numifyVisitor = Numify.init(self.allocator);
-    try numifyVisitor.execute(&program);
+
+    var pass_manager = PassManager.init(std.testing.allocator, &program);
+    pass_manager.run(Numify);
 
     switch (cli_result) {
         .interpret => |config| {
             switch (config.interpreter_type) {
                 .byte => {
-                    var lowerer = Lowerer.init(self.allocator);
-                    try lowerer.execute(&program);
-                    const chunk = try lowerer.builder.build();
+                    const chunk = pass_manager.run(Lowerer);
 
                     source_mgr.deinit();
 

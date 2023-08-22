@@ -27,8 +27,16 @@ pub const PassManager = struct {
         };
     }
 
-    pub fn run(self: Self, comptime PassType: type) !void {
+    pub fn run(
+        self: Self,
+        comptime PassType: type
+    ) passRetTy(PassType) {
         var pass = PassType.init(self.allocator);
-        try pass.execute(self.program);
+        return pass.execute(self.program);
+    }
+
+    fn passRetTy(comptime PassType: type) type {
+        // Is there a better way to do this????
+        return @typeInfo(@TypeOf(PassType.execute)).Fn.return_type.?;
     }
 };
