@@ -152,11 +152,11 @@ pub const CommandLine = struct {
             return .none;
         }
 
-        // TODO: Errors
         var config = InterpretConfig.default();
         for (self.args[2..]) |arg| {
             if (arg[0] == '-') {
                 if (arg.len < 2) {
+                    try unknownOption(arg);
                     continue;
                 }
 
@@ -167,8 +167,13 @@ pub const CommandLine = struct {
                 } else if (arg[1] == 'h' or std.mem.eql(u8, arg, "--help")) {
                     try self.printInterpretHelp();
                     return .none;
+                } else {
+                    try unknownOption(arg);
                 }
             } else {
+                if (config.filename) |old_filename| {
+                    try multipleFilenames(arg, old_filename);
+                }
                 config.filename = arg;
             }
         }
@@ -182,19 +187,24 @@ pub const CommandLine = struct {
             return .none;
         }
 
-        // TODO: Errors
         var config = FmtConfig.default();
         for (self.args[2..]) |arg| {
             if (arg[0] == '-') {
                 if (arg.len < 2) {
+                    try unknownOption(arg);
                     continue;
                 }
 
                 if (arg[1] == 'h' or std.mem.eql(u8, arg, "--help")) {
                     try self.printFmtHelp();
                     return .none;
+                } else {
+                    try unknownOption(arg);
                 }
             } else {
+                if (config.filename) |old_filename| {
+                    try multipleFilenames(arg, old_filename);
+                }
                 config.filename = arg;
             }
         }
@@ -208,19 +218,24 @@ pub const CommandLine = struct {
             return .none;
         }
 
-        // TODO: Errors
         var config = DumpConfig.default();
         for (self.args[2..]) |arg| {
             if (arg[0] == '-') {
                 if (arg.len < 2) {
+                    try unknownOption(arg);
                     continue;
                 }
 
                 if (arg[1] == 'h' or std.mem.eql(u8, arg, "--help")) {
                     try self.printDumpHelp();
                     return .none;
+                } else {
+                    try unknownOption(arg);
                 }
             } else {
+                if (config.filename) |old_filename| {
+                    try multipleFilenames(arg, old_filename);
+                }
                 config.filename = arg;
             }
         }
@@ -228,6 +243,20 @@ pub const CommandLine = struct {
         return .{ .dump = config };
     }
 
+    fn unknownOption(arg: []const u8) !void {
+        const stderr = std.io.getStdErr().writer();
+        try stderr.print("Unknown option '{s}'\n", .{arg});
+    }
+
+    fn multipleFilenames(new_filename: []const u8, old_filename: []const u8) !void {
+        const stderr = std.io.getStdErr().writer();
+        try stderr.print(
+            \\Found filename '{s}' but already have '{s}'.
+            \\Please specify one file name at a time.
+            \\
+             , .{new_filename, old_filename}
+        );
+    }
 
     pub fn parse(self: Self) !CommandLineResult {
         if (self.args.len == 1) {
