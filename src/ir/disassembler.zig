@@ -58,8 +58,8 @@ pub const Disassembler = struct {
         try self.disassembleType(function.ret_ty);
         try self.writer.writeAll(" {");
         indent += 1;
-        try self.newline();
         for (function.elements) |bb| {
+            try self.newline();
             if (bb.label) |label| {
                 try self.writer.print("@{s} {{", .{label});
             } else {
@@ -78,7 +78,6 @@ pub const Disassembler = struct {
             indent -= 1;
             try self.newline();
             try self.writer.writeAll("}");
-            try self.newline();
         }
         indent -= 1;
         try self.newline();

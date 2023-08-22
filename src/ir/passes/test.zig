@@ -8,6 +8,7 @@ const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
 const Disassembler = @import("../disassembler.zig").Disassembler;
 const Lexer = @import("../lexer.zig").Lexer;
 const Parser = @import("../parser.zig").Parser;
+const BlockifyPass = @import("../passes/blockify.zig").BlockifyPass;
 
 fn parseProgramFromString(str: []const u8) !Program {
     var source_mgr = try SourceManager.init(std.testing.allocator, str, "test", false);
@@ -52,6 +53,55 @@ test "Test no passes" {
     try expectDisassembled(start,
         \\func main() -> none {
         \\  let i: int = 42
+        \\}
+    );
+}
+
+test "Test simple blockify" {
+    const begin_str =
+        \\func main() -> none {
+        \\  let i: int = 42
+        \\}
+        ;
+
+    var start = try parseProgramFromString(begin_str);
+    var blockify = BlockifyPass.init(std.testing.allocator);
+    try blockify.execute(&start);
+    defer start.deinit(std.testing.allocator);
+
+    try expectDisassembled(start,
+        \\func main() -> none {
+        \\  {
+        \\    let i: int = 42
+        \\  }
+        \\}
+    );
+}
+
+test "Test blockify with jump" {
+    const begin_str =
+        \\func main() -> none {
+        \\  @label
+        \\  let i: int = 42
+        \\  br label
+        \\  let j: int = 420
+        \\}
+        ;
+
+    var start = try parseProgramFromString(begin_str);
+    var blockify = BlockifyPass.init(std.testing.allocator);
+    try blockify.execute(&start);
+    defer start.deinit(std.testing.allocator);
+
+    try expectDisassembled(start,
+        \\func main() -> none {
+        \\  @label {
+        \\    let i: int = 42
+        \\    br label
+        \\  }
+        \\  {
+        \\    let j: int = 420
+        \\  }
         \\}
     );
 }
