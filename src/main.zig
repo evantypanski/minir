@@ -13,6 +13,7 @@ pub fn main() !void {
 
 test {
     _ = @import("bytecode/interpret.zig");
+    _ = @import("ir/passes/test.zig");
     _ = @import("ir/nodes/program.zig");
     _ = @import("ir/passes/blockify.zig");
 }

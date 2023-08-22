@@ -18,21 +18,24 @@ pub const SourceManager = struct {
     const Self = @This();
 
     allocator: std.mem.Allocator,
-    source: []u8,
+    source: []const u8,
     filename: []const u8,
     // Indexes for line endings (\n)
     line_ends: []usize,
+    owns_source: bool,
 
     pub fn init(
         allocator: std.mem.Allocator,
-        source: []u8,
-        filename: []const u8
+        source: []const u8,
+        filename: []const u8,
+        owns_source: bool
     ) !Self {
         var self = Self {
             .allocator = allocator,
             .source = source,
             .filename = filename,
             .line_ends = try analyzeLineEnds(allocator, source),
+            .owns_source = owns_source,
         };
 
         return self;
@@ -40,11 +43,13 @@ pub const SourceManager = struct {
 
     pub fn initFilename(allocator: std.mem.Allocator, name: []const u8) !Self {
         const file = try std.fs.cwd().openFile(name, .{ .mode = .read_only });
-        return init(allocator, try file.readToEndAlloc(allocator, 10000), name);
+        return init(allocator, try file.readToEndAlloc(allocator, 10000), name, true);
     }
 
     pub fn deinit(self: *Self) void {
-        self.allocator.free(self.source);
+        if (self.owns_source) {
+            self.allocator.free(self.source);
+        }
         self.allocator.free(self.line_ends);
     }
 
@@ -74,7 +79,7 @@ pub const SourceManager = struct {
         return i + 1;
     }
 
-    pub inline fn snip(self: Self, start: usize, end: usize) []u8 {
+    pub inline fn snip(self: Self, start: usize, end: usize) []const u8 {
         return self.source[start..end];
     }
 

@@ -97,6 +97,11 @@ pub const Stmt = struct {
                 }
             },
             .value => |*val| val.deinit(allocator),
+            .branch => |*br| {
+                if (br.expr) |*val| {
+                    val.deinit(allocator);
+                }
+            },
             else => {},
         }
     }

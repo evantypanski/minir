@@ -36,6 +36,7 @@ pub const Value = union(ValueKind) {
         val: *Value,
 
         pub fn deinit(self: *UnaryOp, allocator: std.mem.Allocator) void {
+            self.val.*.deinit(allocator);
             allocator.destroy(self.val);
         }
 
@@ -79,7 +80,9 @@ pub const Value = union(ValueKind) {
         };
 
         pub fn deinit(self: *BinaryOp, allocator: std.mem.Allocator) void {
+            self.lhs.deinit(allocator);
             allocator.destroy(self.lhs);
+            self.rhs.deinit(allocator);
             allocator.destroy(self.rhs);
         }
 
@@ -92,6 +95,14 @@ pub const Value = union(ValueKind) {
     pub const FuncCall = struct {
         function: []const u8,
         arguments: []Value,
+
+        pub fn deinit(self: *FuncCall, allocator: std.mem.Allocator) void {
+            for (self.arguments) |*arg| {
+                arg.deinit(allocator);
+            }
+
+            allocator.free(self.arguments);
+        }
     };
 
     undef,
@@ -179,6 +190,7 @@ pub const Value = union(ValueKind) {
         switch (self.*) {
             .unary => |*op| op.deinit(allocator),
             .binary => |*op| op.deinit(allocator),
+            .call => |*call| call.deinit(allocator),
             else => {},
         }
     }
