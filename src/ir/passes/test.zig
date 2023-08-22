@@ -8,6 +8,7 @@ const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
 const Disassembler = @import("../disassembler.zig").Disassembler;
 const Lexer = @import("../lexer.zig").Lexer;
 const Parser = @import("../parser.zig").Parser;
+const PassManager = @import("../passes/pass_manager.zig").PassManager;
 const BlockifyPass = @import("../passes/blockify.zig").BlockifyPass;
 const FoldConstantsPass = @import("../passes/fold_constants.zig").FoldConstantsPass;
 
@@ -66,8 +67,8 @@ test "Test simple blockify" {
         ;
 
     var start = try parseProgramFromString(begin_str);
-    var blockify = BlockifyPass.init(std.testing.allocator);
-    try blockify.execute(&start);
+    var pass_manager = PassManager.init(std.testing.allocator, &start);
+    try pass_manager.run(BlockifyPass);
     defer start.deinit(std.testing.allocator);
 
     try expectDisassembled(start,
@@ -90,8 +91,8 @@ test "Test blockify with jump" {
         ;
 
     var start = try parseProgramFromString(begin_str);
-    var blockify = BlockifyPass.init(std.testing.allocator);
-    try blockify.execute(&start);
+    var pass_manager = PassManager.init(std.testing.allocator, &start);
+    try pass_manager.run(BlockifyPass);
     defer start.deinit(std.testing.allocator);
 
     try expectDisassembled(start,
@@ -115,8 +116,8 @@ test "Test simple constant folding" {
         ;
 
     var start = try parseProgramFromString(begin_str);
-    var fold = FoldConstantsPass.init(std.testing.allocator);
-    try fold.execute(&start);
+    var pass_manager = PassManager.init(std.testing.allocator, &start);
+    try pass_manager.run(FoldConstantsPass);
     defer start.deinit(std.testing.allocator);
 
     // Parentheses be damned
