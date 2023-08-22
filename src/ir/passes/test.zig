@@ -115,8 +115,8 @@ test "Test simple constant folding" {
         ;
 
     var start = try parseProgramFromString(begin_str);
-    var blockify = FoldConstantsPass.init(std.testing.allocator);
-    try blockify.execute(&start);
+    var fold = FoldConstantsPass.init(std.testing.allocator);
+    try fold.execute(&start);
     defer start.deinit(std.testing.allocator);
 
     // Parentheses be damned
