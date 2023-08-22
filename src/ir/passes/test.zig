@@ -9,6 +9,7 @@ const Disassembler = @import("../disassembler.zig").Disassembler;
 const Lexer = @import("../lexer.zig").Lexer;
 const Parser = @import("../parser.zig").Parser;
 const BlockifyPass = @import("../passes/blockify.zig").BlockifyPass;
+const FoldConstantsPass = @import("../passes/fold_constants.zig").FoldConstantsPass;
 
 fn parseProgramFromString(str: []const u8) !Program {
     var source_mgr = try SourceManager.init(std.testing.allocator, str, "test", false);
@@ -102,6 +103,26 @@ test "Test blockify with jump" {
         \\  {
         \\    let j: int = 420
         \\  }
+        \\}
+    );
+}
+
+test "Test simple constant folding" {
+    const begin_str =
+        \\func main() -> none {
+        \\  let i: int = 40 + 2
+        \\}
+        ;
+
+    var start = try parseProgramFromString(begin_str);
+    var blockify = FoldConstantsPass.init(std.testing.allocator);
+    try blockify.execute(&start);
+    defer start.deinit(std.testing.allocator);
+
+    // Parentheses be damned
+    try expectDisassembled(start,
+        \\func main() -> none {
+        \\  let i: int = 42
         \\}
     );
 }
