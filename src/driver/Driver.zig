@@ -52,14 +52,14 @@ pub fn drive(self: Self) !void {
     var parser = Parser.init(self.allocator, lexer, diag_engine);
     var program = try parser.parse();
 
-    var pass_manager = PassManager.init(std.testing.allocator, &program);
-    pass_manager.run(Numify);
+    var pass_manager = PassManager.init(self.allocator, &program);
+    try pass_manager.run(Numify);
 
     switch (cli_result) {
         .interpret => |config| {
             switch (config.interpreter_type) {
                 .byte => {
-                    const chunk = pass_manager.run(Lowerer);
+                    const chunk = try pass_manager.run(Lowerer);
 
                     source_mgr.deinit();
 
@@ -83,12 +83,9 @@ pub fn drive(self: Self) !void {
             try formatter.disassemble();
         },
         .dump => {
-            var lowerer = Lowerer.init(self.allocator);
-            try lowerer.execute(&program);
+            const chunk = try pass_manager.run(Lowerer);
 
             source_mgr.deinit();
-
-            const chunk = try lowerer.builder.build();
             var disassembler = Disassembler.init(chunk, self.out);
             try disassembler.disassemble();
         },

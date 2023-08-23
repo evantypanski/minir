@@ -83,7 +83,7 @@ pub const Lowerer = struct {
         .visitBranch = visitBranch,
     };
 
-    pub fn execute(self: *Self, program: *Program) LowerError!Chunk {
+    pub fn execute(self: *Self, program: *Program) !Chunk {
         try LowerVisitor.visitProgram(LowerVisitor, self, program);
         return self.builder.build();
     }
