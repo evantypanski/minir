@@ -56,4 +56,15 @@ pub const LexError = error {
     Unexpected,
 };
 
+pub const TypecheckError = error{
+    MapError,
+    ParamWithoutType,
+    TooManyErrors,
+    NakedVarDecl,
+    CannotEvaluateType,
+    Unimplemented,
+    IncompatibleTypes,
+    CannotResolve,
+};
+
 pub const ParseError = TokenParseError || NodeError || LexError;

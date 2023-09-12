@@ -13,6 +13,7 @@ const Stmt = @import("../nodes/statement.zig").Stmt;
 const Value = @import("../nodes/value.zig").Value;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
+const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
 
 pub const PassManager = struct {
     const Self = @This();
@@ -32,6 +33,15 @@ pub const PassManager = struct {
         comptime PassType: type
     ) passRetTy(PassType) {
         var pass = PassType.init(self.allocator);
+        return pass.execute(self.program);
+    }
+
+    pub fn runDiag(
+        self: Self,
+        diag: Diagnostics,
+        comptime PassType: type
+    ) passRetTy(PassType) {
+        var pass = PassType.init(self.allocator, diag);
         return pass.execute(self.program);
     }
 

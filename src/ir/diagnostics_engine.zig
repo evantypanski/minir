@@ -27,11 +27,11 @@ pub const Diagnostics = struct {
         };
     }
 
-    pub fn diag(self: Self, err: ParseError, loc: Loc) void {
+    pub fn diagParse(self: Self, err: ParseError, loc: Loc) void {
         const start = self.startLineLoc(loc);
         const end = self.endLineLoc(loc);
         std.debug.print(
-            "\nerror: {s}:{} {}\n{s}\n",
+            "\nparsing error: {s}:{} {}\n{s}\n",
             .{
                 self.source_mgr.filename,
                 self.source_mgr.getLineNum(loc.start),
@@ -39,6 +39,12 @@ pub const Diagnostics = struct {
                 self.source_mgr.snip(start, end)
             }
         );
+    }
+
+    /// Diagnoses the number of errors from a given component
+    pub fn diagNumErrors(self: Self, num: usize, name: []const u8) void {
+        _ = self;
+        std.debug.print( "\n\nFound {} errors during {s}\n", .{ num, name });
     }
 
     /// Finds the start of the line for a Loc

@@ -2,6 +2,8 @@ const std = @import("std");
 
 const NodeError = @import("../errors.zig").NodeError;
 const Token = @import("../token.zig").Token;
+const Loc = @import("../sourceloc.zig").Loc;
+const Decl = @import("decl.zig").Decl;
 
 const ValueKind = enum {
     undef,
@@ -94,6 +96,7 @@ pub const Value = union(ValueKind) {
 
     pub const FuncCall = struct {
         function: []const u8,
+        resolved: ?*Decl,
         arguments: []Value,
 
         pub fn deinit(self: *FuncCall, allocator: std.mem.Allocator) void {
@@ -156,7 +159,13 @@ pub const Value = union(ValueKind) {
     }
 
     pub fn initCall(function: []const u8, arguments: []Value) Value {
-        return .{ .call = .{ .function = function, .arguments = arguments } };
+        return .{
+            .call = .{
+                .function = function,
+                .resolved = null,
+                .arguments = arguments
+            }
+        };
     }
 
     // Turns a boolean Value into a native boolean. Should not be called

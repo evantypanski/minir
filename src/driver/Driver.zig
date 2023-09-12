@@ -17,6 +17,7 @@ const Parser = @import("../ir/parser.zig").Parser;
 const PassManager = @import("../ir/passes/pass_manager.zig").PassManager;
 const BlockifyPass = @import("../ir/passes/blockify.zig").BlockifyPass;
 const Lowerer = @import("../ir/passes/lower.zig").Lowerer;
+const TypecheckPass = @import("../ir/passes/typecheck.zig").TypecheckPass;
 const SourceManager = @import("../ir/source_manager.zig").SourceManager;
 const Diagnostics = @import("../ir/diagnostics_engine.zig").Diagnostics;
 const Interpreter = @import("../bytecode/interpret.zig").Interpreter;
@@ -54,6 +55,7 @@ pub fn drive(self: Self) !void {
 
     var pass_manager = PassManager.init(self.allocator, &program);
     try pass_manager.run(Numify);
+    try pass_manager.runDiag(diag_engine, TypecheckPass);
 
     switch (cli_result) {
         .interpret => |config| {

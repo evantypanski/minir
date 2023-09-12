@@ -445,7 +445,7 @@ pub const Parser = struct {
     }
 
     fn diag(self: Self, loc: Loc, err: ParseError) void {
-        self.diag_engine.diag(err, loc);
+        self.diag_engine.diagParse(err, loc);
     }
 
     fn bindingPower(tag: Token.Tag) Precedence {
