@@ -10,7 +10,8 @@ const Type = @import("nodes/type.zig").Type;
 const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 const Decl = @import("nodes/decl.zig").Decl;
 const Function = @import("nodes/decl.zig").Function;
-const ParseError = @import("errors.zig").ParseError;
+const errors = @import("errors.zig");
+const ParseError = errors.ParseError;
 const TypecheckError = @import("errors.zig").TypecheckError;
 const Loc = @import("sourceloc.zig").Loc;
 const SourceManager = @import("source_manager.zig").SourceManager;
@@ -27,11 +28,40 @@ pub const Diagnostics = struct {
         };
     }
 
+    pub fn err(
+        self: Self, comptime the_err: anyerror, args: anytype, loc: Loc
+    ) void {
+        const start = self.startLineLoc(loc);
+        const end = self.endLineLoc(loc);
+        // Lol formatting
+        const all_args = .{
+                self.source_mgr.filename,
+                self.source_mgr.getLineNum(start),
+            }
+            ++ args
+            ++ .{
+                self.source_mgr.snip(start, end),
+            };
+        // TODO: I really want a caret at the location of the offending loc in
+        // the snippet, but the log function doesn't seem capable for that
+        // runtime info. We can't concat the string or get the underlying writer,
+        // nor use the fill characters since that has to be comptime. We could
+        // use an allocator but why would we pass an allocator in here? I'd
+        // rather avoid that if possible. We can't do it in a new message
+        // since `std.log` adds 'error:' before the message
+        const msg = if (comptime errors.getErrStr(the_err)) |str|
+            "at {s}:{}: " ++ str ++ "\n{s}"
+        else
+            "at {s}:{}:\n{s}";
+
+        std.log.err(msg, all_args);
+    }
+
     // All of this diag* methods should eventually be replaced with some
     // comptime string manip stuff. But I don't feel like doing that yet
     // so instead for each unique diagnostic format there's a new method.
     // :)
-    pub fn diagParse(self: Self, err: ParseError, loc: Loc) void {
+    pub fn diagParse(self: Self, the_err: ParseError, loc: Loc) void {
         const start = self.startLineLoc(loc);
         const end = self.endLineLoc(loc);
         std.debug.print(
@@ -39,28 +69,8 @@ pub const Diagnostics = struct {
             .{
                 self.source_mgr.filename,
                 self.source_mgr.getLineNum(loc.start),
-                err,
+                the_err,
                 self.source_mgr.snip(start, end)
-            }
-        );
-    }
-
-    pub fn diagIncompatibleTypes(
-        self: Self, err: TypecheckError, loc1: Loc, loc2: Loc
-    ) void {
-        // TODO: Line numbers if it spans multiple? Right now it just does
-        // first which isn't the worst thing ever
-        const start_line = self.startLineLoc(loc1);
-        const end_line = self.endLineLoc(loc2);
-        std.debug.print(
-            "\nincompatible types at {s}:{} {}: {s} and {s} are not the same type\n{s}\n",
-            .{
-                self.source_mgr.filename,
-                self.source_mgr.getLineNum(loc1.start),
-                err,
-                self.source_mgr.snip(loc1.start, loc1.end),
-                self.source_mgr.snip(loc2.start, loc2.end),
-                self.source_mgr.snip(start_line, end_line)
             }
         );
     }

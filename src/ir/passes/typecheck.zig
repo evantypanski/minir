@@ -114,11 +114,14 @@ pub const TypecheckPass = struct {
                 // Unary ops can only apply to specific types
                 switch (uo.*.kind) {
                     .not => {
-                        if (try self.valTy(uo.*.val) != .boolean) {
+                        const ty = try self.valTy(uo.*.val);
+                        if (ty != .boolean) {
                             self.num_errors += 1;
-                            // TODO: Diagnose this. I'm getting annoyed with
-                            // how the diag engine is setup though so I don't
-                            // want to make a whole new method.
+                            self.diag.err(
+                                error.InvalidType,
+                                .{@tagName(ty), "!"},
+                                val.*.loc
+                            );
                             break :blk .err;
                         } else {
                             break :blk .boolean;
@@ -132,8 +135,21 @@ pub const TypecheckPass = struct {
                 const rhs_ty = try self.valTy(bo.*.rhs);
                 if (!lhs_ty.eq(rhs_ty)) {
                     self.num_errors += 1;
-                    self.diag.diagIncompatibleTypes(
-                        error.IncompatibleTypes, bo.*.lhs.loc, bo.*.rhs.loc
+                    const lhs_loc = bo.*.lhs.loc;
+                    const rhs_loc = bo.*.rhs.loc;
+                    self.diag.err(
+                        error.IncompatibleTypes, .{
+                            @tagName(lhs_ty),
+                            self.diag.source_mgr.snip(
+                                lhs_loc.start,
+                                lhs_loc.end
+                            ),
+                            @tagName(rhs_ty),
+                            self.diag.source_mgr.snip(
+                                rhs_loc.start,
+                                rhs_loc.end
+                            ),
+                        }, val.*.loc
                     );
                     break :blk .err;
                 }
