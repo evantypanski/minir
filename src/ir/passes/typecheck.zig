@@ -108,8 +108,8 @@ pub const TypecheckPass = struct {
             .int => .int,
             .float => .float,
             .bool => .boolean,
-            // For now only unary op is not, but more are planned, so make sure it'll error
-            // if more are added
+            // For now only unary op is not, but more are planned, so make sure
+            // it'll error if more are added
             .unary => |*uo| switch (uo.*.kind) {
                         .not => .boolean,
                     },
@@ -117,13 +117,12 @@ pub const TypecheckPass = struct {
                 // All binary ops need both arguments to be of the same type.
                 const lhs_ty = try self.valTy(bo.*.lhs);
                 const rhs_ty = try self.valTy(bo.*.rhs);
-                if (lhs_ty != rhs_ty) {
+                if (!lhs_ty.eq(rhs_ty)) {
                     self.num_errors += 1;
                     self.diag.diagIncompatibleTypes(
                         error.IncompatibleTypes, bo.*.lhs.loc, bo.*.rhs.loc
                     );
-                    // TODO: Get type here. Maybe an error type
-                    break :blk .boolean;
+                    break :blk .err;
                 }
 
                 break :blk switch (bo.*.kind) {

@@ -212,6 +212,7 @@ pub const Disassembler = struct {
             .float => "float",
             .boolean => "boolean",
             .none => "none",
+            .err => "err",
         };
         try self.writer.writeAll(name);
     }
