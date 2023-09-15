@@ -292,8 +292,11 @@ pub const Parser = struct {
     fn parseGrouping(self: *Self) ParseError!Value {
         // lparen
         self.advance();
-        const val = try self.parsePrecedence(.assign);
+        var val = try self.parsePrecedence(.assign);
         try self.consume(.rparen, error.ExpectedRParen);
+        // Annoying workaround: At this point the lparen is in the loc but the
+        // rparen is not. In order to fix that we can just modify the loc. :(
+        val.loc.end = self.previous.loc.end;
         return val;
     }
 
