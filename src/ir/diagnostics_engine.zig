@@ -57,24 +57,6 @@ pub const Diagnostics = struct {
         std.log.err(msg, all_args);
     }
 
-    // All of this diag* methods should eventually be replaced with some
-    // comptime string manip stuff. But I don't feel like doing that yet
-    // so instead for each unique diagnostic format there's a new method.
-    // :)
-    pub fn diagParse(self: Self, the_err: ParseError, loc: Loc) void {
-        const start = self.startLineLoc(loc);
-        const end = self.endLineLoc(loc);
-        std.debug.print(
-            "\nparsing error: {s}:{} {}\n{s}\n",
-            .{
-                self.source_mgr.filename,
-                self.source_mgr.getLineNum(loc.start),
-                the_err,
-                self.source_mgr.snip(start, end)
-            }
-        );
-    }
-
     /// Diagnoses the number of errors from a given component
     pub fn diagNumErrors(self: Self, num: usize, name: []const u8) void {
         _ = self;

@@ -51,7 +51,7 @@ pub const Parser = struct {
     lexer: Lexer,
     current: Token,
     previous: Token,
-    diag_engine: Diagnostics,
+    diag: Diagnostics,
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -63,7 +63,7 @@ pub const Parser = struct {
             .lexer = lexer,
             .current = Token.init(.none, 0, 0),
             .previous = Token.init(.none, 0, 0),
-            .diag_engine = diag_engine
+            .diag = diag_engine
         };
     }
 
@@ -75,13 +75,11 @@ pub const Parser = struct {
 
         var builder = ProgramBuilder.init(self.allocator);
         // A program is just a bunch of decls.
+        // Theoretically we could keep going but for now just abort if parsing
+        // has an issue. This will help keep errors down because our recovery
+        // would be very bad right now.
         while (self.current.tag != .eof) {
-            if (self.parseDecl()) |decl| {
-                try builder.addDecl(decl);
-            } else |err| {
-                self.diagCurrent(err);
-                self.advance();
-            }
+            try builder.addDecl(try self.parseDecl());
         }
 
         return builder.build();
@@ -94,20 +92,20 @@ pub const Parser = struct {
             if (self.lexer.lex()) |tok| {
                 self.current = tok;
                 return;
-            } else |err| {
-                self.diag(self.lexer.getLastLoc(), err);
+            } else |_| {
+                // Error is already diagnosed
             }
         }
     }
 
-    fn consume(self: *Self, tag: Token.Tag, err: ParseError) ParseError!void {
+    fn consume(self: *Self, tag: Token.Tag) ParseError!void {
         if (self.current.tag == tag) {
             self.advance();
             return;
         }
 
-        //self.diagCurrent(error_message);
-        return err;
+        self.diag.err(error.Expected, .{ @tagName(tag) }, self.current.loc);
+        return error.Expected;
     }
 
     fn parseDecl(self: *Self) ParseError!Decl {
@@ -115,20 +113,19 @@ pub const Parser = struct {
     }
 
     fn parseFnDecl(self: *Self) ParseError!Function(Stmt) {
-        try self.consume(.func, error.ExpectedKeywordFunc);
-        try self.consume(.identifier, error.ExpectedIdentifier);
+        try self.consume(.func);
+        try self.consume(.identifier);
         var builder = FunctionBuilder(Stmt)
             .init(self.allocator, self.lexer.getTokString(self.previous));
-        try self.consume(.lparen, error.ExpectedLParen);
+        try self.consume(.lparen);
         while (self.match(.identifier)) {
             const name = self.lexer.getTokString(self.previous);
             const opt_ty = if (!self.match(.colon)) blk: {
-                self.diag(self.current.loc, error.ExpectedColon);
+                self.diag.err(error.Expected, .{ @tagName(.colon) }, self.current.loc);
                 break :blk null;
             } else if (self.parseType()) |ty|
                 ty
-            else |err| blk: {
-                self.diag(self.current.loc, err);
+            else |_| blk: {
                 break :blk null;
             };
 
@@ -143,19 +140,18 @@ pub const Parser = struct {
                 break;
             }
         }
-        try self.consume(.rparen, error.ExpectedRParen);
+        try self.consume(.rparen);
         // Return
-        try self.consume(.arrow, error.ExpectedArrow);
+        try self.consume(.arrow);
         const ty = if (self.parseType()) |ty|
             ty
-        else |err| blk: {
-            self.diagPrevious(err);
+        else |_| blk: {
             break :blk .none;
         };
 
         builder.setReturnType(ty);
 
-        try self.consume(.lbrace, error.ExpectedLBrace);
+        try self.consume(.lbrace);
 
         while (self.current.tag != .rbrace and self.current.tag != .eof) {
             if (builder.addElement(try self.parseStmt())) {}
@@ -163,7 +159,7 @@ pub const Parser = struct {
         }
 
         // If we get here without right brace it's EOF
-        try self.consume(.rbrace, error.ExpectedRBrace);
+        try self.consume(.rbrace);
 
         const decl = if (builder.build()) |decl|
                 decl
@@ -191,15 +187,15 @@ pub const Parser = struct {
     }
 
     fn parseLabel(self: *Self) ParseError![]const u8 {
-        try self.consume(.identifier, error.ExpectedIdentifier);
+        try self.consume(.identifier);
         return self.lexer.getTokString(self.previous);
     }
 
     fn parseDebug(self: *Self, label: ?[]const u8) ParseError!Stmt {
         const start = self.previous.loc.start;
-        try self.consume(.lparen, error.ExpectedLParen);
+        try self.consume(.lparen);
         const val = try self.parseExpr();
-        try self.consume(.rparen, error.ExpectedRParen);
+        try self.consume(.rparen);
         return Stmt.init(
             .{ .debug = val },
             label,
@@ -209,15 +205,14 @@ pub const Parser = struct {
 
     fn parseLet(self: *Self, label: ?[]const u8) ParseError!Stmt {
         const start = self.previous.loc.start;
-        try self.consume(.identifier, error.ExpectedIdentifier);
+        try self.consume(.identifier);
         const var_name = self.lexer.getTokString(self.previous);
         // The type will be set if explicit or null if not. Note that
         // it's not .none if not set.
         const ty = if (self.match(.colon)) blk: {
             if (self.parseType()) |ty|
                 break :blk ty
-            else |err| {
-                self.diagPrevious(err);
+            else |_| {
                 break :blk .none;
             }
         } else null;
@@ -255,7 +250,7 @@ pub const Parser = struct {
         const start = self.previous.loc.start;
         const branch_tag = self.current.tag;
         self.advance();
-        try self.consume(.identifier, error.ExpectedIdentifier);
+        try self.consume(.identifier);
         const to = self.lexer.getTokString(self.previous);
         if (branch_tag == .br) {
             // Unconditional jump
@@ -273,6 +268,14 @@ pub const Parser = struct {
             );
         }
 
+        const loc = self.previous.loc;
+        // This shouldn't actually happen, should be able to gather than at
+        // comptime eventually?
+        self.diag.err(
+            error.NotABranch,
+            .{ self.diag.source_mgr.snip(loc.start, loc.end) },
+            loc
+        );
         return error.NotABranch;
     }
 
@@ -293,7 +296,7 @@ pub const Parser = struct {
         // lparen
         self.advance();
         var val = try self.parsePrecedence(.assign);
-        try self.consume(.rparen, error.ExpectedRParen);
+        try self.consume(.rparen);
         // Annoying workaround: At this point the lparen is in the loc but the
         // rparen is not. In order to fix that we can just modify the loc. :(
         val.loc.end = self.previous.loc.end;
@@ -357,7 +360,7 @@ pub const Parser = struct {
         const start = self.previous.loc.start;
         // Already consumed identifier
         const name = self.lexer.getTokString(self.previous);
-        try self.consume(.lparen, error.ExpectedLParen);
+        try self.consume(.lparen);
         var arguments = std.ArrayList(Value).init(self.allocator);
         if (self.current.tag != .rparen) {
             while (!self.lexer.isAtEnd()) {
@@ -368,7 +371,7 @@ pub const Parser = struct {
                 }
             }
         }
-        try self.consume(.rparen, error.ExpectedRParen);
+        try self.consume(.rparen);
         const arg_slice = arguments.toOwnedSlice()
             catch return error.MemoryError;
         const loc = Loc.init(start, self.previous.loc.end);
@@ -415,7 +418,7 @@ pub const Parser = struct {
     }
 
     fn parseNumber(self: *Self) ParseError!Value {
-        try self.consume(.num, error.ExpectedNumber);
+        try self.consume(.num);
         const start = self.previous.loc.start;
         const loc = Loc.init(start, self.previous.loc.end);
         const num_str = self.lexer.getTokString(self.previous);
@@ -430,6 +433,11 @@ pub const Parser = struct {
             if (std.fmt.parseFloat(f32, num_str)) |num| {
                 return Value.initFloat(num, loc);
             } else |_| {
+                self.diag.err(
+                    error.NotANumber,
+                    .{ self.diag.source_mgr.snip(loc.start, loc.end) },
+                    loc
+                );
                 return error.NotANumber;
             }
 
@@ -437,6 +445,11 @@ pub const Parser = struct {
             if (std.fmt.parseInt(i32, num_str, 10)) |num| {
                 return Value.initInt(num, loc);
             } else |_| {
+                self.diag.err(
+                    error.NotANumber,
+                    .{ self.diag.source_mgr.snip(loc.start, loc.end) },
+                    loc
+                );
                 return error.NotANumber;
             }
         }
@@ -452,18 +465,6 @@ pub const Parser = struct {
             .none => .none,
             else => error.InvalidTypeName,
         };
-    }
-
-    fn diagCurrent(self: Self, err: ParseError) void {
-        self.diag(self.current.loc, err);
-    }
-
-    fn diagPrevious(self: Self, err: ParseError) void {
-        self.diag(self.previous.loc, err);
-    }
-
-    fn diag(self: Self, loc: Loc, err: ParseError) void {
-        self.diag_engine.diagParse(err, loc);
     }
 
     fn bindingPower(tag: Token.Tag) Precedence {

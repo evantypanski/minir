@@ -36,16 +36,7 @@ pub const IrError = InterpError || NodeError;
 pub const TokenParseError = error {
     Unexpected,
     ExpectedNumber,
-    ExpectedAt,
-    ExpectedIdentifier,
-    ExpectedLParen,
-    ExpectedRParen,
-    ExpectedArrow,
-    ExpectedLBrace,
-    ExpectedRBrace,
-    ExpectedKeywordFunc,
-    ExpectedComma,
-    ExpectedColon,
+    Expected,
     MemoryError,
     NotANumber,
     NotALiteral,
@@ -77,6 +68,9 @@ pub fn getErrStr(comptime err: anyerror) ?[]const u8 {
     return switch (err) {
         error.InvalidType => "{s} is an invalid type for operator '{s}'",
         error.IncompatibleTypes => "type {s} of '{s}' is incompatible with type {s} of '{s}'",
+        error.Expected => "expected '{s}' token",
+        error.NotABranch => "'{s}' is not a branch keyword",
+        error.NotANumber => "'{s}' is not a valid number",
         else => null,
     };
 }
