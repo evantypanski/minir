@@ -68,7 +68,7 @@ test "deinit works" {
             .{
                 .id = .{
                     .name = "hi",
-                    .val = .{ .int = 99 },
+                    .val = Value.initInt(99, Loc.default()),
                     .ty = .int,
                 }
             },

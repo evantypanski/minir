@@ -117,7 +117,7 @@ pub const ValueKind = union(ValueTag) {
     binary: BinaryOp,
     call: FuncCall,
 
-    pub fn deinit(self: *Value, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *ValueKind, allocator: std.mem.Allocator) void {
         switch (self.*) {
             .unary => |*op| op.deinit(allocator),
             .binary => |*op| op.deinit(allocator),
@@ -231,6 +231,6 @@ pub const Value = struct {
     }
 
     pub fn deinit(self: *Value, allocator: std.mem.Allocator) void {
-        self.val_kind.deinit(allocator);
+        self.*.val_kind.deinit(allocator);
     }
 };

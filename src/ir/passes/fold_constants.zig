@@ -43,13 +43,13 @@ pub const FoldConstantsPass = struct {
             .binary => |*op| {
                 switch (op.*.kind) {
                     .add => {
-                        const lhs = switch (op.*.lhs.*) {
+                        const lhs = switch (op.*.lhs.*.val_kind) {
                             .int => |lhs| lhs,
                             else => return try visitor.visitBinaryOp(
                                         visitor, self, op
                                     ),
                         };
-                        const rhs = switch (op.*.rhs.*) {
+                        const rhs = switch (op.*.rhs.*.val_kind) {
                             .int => |rhs| rhs,
                             else => return try visitor.visitBinaryOp(
                                         visitor, self, op

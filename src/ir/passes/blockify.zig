@@ -104,7 +104,7 @@ test "Changes all functions into BB functions" {
             .{
                 .id = .{
                     .name = "hi",
-                    .val = .{ .int = 99 },
+                    .val = Value.initInt(99, Loc.default()),
                     .ty = .int,
                 }
             },
@@ -169,7 +169,7 @@ test "Errors when already blockified" {
             .{
                 .id = .{
                     .name = "hi",
-                    .val = .{ .int = 99 },
+                    .val = Value.initInt(99, Loc.default()),
                     .ty = .int,
                 }
             },
