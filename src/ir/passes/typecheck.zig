@@ -110,9 +110,22 @@ pub const TypecheckPass = struct {
             .bool => .boolean,
             // For now only unary op is not, but more are planned, so make sure
             // it'll error if more are added
-            .unary => |*uo| switch (uo.*.kind) {
-                        .not => .boolean,
+            .unary => |*uo| blk: {
+                // Unary ops can only apply to specific types
+                switch (uo.*.kind) {
+                    .not => {
+                        if (try self.valTy(uo.*.val) != .boolean) {
+                            self.num_errors += 1;
+                            // TODO: Diagnose this. I'm getting annoyed with
+                            // how the diag engine is setup though so I don't
+                            // want to make a whole new method.
+                            break :blk .err;
+                        } else {
+                            break :blk .boolean;
+                        }
                     },
+                }
+            },
             .binary => |*bo| blk: {
                 // All binary ops need both arguments to be of the same type.
                 const lhs_ty = try self.valTy(bo.*.lhs);
