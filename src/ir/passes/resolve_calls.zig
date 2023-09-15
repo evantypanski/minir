@@ -6,7 +6,7 @@ const Decl = @import("../nodes/decl.zig").Decl;
 const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
 const BasicBlockBuilder = @import("../nodes/basic_block.zig").BasicBlockBuilder;
 const Stmt = @import("../nodes/statement.zig").Stmt;
-const Value = @import("../nodes/value.zig").Value;
+const FuncCall = @import("../nodes/value.zig").FuncCall;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
@@ -53,7 +53,7 @@ pub const ResolveCallsPass = struct {
     pub fn visitFuncCall(
         visitor: VisitorTy,
         self: *Self,
-        call: *Value.FuncCall
+        call: *FuncCall
     ) ResolveError!void {
         _ = visitor;
 

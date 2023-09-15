@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Function = @import("../nodes/decl.zig").Function;
 const VarDecl = @import("../nodes/statement.zig").VarDecl;
-const Value = @import("../nodes/value.zig").Value;
+const VarAccess = @import("../nodes/value.zig").VarAccess;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 const Stmt = @import("../nodes/statement.zig").Stmt;
@@ -77,7 +77,7 @@ pub fn visitVarDecl(_: VisitorTy, self: *Self, decl: *VarDecl) NumifyError!void 
 fn visitVarAccess(
     _: VisitorTy,
     self: *Self,
-    va: *Value.VarAccess
+    va: *VarAccess
 ) NumifyError!void {
     if (va.name) |name| {
         const offset = self.map.get(name) orelse return error.NoDecl;

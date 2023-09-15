@@ -6,6 +6,8 @@ const Program = @import("nodes/program.zig").Program;
 const Stmt = @import("nodes/statement.zig").Stmt;
 const VarDecl = @import("nodes/statement.zig").VarDecl;
 const Value = @import("nodes/value.zig").Value;
+const UnaryOp = @import("nodes/value.zig").UnaryOp;
+const BinaryOp = @import("nodes/value.zig").BinaryOp;
 const Type = @import("nodes/type.zig").Type;
 const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 const Decl = @import("nodes/decl.zig").Decl;
@@ -130,7 +132,7 @@ pub const Disassembler = struct {
     }
 
     pub fn disassembleValue(self: Disassembler, value: Value) Writer.Error!void {
-        switch (value) {
+        switch (value.val_kind) {
             .undef => try self.writer.writeAll("undefined"),
             .access => |va| {
                 if (va.name) |name| {
@@ -170,7 +172,7 @@ pub const Disassembler = struct {
         }
     }
 
-    pub fn disassembleUnary(self: Disassembler, unary: Value.UnaryOp)
+    pub fn disassembleUnary(self: Disassembler, unary: UnaryOp)
                 Writer.Error!void {
         const op = switch (unary.kind) {
             .not => "!",
@@ -180,7 +182,7 @@ pub const Disassembler = struct {
         try self.disassembleValue(unary.val.*);
     }
 
-    pub fn disassembleBinary(self: Disassembler, binary: Value.BinaryOp)
+    pub fn disassembleBinary(self: Disassembler, binary: BinaryOp)
                 Writer.Error!void {
         // TODO: Only print parens if necessary?
         try self.writer.writeAll("(");

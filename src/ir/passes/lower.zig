@@ -13,6 +13,10 @@ const Program = @import("../nodes/program.zig").Program;
 const Chunk = @import("../../bytecode/chunk.zig").Chunk;
 const ChunkBuilder = @import("../../bytecode/chunk.zig").ChunkBuilder;
 const Value = @import("../nodes/value.zig").Value;
+const UnaryOp = @import("../nodes/value.zig").UnaryOp;
+const FuncCall = @import("../nodes/value.zig").FuncCall;
+const VarAccess = @import("../nodes/value.zig").VarAccess;
+const BinaryOp = @import("../nodes/value.zig").BinaryOp;
 const ByteValue = @import("../../bytecode/value.zig").Value;
 const OpCode = @import("../../bytecode/opcodes.zig").OpCode;
 
@@ -253,7 +257,7 @@ pub const Lowerer = struct {
     pub fn visitUnaryOp(
         visitor: VisitorTy,
         self: *Self,
-        op: *Value.UnaryOp
+        op: *UnaryOp
     ) LowerError!void {
         try visitor.visitValue(visitor, self, op.*.val);
         const op_opcode = switch (op.*.kind) {
@@ -265,13 +269,13 @@ pub const Lowerer = struct {
     pub fn visitBinaryOp(
         visitor: VisitorTy,
         self: *Self,
-        op: *Value.BinaryOp
+        op: *BinaryOp
     ) LowerError!void {
         // Assign is special
         if (op.*.kind == .assign) {
             // This will need to change when we can set based on pointers etc.
             // Grab the variable offset.
-            const offset = switch (op.*.lhs.*) {
+            const offset = switch (op.*.lhs.*.val_kind) {
                 .access => |access| try self.getOffsetForName(access.name.?),
                 else => return error.InvalidLHS,
             };
@@ -315,7 +319,7 @@ pub const Lowerer = struct {
     pub fn visitVarAccess(
         visitor: VisitorTy,
         self: *Self,
-        access: *Value.VarAccess
+        access: *VarAccess
     ) LowerError!void {
         _ = visitor;
         const offset = try self.getOffsetForName(access.*.name.?);
@@ -325,7 +329,7 @@ pub const Lowerer = struct {
     pub fn visitFuncCall(
         visitor: VisitorTy,
         self: *Self,
-        call: *Value.FuncCall
+        call: *FuncCall
     ) LowerError!void {
         // Return value goes here
         self.builder.addOp(.constant) catch return error.BuilderError;

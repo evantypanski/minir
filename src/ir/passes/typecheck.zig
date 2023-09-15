@@ -8,6 +8,7 @@ const BasicBlockBuilder = @import("../nodes/basic_block.zig").BasicBlockBuilder;
 const Stmt = @import("../nodes/statement.zig").Stmt;
 const VarDecl = @import("../nodes/statement.zig").VarDecl;
 const Value = @import("../nodes/value.zig").Value;
+const VarAccess = @import("../nodes/value.zig").VarAccess;
 const Type = @import("../nodes/type.zig").Type;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
@@ -101,7 +102,7 @@ pub const TypecheckPass = struct {
     }
 
     fn valTy(self: *Self, val: *Value) TypecheckError!Type {
-        return switch (val.*) {
+        return switch (val.*.val_kind) {
             .undef => .none,
             .access => |*va| self.varAccessTy(va),
             .int => .int,
@@ -117,9 +118,12 @@ pub const TypecheckPass = struct {
                 const lhs_ty = try self.valTy(bo.*.lhs);
                 const rhs_ty = try self.valTy(bo.*.rhs);
                 if (lhs_ty != rhs_ty) {
-                    // TODO: Diag
                     self.num_errors += 1;
-                    return error.IncompatibleTypes;
+                    self.diag.diagIncompatibleTypes(
+                        error.IncompatibleTypes, bo.*.lhs.loc, bo.*.rhs.loc
+                    );
+                    // TODO: Get type here. Maybe an error type
+                    break :blk .boolean;
                 }
 
                 break :blk switch (bo.*.kind) {
@@ -131,7 +135,7 @@ pub const TypecheckPass = struct {
         };
     }
 
-    fn varAccessTy(self: *Self, va: *Value.VarAccess) TypecheckError!Type {
+    fn varAccessTy(self: *Self, va: *VarAccess) TypecheckError!Type {
         _ = self;
         _ = va;
         return .none;

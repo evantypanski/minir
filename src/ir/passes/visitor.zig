@@ -9,6 +9,10 @@ const Decl = @import("../nodes/decl.zig").Decl;
 const Function = @import("../nodes/decl.zig").Function;
 const Program = @import("../nodes/program.zig").Program;
 const Value = @import("../nodes/value.zig").Value;
+const VarAccess = @import("../nodes/value.zig").VarAccess;
+const UnaryOp = @import("../nodes/value.zig").UnaryOp;
+const BinaryOp = @import("../nodes/value.zig").BinaryOp;
+const FuncCall = @import("../nodes/value.zig").FuncCall;
 
 pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
     return struct {
@@ -55,13 +59,13 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         // Values
         const VisitValueFn = *const fn(self: Self, arg: ArgTy, val: *Value) RetTy;
         const VisitUndefFn = *const fn(self: Self, arg: ArgTy) RetTy;
-        const VisitVarAccessFn = *const fn(self: Self, arg: ArgTy, va: *Value.VarAccess) RetTy;
+        const VisitVarAccessFn = *const fn(self: Self, arg: ArgTy, va: *VarAccess) RetTy;
         const VisitIntFn = *const fn(self: Self, arg: ArgTy, i: *i32) RetTy;
         const VisitFloatFn = *const fn(self: Self, arg: ArgTy, f: *f32) RetTy;
         const VisitBoolFn = *const fn(self: Self, arg: ArgTy, b: *u1) RetTy;
-        const VisitUnaryOpFn = *const fn(self: Self, arg: ArgTy, uo: *Value.UnaryOp) RetTy;
-        const VisitBinaryOpFn = *const fn(self: Self, arg: ArgTy, bo: *Value.BinaryOp) RetTy;
-        const VisitFuncCallFn = *const fn(self: Self, arg: ArgTy, call: *Value.FuncCall) RetTy;
+        const VisitUnaryOpFn = *const fn(self: Self, arg: ArgTy, uo: *UnaryOp) RetTy;
+        const VisitBinaryOpFn = *const fn(self: Self, arg: ArgTy, bo: *BinaryOp) RetTy;
+        const VisitFuncCallFn = *const fn(self: Self, arg: ArgTy, call: *FuncCall) RetTy;
 
         pub fn walkProgram(self: Self, arg: ArgTy, program: *Program) RetTy {
             for (program.decls) |*function| {
@@ -122,7 +126,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         }
 
         pub fn walkValue(self: Self, arg: ArgTy, val: *Value) RetTy {
-            switch (val.*) {
+            switch (val.*.val_kind) {
                 .undef => try self.visitUndef(self, arg),
                 .access => |*va| try self.visitVarAccess(self, arg, va),
                 .int => |*i| try self.visitInt(self, arg, i),
@@ -134,16 +138,16 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             }
         }
 
-        pub fn walkUnaryOp(self: Self, arg: ArgTy, uo: *Value.UnaryOp) RetTy {
+        pub fn walkUnaryOp(self: Self, arg: ArgTy, uo: *UnaryOp) RetTy {
             try self.visitValue(self, arg, uo.val);
         }
 
-        pub fn walkBinaryOp(self: Self, arg: ArgTy, bo: *Value.BinaryOp) RetTy {
+        pub fn walkBinaryOp(self: Self, arg: ArgTy, bo: *BinaryOp) RetTy {
             try self.visitValue(self, arg, bo.lhs);
             try self.visitValue(self, arg, bo.rhs);
         }
 
-        pub fn walkFuncCall(self: Self, arg: ArgTy, call: *Value.FuncCall) RetTy {
+        pub fn walkFuncCall(self: Self, arg: ArgTy, call: *FuncCall) RetTy {
             for (call.arguments) |*call_arg| {
                 try self.visitValue(self, arg, call_arg);
             }
@@ -222,18 +226,18 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             try self.walkValue(arg, val);
         }
 
-        pub fn defaultVisitVarAccess(_: Self, _: ArgTy, _: *Value.VarAccess) RetTy {
+        pub fn defaultVisitVarAccess(_: Self, _: ArgTy, _: *VarAccess) RetTy {
         }
 
-        pub fn defaultVisitUnaryOp(self: Self, arg: ArgTy, uo: *Value.UnaryOp) RetTy {
+        pub fn defaultVisitUnaryOp(self: Self, arg: ArgTy, uo: *UnaryOp) RetTy {
             try self.walkUnaryOp(arg, uo);
         }
 
-        pub fn defaultVisitBinaryOp(self: Self, arg: ArgTy, bo: *Value.BinaryOp) RetTy {
+        pub fn defaultVisitBinaryOp(self: Self, arg: ArgTy, bo: *BinaryOp) RetTy {
             try self.walkBinaryOp(arg, bo);
         }
 
-        pub fn defaultVisitFuncCall(self: Self, arg: ArgTy, call: *Value.FuncCall) RetTy {
+        pub fn defaultVisitFuncCall(self: Self, arg: ArgTy, call: *FuncCall) RetTy {
             try self.walkFuncCall(arg, call);
         }
     };

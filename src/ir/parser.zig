@@ -5,6 +5,8 @@ const ProgramBuilder = @import("nodes/program.zig").ProgramBuilder;
 const Token = @import("token.zig").Token;
 const Lexer = @import("lexer.zig").Lexer;
 const Value = @import("nodes/value.zig").Value;
+const BinaryOp = @import("nodes/value.zig").BinaryOp;
+const UnaryOp = @import("nodes/value.zig").UnaryOp;
 const Stmt = @import("nodes/statement.zig").Stmt;
 const Branch = @import("nodes/statement.zig").Branch;
 const Decl = @import("nodes/decl.zig").Decl;
@@ -296,6 +298,7 @@ pub const Parser = struct {
     }
 
     fn parsePrecedence(self: *Self, prec: Precedence) ParseError!Value {
+        const start = self.previous.loc.start;
         // Prefixes. Literals, parenthesized expressions, and ids can start an
         // expression statement.
         var lhs = if (self.current.tag == .lparen)
@@ -314,7 +317,7 @@ pub const Parser = struct {
             const this_prec = bindingPower(self.current.tag);
             if (self.current.isBinaryOp() and this_prec.gte(prec)) {
                 const op_kind =
-                    try Value.BinaryOp.Kind.fromTag(self.current.tag);
+                    try BinaryOp.Kind.fromTag(self.current.tag);
                 self.advance();
                 var rhs = try self.parsePrecedence(this_prec.inc());
                 const lhs_ptr = if (self.allocator.create(Value)) |ptr|
@@ -329,7 +332,8 @@ pub const Parser = struct {
 
                 rhs_ptr.* = rhs;
 
-                lhs = Value.initBinary(op_kind, lhs_ptr, rhs_ptr);
+                const loc = Loc.init(start, self.previous.loc.end);
+                lhs = Value.initBinary(op_kind, lhs_ptr, rhs_ptr, loc);
             } else {
                 return lhs;
             }
@@ -340,11 +344,14 @@ pub const Parser = struct {
     fn parseIdentifier(self: *Self) ParseError!Value {
         // Already consumed identifier
         const name = self.lexer.getTokString(self.previous);
-        return Value.initAccessName(name);
+        const start = self.previous.loc.start;
+        const loc = Loc.init(start, self.previous.loc.end);
+        return Value.initAccessName(name, loc);
     }
 
     // Parses a function call, where the identifier is the previous token.
     fn parseCall(self: *Self) ParseError!Value {
+        const start = self.previous.loc.start;
         // Already consumed identifier
         const name = self.lexer.getTokString(self.previous);
         try self.consume(.lparen, error.ExpectedLParen);
@@ -361,12 +368,14 @@ pub const Parser = struct {
         try self.consume(.rparen, error.ExpectedRParen);
         const arg_slice = arguments.toOwnedSlice()
             catch return error.MemoryError;
-        return Value.initCall(name, arg_slice);
+        const loc = Loc.init(start, self.previous.loc.end);
+        return Value.initCall(name, arg_slice, loc);
     }
 
     // Parses a unary op
     fn parseUnary(self: *Self) ParseError!Value {
-        const op_kind = try Value.UnaryOp.Kind.fromTag(self.current.tag);
+        const start = self.previous.loc.start;
+        const op_kind = try UnaryOp.Kind.fromTag(self.current.tag);
         self.advance();
         const val = try self.parsePrecedence(.unary);
         const val_ptr = if (self.allocator.create(Value)) |ptr|
@@ -375,31 +384,37 @@ pub const Parser = struct {
                 return error.MemoryError;
         val_ptr.* = val;
 
-        return Value.initUnary(op_kind, val_ptr);
+        const loc = Loc.init(start, self.previous.loc.end);
+        return Value.initUnary(op_kind, val_ptr, loc);
     }
 
     fn parseLiteral(self: *Self) ParseError!Value {
+        const start = self.previous.loc.start;
         return if (self.current.tag == .true_ or self.current.tag == .false_)
             try self.parseBoolean()
         else if (self.current.tag == .num)
             try self.parseNumber()
         else if (self.match(.undefined_))
-            Value.initUndef()
+            Value.initUndef(Loc.init(start, self.previous.loc.end))
         else
             error.NotALiteral;
     }
 
     fn parseBoolean(self: *Self) ParseError!Value {
+        const start = self.previous.loc.start;
+        const loc = Loc.init(start, self.previous.loc.end);
         return if (self.match(.true_))
-            Value.initBool(true)
+            Value.initBool(true, loc)
         else if (self.match(.false_))
-            Value.initBool(false)
+            Value.initBool(false, loc)
         else
             error.NotABoolean;
     }
 
     fn parseNumber(self: *Self) ParseError!Value {
         try self.consume(.num, error.ExpectedNumber);
+        const start = self.previous.loc.start;
+        const loc = Loc.init(start, self.previous.loc.end);
         const num_str = self.lexer.getTokString(self.previous);
         var is_float = false;
         for (num_str) |char| {
@@ -410,14 +425,14 @@ pub const Parser = struct {
         }
         if (is_float) {
             if (std.fmt.parseFloat(f32, num_str)) |num| {
-                return Value.initFloat(num);
+                return Value.initFloat(num, loc);
             } else |_| {
                 return error.NotANumber;
             }
 
         } else {
             if (std.fmt.parseInt(i32, num_str, 10)) |num| {
-                return Value.initInt(num);
+                return Value.initInt(num, loc);
             } else |_| {
                 return error.NotANumber;
             }

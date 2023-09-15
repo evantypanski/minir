@@ -76,7 +76,7 @@ test "deinit works" {
             Loc.default()
         )
     );
-    var hi_access = Value.initAccessName("hi");
+    var hi_access = Value.initAccessName("hi", Loc.default());
     try bb1_builder.addStatement(
         Stmt.init(
             .{ .debug = hi_access },
@@ -86,7 +86,7 @@ test "deinit works" {
     );
     try bb1_builder.addStatement(
         Stmt.init(
-            .{ .debug = Value.initCall("f", &.{}) },
+            .{ .debug = Value.initCall("f", &.{}, Loc.default()) },
             null,
             Loc.default()
         )
@@ -99,7 +99,7 @@ test "deinit works" {
     bb4_builder.setLabel("bb4");
     try bb4_builder.setTerminator(
         Stmt.init(
-            .{.ret = Value.initInt(5)},
+            .{.ret = Value.initInt(5, Loc.default())},
             null,
             Loc.default()
         )

@@ -9,6 +9,7 @@ const Stmt = @import("../nodes/statement.zig").Stmt;
 const Value = @import("../nodes/value.zig").Value;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
+const Loc = @import("../sourceloc.zig").Loc;
 
 const BlockifyError = error{
     AlreadyBlockified,
@@ -95,7 +96,6 @@ pub const BlockifyPass = struct {
 };
 
 test "Changes all functions into BB functions" {
-    const Loc = @import("../sourceloc.zig").Loc;
     const ProgramBuilder = @import("../nodes/program.zig").ProgramBuilder;
     var func_builder = FunctionBuilder(Stmt).init(std.testing.allocator, "main");
 
@@ -112,7 +112,7 @@ test "Changes all functions into BB functions" {
             Loc.default()
         )
     );
-    var hi_access = Value.initAccessName("hi");
+    var hi_access = Value.initAccessName("hi", Loc.default());
     try func_builder.addElement(
         Stmt.init(
             .{ .debug = hi_access },
@@ -123,7 +123,7 @@ test "Changes all functions into BB functions" {
     // Labeled so new basic block
     try func_builder.addElement(
         Stmt.init(
-            .{ .debug = Value.initCall("f", &.{}) },
+            .{ .debug = Value.initCall("f", &.{}, Loc.default()) },
             "testme",
             Loc.default()
         )
@@ -158,7 +158,6 @@ test "Changes all functions into BB functions" {
 // This may not always be necessary, but right now we only act on programs so
 // it's all or nothing.
 test "Errors when already blockified" {
-    const Loc = @import("../sourceloc.zig").Loc;
     const ProgramBuilder = @import("../nodes/program.zig").ProgramBuilder;
 
     var func_builder = FunctionBuilder(BasicBlock).init(std.testing.allocator, "main");

@@ -6,7 +6,6 @@ const Writer = @import("std").fs.File.Writer;
 const Program = @import("nodes/program.zig").Program;
 const Stmt = @import("nodes/statement.zig").Stmt;
 const VarDecl = @import("nodes/statement.zig").VarDecl;
-const Value = @import("nodes/value.zig").Value;
 const Type = @import("nodes/type.zig").Type;
 const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 const Decl = @import("nodes/decl.zig").Decl;

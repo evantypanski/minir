@@ -6,10 +6,14 @@ const ArrayList = std.ArrayList;
 const Writer = std.fs.File.Writer;
 
 const IrError = @import("errors.zig").IrError;
+const Loc = @import("sourceloc.zig").Loc;
 const Function = @import("nodes/decl.zig").Function;
 const Stmt = @import("nodes/statement.zig").Stmt;
 const Program = @import("nodes/program.zig").Program;
 const Value = @import("nodes/value.zig").Value;
+const UnaryOp = @import("nodes/value.zig").UnaryOp;
+const BinaryOp = @import("nodes/value.zig").BinaryOp;
+const FuncCall = @import("nodes/value.zig").FuncCall;
 const Decl = @import("nodes/decl.zig").Decl;
 const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 
@@ -116,7 +120,7 @@ pub const Interpreter = struct {
                 if (vd.val) |val| {
                     try self.evalValue(val);
                 } else {
-                    try self.pushValue(Value.initUndef());
+                    try self.pushValue(Value.initUndef(Loc.default()));
                 }
             },
             .value => |value| {
@@ -182,7 +186,7 @@ pub const Interpreter = struct {
     // Evaluates a given value as a boolean, or returns an error if it
     // cannot be coerced.
     fn evalBool(self: *Self, value: Value) IrError!Value {
-        switch (value) {
+        switch (value.val_kind) {
             .undef => return error.CannotEvaluateUndefined,
             .access => |va| {
                 if (va.offset) |offset| {
@@ -214,13 +218,13 @@ pub const Interpreter = struct {
         }
     }
 
-    fn evalUnaryOp(self: *Self, op: Value.UnaryOp) IrError!void {
+    fn evalUnaryOp(self: *Self, op: UnaryOp) IrError!void {
         switch (op.kind) {
             .not => {
                 self.evalValue(op.val.*) catch return error.OperandError;
                 var boolVal = try self.evalBool(self.env.getLast());
                 // This will always be boolean but recover nicely anyway
-                switch (boolVal) {
+                switch (boolVal.val_kind) {
                     .bool => |*b| b.* = @intFromBool(b.* != 1),
                     else => return error.InvalidBool,
                 }
@@ -231,11 +235,11 @@ pub const Interpreter = struct {
 
     // Pops two values off the stack, performs the given operator on them,
     // then pushes the result onto the stack.
-    fn evalBinaryOp(self: *Self, op: Value.BinaryOp) IrError!void {
+    fn evalBinaryOp(self: *Self, op: BinaryOp) IrError!void {
         // Special ops that don't just pop both values off and do a thing
         switch (op.kind) {
             .assign => {
-                const index = switch (op.lhs.*) {
+                const index = switch (op.lhs.*.val_kind) {
                     .access => |va| blk: {
                         if (va.offset) |offset| {
                             break :blk offset;
@@ -295,51 +299,55 @@ pub const Interpreter = struct {
         const lhs = self.env.pop();
         self.evalValue(op.rhs.*) catch return error.OperandError;
         const rhs = self.env.pop();
+        const newloc = Loc.combine(op.lhs.*.loc, op.rhs.*.loc);
 
         switch (op.kind) {
             .eq => {
                 try self.pushValue(
-                    Value.initBool(try lhs.asInt() == try rhs.asInt())
+                    Value.initBool(try lhs.asInt() == try rhs.asInt(), newloc)
                 );
             },
             .add => {
                 try self.pushValue(
-                    Value.initInt(try lhs.asInt() + try rhs.asInt())
+                    Value.initInt(try lhs.asInt() + try rhs.asInt(), newloc)
                 );
             },
             .sub => {
                 try self.pushValue(
-                    Value.initInt(try lhs.asInt() - try rhs.asInt())
+                    Value.initInt(try lhs.asInt() - try rhs.asInt(), newloc)
                 );
             },
             .mul => {
                 try self.pushValue(
-                    Value.initInt(try lhs.asInt() * try rhs.asInt())
+                    Value.initInt(try lhs.asInt() * try rhs.asInt(), newloc)
                 );
             },
             .div => {
                 try self.pushValue(
-                    Value.initInt(@divTrunc(try lhs.asInt(), try rhs.asInt()))
+                    Value.initInt(
+                        @divTrunc(try lhs.asInt(), try rhs.asInt()),
+                        newloc,
+                    )
                 );
             },
             .lt => {
                 try self.pushValue(
-                    Value.initBool(try lhs.asInt() < try rhs.asInt())
+                    Value.initBool(try lhs.asInt() < try rhs.asInt(), newloc)
                 );
             },
             .le => {
                 try self.pushValue(
-                    Value.initBool(try lhs.asInt() <= try rhs.asInt())
+                    Value.initBool(try lhs.asInt() <= try rhs.asInt(), newloc)
                 );
             },
             .gt => {
                 try self.pushValue(
-                    Value.initBool(try lhs.asInt() > try rhs.asInt())
+                    Value.initBool(try lhs.asInt() > try rhs.asInt(), newloc)
                 );
             },
             .ge => {
                 try self.pushValue(
-                    Value.initBool(try lhs.asInt() >= try rhs.asInt())
+                    Value.initBool(try lhs.asInt() >= try rhs.asInt(), newloc)
                 );
             },
             else => unreachable,
@@ -347,7 +355,7 @@ pub const Interpreter = struct {
     }
 
     fn evalValue(self: *Self, value: Value) IrError!void {
-        switch (value) {
+        switch (value.val_kind) {
             .undef => return error.CannotEvaluateUndefined,
             .access => |va| {
                 if (va.offset) |offset| {
@@ -368,17 +376,17 @@ pub const Interpreter = struct {
             .call => |call| {
                 const ret = try self.evalCall(call);
                 if (ret) |val| {
-                    try self.pushValue(val);//self.evalValue(val);
+                    try self.pushValue(val);
                 } else {
                     // Void function should get undef pushed. This should be
                     // done better.
-                    try self.pushValue(Value.initUndef());
+                    try self.pushValue(Value.initUndef(Loc.default()));
                 }
             },
         }
     }
 
-    fn evalCall(self: *Self, call: Value.FuncCall) IrError!?Value {
+    fn evalCall(self: *Self, call: FuncCall) IrError!?Value {
         for (call.arguments) |arg| {
             try self.evalValue(arg);
         }
@@ -416,7 +424,7 @@ pub const Interpreter = struct {
     }
 
     fn printValue(self: *Self, value: Value) IrError!void {
-        switch (value) {
+        switch (value.val_kind) {
             .undef => self.writer.writeAll("undefined")
                     catch return error.WriterError,
             .access => |va| {

@@ -16,4 +16,9 @@ pub const Loc = struct {
             .end = 0,
         };
     }
+
+    // TODO: Check if lhs is earlier in file than rhs
+    pub fn combine(lhs_loc: Loc, rhs_loc: Loc) Loc {
+        return Loc.init(lhs_loc.start, rhs_loc.end);
+    }
 };

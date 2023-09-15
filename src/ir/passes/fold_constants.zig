@@ -39,7 +39,7 @@ pub const FoldConstantsPass = struct {
         self: *Self,
         val: *Value
     ) FoldError!void {
-        switch (val.*) {
+        switch (val.*.val_kind) {
             .binary => |*op| {
                 switch (op.*.kind) {
                     .add => {
@@ -57,8 +57,9 @@ pub const FoldConstantsPass = struct {
                         };
                         // Apply since both LHS and RHS are ints
                         const new_int = lhs + rhs;
+                        const loc = val.loc;
                         val.*.deinit(self.allocator);
-                        val.* = Value.initInt(new_int);
+                        val.* = Value.initInt(new_int, loc);
                     },
                     else => try visitor.visitBinaryOp(visitor, self, op),
                 }

@@ -6,12 +6,12 @@ const Writer = @import("std").fs.File.Writer;
 const Program = @import("nodes/program.zig").Program;
 const Stmt = @import("nodes/statement.zig").Stmt;
 const VarDecl = @import("nodes/statement.zig").VarDecl;
-const Value = @import("nodes/value.zig").Value;
 const Type = @import("nodes/type.zig").Type;
 const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 const Decl = @import("nodes/decl.zig").Decl;
 const Function = @import("nodes/decl.zig").Function;
 const ParseError = @import("errors.zig").ParseError;
+const TypecheckError = @import("errors.zig").TypecheckError;
 const Loc = @import("sourceloc.zig").Loc;
 const SourceManager = @import("source_manager.zig").SourceManager;
 
@@ -27,6 +27,10 @@ pub const Diagnostics = struct {
         };
     }
 
+    // All of this diag* methods should eventually be replaced with some
+    // comptime string manip stuff. But I don't feel like doing that yet
+    // so instead for each unique diagnostic format there's a new method.
+    // :)
     pub fn diagParse(self: Self, err: ParseError, loc: Loc) void {
         const start = self.startLineLoc(loc);
         const end = self.endLineLoc(loc);
@@ -37,6 +41,26 @@ pub const Diagnostics = struct {
                 self.source_mgr.getLineNum(loc.start),
                 err,
                 self.source_mgr.snip(start, end)
+            }
+        );
+    }
+
+    pub fn diagIncompatibleTypes(
+        self: Self, err: TypecheckError, loc1: Loc, loc2: Loc
+    ) void {
+        // TODO: Line numbers if it spans multiple? Right now it just does
+        // first which isn't the worst thing ever
+        const start_line = self.startLineLoc(loc1);
+        const end_line = self.endLineLoc(loc2);
+        std.debug.print(
+            "\nincompatible types at {s}:{} {}: {s} and {s} are not the same type\n{s}\n",
+            .{
+                self.source_mgr.filename,
+                self.source_mgr.getLineNum(loc1.start),
+                err,
+                self.source_mgr.snip(loc1.start, loc1.end),
+                self.source_mgr.snip(loc2.start, loc2.end),
+                self.source_mgr.snip(start_line, end_line)
             }
         );
     }
