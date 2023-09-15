@@ -10,7 +10,7 @@ Make sure you have Zig 0.11 in your `PATH`. In this directory, use `zig build`. 
 
 Call the built `minir` without any arguments for help.
 
-## The language:
+## The language
 
 Here's a slightly convoluted program that prints from `42` to `59`:
 
