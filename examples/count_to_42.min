@@ -1,0 +1,18 @@
+func main() -> none {
+  let i: int = 0
+  let end = 42
+@loop
+  print(i)
+  i = add(i, 1)
+  brc loop !(i == end + 1)
+  ret
+}
+
+func add(i: int, to_add: int) -> int {
+  ret i + to_add
+}
+
+func print(k: int) -> none {
+  debug(k)
+  ret
+}
