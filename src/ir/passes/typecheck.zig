@@ -25,6 +25,7 @@ pub const TypecheckPass = struct {
     vars: std.StringHashMap(Type),
     diag: Diagnostics,
     num_errors: usize,
+    current_fn: ?*Decl,
 
     pub fn init(allocator: std.mem.Allocator, diag: Diagnostics) Self {
         return .{
@@ -32,14 +33,17 @@ pub const TypecheckPass = struct {
             .vars = std.StringHashMap(Type).init(allocator),
             .diag = diag,
             .num_errors = 0,
+            .current_fn = null,
         };
     }
 
     pub const TypecheckVisitor = VisitorTy {
+        .visitDecl = visitDecl,
         .visitFunction = visitFunction,
         .visitBBFunction = visitBBFunction,
         .visitVarDecl = visitVarDecl,
         .visitValue = visitValue,
+        .visitStatement = visitStatement,
     };
 
     pub fn execute(self: *Self, program: *Program) TypecheckError!void {
@@ -52,6 +56,15 @@ pub const TypecheckPass = struct {
             self.diag.diagNumErrors(self.num_errors, "typechecking");
             return error.TooManyErrors;
         }
+    }
+
+    pub fn visitDecl(
+        visitor: VisitorTy,
+        self: *Self,
+        decl: *Decl
+    ) TypecheckError!void {
+        self.current_fn = decl;
+        try visitor.walkDecl(self, decl);
     }
 
     pub fn visitFunction(
@@ -94,7 +107,7 @@ pub const TypecheckPass = struct {
         if (decl.*.ty) |ty| {
             self.vars.put(decl.*.name, ty) catch return error.MapError;
         } else if (decl.*.val) |*val| {
-            const ty = try self.valTy(val);
+            const ty = self.valTy(val);
             self.vars.put(decl.*.name, ty) catch return error.MapError;
         } else {
             return error.NakedVarDecl;
@@ -109,7 +122,7 @@ pub const TypecheckPass = struct {
     ) TypecheckError!void {
         // First just grab the type of this value since that may produce
         // diagnostics
-        _ = try self.valTy(val);
+        _ = self.valTy(val);
         // Then do extra work for things we want extra checks on. Diagnostics
         // should only be produced by valTy if it affects the type of the Value,
         // but if it's just an extra check that goes here.
@@ -136,7 +149,7 @@ pub const TypecheckPass = struct {
         try visitor.walkValue(self, val);
     }
 
-    fn valTy(self: *Self, val: *Value) TypecheckError!Type {
+    fn valTy(self: *Self, val: *Value) Type {
         return switch (val.*.val_kind) {
             .undef => .none,
             .access => |*va| self.varAccessTy(va, val.*.loc),
@@ -149,7 +162,7 @@ pub const TypecheckPass = struct {
                 // Unary ops can only apply to specific types
                 switch (uo.*.kind) {
                     .not => {
-                        const ty = try self.valTy(uo.*.val);
+                        const ty = self.valTy(uo.*.val);
                         if (!ty.eq(.boolean)) {
                             self.num_errors += 1;
                             self.diag.err(
@@ -166,8 +179,8 @@ pub const TypecheckPass = struct {
             },
             .binary => |*bo| blk: {
                 // All binary ops need both arguments to be of the same type.
-                const lhs_ty = try self.valTy(bo.*.lhs);
-                const rhs_ty = try self.valTy(bo.*.rhs);
+                const lhs_ty = self.valTy(bo.*.lhs);
+                const rhs_ty = self.valTy(bo.*.rhs);
                 if (!lhs_ty.eq(rhs_ty)) {
                     self.num_errors += 1;
                     const lhs_loc = bo.*.lhs.loc;
@@ -200,11 +213,57 @@ pub const TypecheckPass = struct {
         };
     }
 
-    fn varAccessTy(self: *Self, va: *VarAccess, loc: Loc) TypecheckError!Type {
+    fn varAccessTy(self: *Self, va: *VarAccess, loc: Loc) Type {
         const name = va.*.name.?;
         return self.*.vars.get(name) orelse blk: {
             self.diag.err(error.Unresolved, .{ name }, loc);
             break :blk .err;
         };
+    }
+
+    pub fn visitStatement(
+        visitor: VisitorTy,
+        self: *Self,
+        stmt: *Stmt
+    ) TypecheckError!void {
+        switch (stmt.*.stmt_kind) {
+            .branch => |*br| {
+                if (br.*.expr) |*val| {
+                    const ty = self.valTy(val);
+                    if (!ty.eq(.boolean)) {
+                        self.num_errors += 1;
+                        self.diag.err(
+                            error.InvalidType,
+                            .{@tagName(ty), "brc"},
+                            val.*.loc
+                        );
+                    }
+                }
+            },
+            .ret => |*opt_ret_val| {
+                if (opt_ret_val.*) |*ret_val| {
+                    const ret_val_ty = self.valTy(ret_val);
+                    const fn_ty = self.current_fn.?.*.ty();
+                    if (!ret_val_ty.eq(fn_ty)) {
+                        self.num_errors += 1;
+                        self.diag.err(
+                            error.IncompatibleTypes,
+                            .{
+                                @tagName(ret_val_ty),
+                                self.diag.source_mgr.snip(
+                                    ret_val.*.loc.start,
+                                    ret_val.*.loc.end
+                                ),
+                                @tagName(fn_ty),
+                                self.current_fn.?.*.name(),
+                            },
+                            stmt.*.loc
+                        );
+                    }
+                }
+            },
+            else => {},
+        }
+        try visitor.walkStatement(self, stmt);
     }
 };

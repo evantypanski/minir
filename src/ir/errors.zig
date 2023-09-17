@@ -68,7 +68,7 @@ pub const ParseError = TokenParseError || NodeError || LexError;
 /// code snippet.
 pub fn getErrStr(comptime err: anyerror) ?[]const u8 {
     return switch (err) {
-        error.InvalidType => "{s} is an invalid type for operator '{s}'",
+        error.InvalidType => "{s} is an invalid type for '{s}'",
         error.IncompatibleTypes => "type {s} of '{s}' is incompatible with type {s} of '{s}'",
         error.Expected => "expected '{s}' token",
         error.NotABranch => "'{s}' is not a branch keyword",
