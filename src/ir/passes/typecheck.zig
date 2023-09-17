@@ -15,6 +15,7 @@ const Program = @import("../nodes/program.zig").Program;
 const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
 const TypecheckError = @import("../errors.zig").TypecheckError;
 const ResolveCallsPass = @import("resolve_calls.zig").ResolveCallsPass;
+const Loc = @import("../sourceloc.zig").Loc;
 
 pub const TypecheckPass = struct {
     const Self = @This();
@@ -38,6 +39,7 @@ pub const TypecheckPass = struct {
         .visitFunction = visitFunction,
         .visitBBFunction = visitBBFunction,
         .visitVarDecl = visitVarDecl,
+        .visitValue = visitValue,
     };
 
     pub fn execute(self: *Self, program: *Program) TypecheckError!void {
@@ -84,13 +86,11 @@ pub const TypecheckPass = struct {
         }
     }
 
-
     pub fn visitVarDecl(
         visitor: VisitorTy,
         self: *Self,
         decl: *VarDecl
     ) TypecheckError!void {
-        _ = visitor;
         if (decl.*.ty) |ty| {
             self.vars.put(decl.*.name, ty) catch return error.MapError;
         } else if (decl.*.val) |*val| {
@@ -99,12 +99,47 @@ pub const TypecheckPass = struct {
         } else {
             return error.NakedVarDecl;
         }
+        try visitor.walkVarDecl(self, decl);
+    }
+
+    pub fn visitValue(
+        visitor: VisitorTy,
+        self: *Self,
+        val: *Value
+    ) TypecheckError!void {
+        // First just grab the type of this value since that may produce
+        // diagnostics
+        _ = try self.valTy(val);
+        // Then do extra work for things we want extra checks on. Diagnostics
+        // should only be produced by valTy if it affects the type of the Value,
+        // but if it's just an extra check that goes here.
+        switch (val.*.val_kind) {
+            .call => |*call| {
+                // Unfortunately, arity is important to check the arguments,
+                // so an arity check has to go here. Alternative is to make this
+                // pass depend on another that checks arity, but I haven't made
+                // good dependencies between passes yet. We do actually run the
+                // resolving pass first though, so we can assume resolved is set.
+                const args_len = call.*.arguments.len;
+                const decl_params_len = call.*.resolved.?.params().len;
+                if (args_len != decl_params_len) {
+                    self.num_errors += 1;
+                    self.diag.err(
+                        error.BadArity,
+                        .{ call.*.function, decl_params_len, args_len },
+                        val.*.loc
+                    );
+                }
+            },
+            else => {},
+        }
+        try visitor.walkValue(self, val);
     }
 
     fn valTy(self: *Self, val: *Value) TypecheckError!Type {
         return switch (val.*.val_kind) {
             .undef => .none,
-            .access => |*va| self.varAccessTy(va),
+            .access => |*va| self.varAccessTy(va, val.*.loc),
             .int => .int,
             .float => .float,
             .bool => .boolean,
@@ -115,7 +150,7 @@ pub const TypecheckPass = struct {
                 switch (uo.*.kind) {
                     .not => {
                         const ty = try self.valTy(uo.*.val);
-                        if (ty != .boolean) {
+                        if (!ty.eq(.boolean)) {
                             self.num_errors += 1;
                             self.diag.err(
                                 error.InvalidType,
@@ -159,13 +194,17 @@ pub const TypecheckPass = struct {
                     .eq, .and_, .or_, .lt, .le, .gt, .ge => .boolean,
                 };
             },
-            .call => error.Unimplemented,
+            // Don't check whether params are right here since it won't change
+            // the type of this particular expression.
+            .call => |call| call.resolved.?.ty(),
         };
     }
 
-    fn varAccessTy(self: *Self, va: *VarAccess) TypecheckError!Type {
-        _ = self;
-        _ = va;
-        return .none;
+    fn varAccessTy(self: *Self, va: *VarAccess, loc: Loc) TypecheckError!Type {
+        const name = va.*.name.?;
+        return self.*.vars.get(name) orelse blk: {
+            self.diag.err(error.Unresolved, .{ name }, loc);
+            break :blk .err;
+        };
     }
 };

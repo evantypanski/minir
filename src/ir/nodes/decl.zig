@@ -102,6 +102,13 @@ pub const Decl = union(DeclKind) {
         };
     }
 
+    pub fn params(self: Decl) []VarDecl {
+        return switch (self) {
+            .function => |function| function.params,
+            .bb_function => |bb_function| bb_function.params,
+        };
+    }
+
     pub fn deinit(self: *Decl, allocator: std.mem.Allocator) void {
         switch (self.*) {
             .function => |*func| func.deinit(allocator),

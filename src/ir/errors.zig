@@ -57,6 +57,8 @@ pub const TypecheckError = error{
     IncompatibleTypes,
     CannotResolve,
     InvalidType,
+    BadArity,
+    Unresolved,
 };
 
 pub const ParseError = TokenParseError || NodeError || LexError;
@@ -71,6 +73,8 @@ pub fn getErrStr(comptime err: anyerror) ?[]const u8 {
         error.Expected => "expected '{s}' token",
         error.NotABranch => "'{s}' is not a branch keyword",
         error.NotANumber => "'{s}' is not a valid number",
+        error.BadArity => "call to '{s}' expected {} argument(s); found {}",
+        error.Unresolved => "unresolved variable access to '{s}'",
         else => null,
     };
 }
