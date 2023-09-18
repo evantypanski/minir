@@ -53,9 +53,9 @@ pub fn drive(self: Self) !void {
     var parser = Parser.init(self.allocator, lexer, diag_engine);
     var program = try parser.parse();
 
-    var pass_manager = PassManager.init(self.allocator, &program);
+    var pass_manager = PassManager.init(self.allocator, &program, diag_engine);
     try pass_manager.run(Numify);
-    try pass_manager.runDiag(diag_engine, TypecheckPass);
+    try pass_manager.run(TypecheckPass);
 
     switch (cli_result) {
         .interpret => |config| {
