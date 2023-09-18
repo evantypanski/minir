@@ -47,7 +47,7 @@ pub const LexError = error {
     Unexpected,
 };
 
-pub const TypecheckError = error{
+const TypecheckErrorInner = error{
     MapError,
     ParamWithoutType,
     TooManyErrors,
@@ -60,6 +60,14 @@ pub const TypecheckError = error{
     BadArity,
     Unresolved,
 };
+
+pub const ResolveError = error{
+    MemoryError,
+    NameConflict,
+    NoSuchFunction,
+};
+
+pub const TypecheckError = TypecheckErrorInner || ResolveError;
 
 pub const ParseError = TokenParseError || NodeError || LexError;
 

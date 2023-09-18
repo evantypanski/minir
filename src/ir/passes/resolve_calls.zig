@@ -10,12 +10,7 @@ const FuncCall = @import("../nodes/value.zig").FuncCall;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
-
-const ResolveError = error{
-    MemoryError,
-    NameConflict,
-    NoSuchFunction,
-};
+const ResolveError = @import("../errors.zig").ResolveError;
 
 pub const ResolveCallsPass = struct {
     const Self = @This();

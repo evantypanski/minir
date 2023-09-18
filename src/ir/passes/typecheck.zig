@@ -20,6 +20,7 @@ const Loc = @import("../sourceloc.zig").Loc;
 pub const TypecheckPass = struct {
     const Self = @This();
     const VisitorTy = IrVisitor(*Self, TypecheckError!void);
+    pub const dependencies = [_]type{ResolveCallsPass};
 
     allocator: std.mem.Allocator,
     vars: std.StringHashMap(Type),
@@ -47,10 +48,6 @@ pub const TypecheckPass = struct {
     };
 
     pub fn execute(self: *Self, program: *Program) TypecheckError!void {
-        // TODO: The resolved calls should be cached somewhere. And this should probably be
-        // in the pass manager I guess?
-        var resolve_pass = ResolveCallsPass.init(self.allocator, self.diag);
-        resolve_pass.execute(program) catch return error.CannotResolve;
         try TypecheckVisitor.visitProgram(TypecheckVisitor, self, program);
         if (self.num_errors > 0) {
             self.diag.diagNumErrors(self.num_errors, "typechecking");

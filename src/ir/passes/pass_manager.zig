@@ -37,6 +37,7 @@ pub const PassManager = struct {
         self: Self,
         comptime PassType: type
     ) passRetTy(PassType) {
+        try self.resolvePassDependencies(PassType);
         var pass = if (comptime shouldPassDiagToPass(PassType))
             PassType.init(self.allocator, self.diag)
         else
@@ -54,5 +55,19 @@ pub const PassManager = struct {
         // function takes 2 arguments. In the future it may be worth making
         // this a little nicer.
         return @typeInfo(@TypeOf(PassType.init)).Fn.params.len == 2;
+    }
+
+    /// A pass can have a public `dependencies` array that lists the passes
+    /// that should run before this one. These cannot return a type other than
+    /// the error type, they must provide their result through side effects
+    /// in the AST. Since this may still error, whatever pass depends on
+    /// each pass must contain all errors from the dependent pass or this will
+    /// throw a compile error.
+    fn resolvePassDependencies(self: Self, comptime PassType: type) !void {
+        if (@hasDecl(PassType, "dependencies")) {
+            inline for (PassType.dependencies) |dep| {
+                try self.run(dep);
+            }
+        }
     }
 };
