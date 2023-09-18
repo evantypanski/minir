@@ -50,8 +50,6 @@ pub const ResolveCallsPass = struct {
         self: *Self,
         call: *FuncCall
     ) ResolveError!void {
-        _ = visitor;
-
         // Don't re-resolve if it's already been resolved.
         if (call.resolved != null) {
             return;
@@ -63,5 +61,7 @@ pub const ResolveCallsPass = struct {
         }
 
         call.resolved = decl;
+
+        try visitor.walkFuncCall(self, call);
     }
 };
