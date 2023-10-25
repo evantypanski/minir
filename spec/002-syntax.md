@@ -39,3 +39,19 @@ Float ::= Digit+ "." Digit+
 Binary ::= Expr BinaryOp Expr
 BinaryOp ::= "=" | "==" | "+" | "-" | "*" | "/" | "&&" | "||" | "<" | "<=" | ">" | ">="
 ```
+
+## Precedence
+
+The expressions above are not grouped by precedence for simplicity. The precedence is ranked with highest precedence (least binding) first as follows:
+
+1) Assignment (`=`)
+2) Or (`||`)
+3) And (`&&`)
+4) Equality (`==`)
+5) Comparisons (`<` etc.)
+6) Term (`+` and `-`)
+7) Factor (`*` and `/`)
+8) Unary (`!`)
+9) Function calls (`ID()`)
+10) Groupings (`( Expr )`)
+11) Primary expressions or literals (`true` or `123`)
