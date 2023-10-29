@@ -55,3 +55,7 @@ The expressions above are not grouped by precedence for simplicity. The preceden
 9) Function calls (`ID()`)
 10) Groupings (`( Expr )`)
 11) Primary expressions or literals (`true` or `123`)
+
+## Reserved words
+
+All keywords are reserved words. You cannot use the reserved words as identifiers (`let func = 0` should error).
