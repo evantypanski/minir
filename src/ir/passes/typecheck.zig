@@ -172,6 +172,10 @@ pub const TypecheckPass = struct {
                             break :blk .boolean;
                         }
                     },
+                    .deref => {
+                        // TODO
+                        break :blk .err;
+                    }
                 }
             },
             .binary => |*bo| blk: {
@@ -207,6 +211,7 @@ pub const TypecheckPass = struct {
             // Don't check whether params are right here since it won't change
             // the type of this particular expression.
             .call => |call| call.resolved.?.ty(),
+            .type_ => .type_,
         };
     }
 

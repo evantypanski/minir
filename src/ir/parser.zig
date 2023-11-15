@@ -174,6 +174,9 @@ pub const Parser = struct {
             else
                 null;
         if (self.match(.debug)) {
+            // Debug looks like a call, but really it's just a statement
+            // that we print the result of. That may change one day, since
+            // alloc is implemented as a function call.
             return self.parseDebug(label);
         } else if (self.match(.let)) {
             return self.parseLet(label);
@@ -307,9 +310,10 @@ pub const Parser = struct {
         const start = self.previous.loc.start;
         // Prefixes. Literals, parenthesized expressions, and ids can start an
         // expression statement.
+        // TODO add precedence here
         var lhs = if (self.current.tag == .lparen)
             try self.parseGrouping()
-        else if (self.match(.identifier))
+        else if (self.match(.identifier) or self.match(.alloc))
             if (self.current.tag == .lparen)
                 try self.parseCall()
             else
@@ -348,6 +352,20 @@ pub const Parser = struct {
 
     // Parses an identifier as a value
     fn parseIdentifier(self: *Self) ParseError!Value {
+        // We may get here with a keyword, so make sure the token is an
+        // identifier since they are not valid identifiers.
+        if (self.previous.tag != .identifier) {
+            self.diag.err(
+                error.KeywordInvalidIdentifier,
+                .{
+                    self.diag.source_mgr.snip(
+                        self.previous.loc.start, self.previous.loc.end
+                    )
+                },
+                self.previous.loc
+            );
+            return error.KeywordInvalidIdentifier;
+        }
         // Already consumed identifier
         const name = self.lexer.getTokString(self.previous);
         const start = self.previous.loc.start;
@@ -358,6 +376,7 @@ pub const Parser = struct {
     // Parses a function call, where the identifier is the previous token.
     fn parseCall(self: *Self) ParseError!Value {
         const start = self.previous.loc.start;
+        const builtin = self.previous.tag != .identifier;
         // Already consumed identifier
         const name = self.lexer.getTokString(self.previous);
         try self.consume(.lparen);
@@ -375,7 +394,7 @@ pub const Parser = struct {
         const arg_slice = arguments.toOwnedSlice()
             catch return error.MemoryError;
         const loc = Loc.init(start, self.previous.loc.end);
-        return Value.initCall(name, arg_slice, loc);
+        return Value.initCall(name, builtin, arg_slice, loc);
     }
 
     // Parses a unary op
@@ -402,6 +421,8 @@ pub const Parser = struct {
             try self.parseNumber()
         else if (self.match(.undefined_))
             Value.initUndef(Loc.init(start, self.previous.loc.end))
+        else if (self.parseType() catch null) |ty|
+            Value.initType(ty, Loc.init(start, self.previous.loc.end))
         else
             error.NotALiteral;
     }

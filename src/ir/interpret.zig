@@ -15,6 +15,7 @@ const UnaryOp = @import("nodes/value.zig").UnaryOp;
 const BinaryOp = @import("nodes/value.zig").BinaryOp;
 const FuncCall = @import("nodes/value.zig").FuncCall;
 const Decl = @import("nodes/decl.zig").Decl;
+const Type = @import("nodes/type.zig").Type;
 const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 
 const Frame = struct {
@@ -195,7 +196,7 @@ pub const Interpreter = struct {
                     return error.ExpectedNumifiedAccess;
                 }
             },
-            .int, .float => return error.TypeError,
+            .int, .float, .type_ => return error.TypeError,
             .bool => return value,
             .call => |call| {
                 const ret = try self.evalCall(call);
@@ -218,6 +219,31 @@ pub const Interpreter = struct {
         }
     }
 
+    // Evaluates a given value as a type value, or returns an error if it
+    // cannot be coerced.
+    fn evalType(self: *Self, value: Value) IrError!Value {
+        switch (value.val_kind) {
+            .undef => return error.CannotEvaluateUndefined,
+            .access => |va| {
+                if (va.offset) |offset| {
+                    return self.evalType(try self.getAccessValOffset(offset));
+                } else {
+                    return error.ExpectedNumifiedAccess;
+                }
+            },
+            .int, .float, .bool, .unary, .binary => return error.TypeError,
+            .call => |call| {
+                const ret = try self.evalCall(call);
+                if (ret) |val| {
+                    return self.evalType(val);
+                } else {
+                    return error.ExpectedReturn;
+                }
+            },
+            .type_ => return value,
+        }
+    }
+
     fn evalUnaryOp(self: *Self, op: UnaryOp) IrError!void {
         switch (op.kind) {
             .not => {
@@ -229,6 +255,10 @@ pub const Interpreter = struct {
                     else => return error.InvalidBool,
                 }
                 try self.pushValue(boolVal);
+            },
+            .deref => {
+                // TODO
+                self.evalValue(op.val.*) catch return error.OperandError;
             }
         }
     }
@@ -364,9 +394,7 @@ pub const Interpreter = struct {
                     return error.ExpectedNumifiedAccess;
                 }
             },
-            .int => try self.pushValue(value),
-            .float => try self.pushValue(value),
-            .bool => try self.pushValue(value),
+            .int, .float, .bool, .type_ => try self.pushValue(value),
             .unary => |op| {
                 try self.evalUnaryOp(op);
             },
@@ -387,6 +415,10 @@ pub const Interpreter = struct {
     }
 
     fn evalCall(self: *Self, call: FuncCall) IrError!?Value {
+        if (call.builtin) {
+            return self.evalBuiltinCall(call);
+        }
+
         for (call.arguments) |arg| {
             try self.evalValue(arg);
         }
@@ -406,6 +438,38 @@ pub const Interpreter = struct {
         }
 
         return null;
+    }
+
+    fn evalBuiltinCall(self: *Self, call: FuncCall) IrError!?Value {
+        std.debug.assert(call.builtin);
+        // TODO: Move builtin analysis and resolving to resolve pass
+        //
+        // This "resolves" the builtin. It may be worth resolving it
+        // earlier even if it's a builtin. Probably also worth doing
+        // this more efficiently. Then there may be a difference between
+        // builtin in a stdlib or builtin to the language. Who knows!
+        if (std.mem.eql(u8, "alloc", call.function)) {
+            // Runtime analysis here I guess.
+            if (call.arguments.len != 1) {
+                return error.NoSuchFunction;
+            }
+
+            const val_ty = try self.evalType(call.arguments[0]);
+            const allocated = try self.allocateType(val_ty.val_kind.type_);
+
+            return allocated;
+        } else {
+            return error.NoSuchFunction;
+        }
+    }
+
+    // Allocates a type on the stack and returns a Value with a pointer
+    // to that spot
+    fn allocateType(self: *Self, ty: Type) IrError!Value {
+        // TODO
+        _ = ty;
+        _ = self;
+        return Value.initUndef(Loc.default());
     }
 
     fn pushFrame(self: *Self) IrError!void {

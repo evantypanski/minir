@@ -104,6 +104,7 @@ pub const Lexer = struct {
     fn identifierTag(self: Self) Token.Tag {
         const token_len = self.current - self.start;
         switch (self.source_mgr.get(self.start)) {
+            'a' => return self.checkKeyword(self.start + 1, 4, "lloc", .alloc),
             'f' => if (token_len >= 2) {
                     switch (self.source_mgr.get(self.start + 1)) {
                         'u' => return self.checkKeyword(self.start + 2, 2, "nc", .func),

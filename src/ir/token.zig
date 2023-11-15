@@ -33,6 +33,7 @@ pub const Token = struct {
 
         // Keywords
         func,
+        alloc,
         debug,
         let,
         true_,
@@ -74,7 +75,7 @@ pub const Token = struct {
 
     pub fn isUnaryOp(self: Self) bool {
         return switch(self.tag) {
-            .bang => true,
+            .bang, .star => true,
             else => false,
         };
     }

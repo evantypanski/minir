@@ -169,6 +169,7 @@ pub const Disassembler = struct {
 
                 try self.writer.writeAll(")");
             },
+            .type_ => |ty| try self.disassembleType(ty),
         }
     }
 
@@ -176,6 +177,7 @@ pub const Disassembler = struct {
                 Writer.Error!void {
         const op = switch (unary.kind) {
             .not => "!",
+            .deref => "*",
         };
 
         try self.writer.writeAll(op);
@@ -211,10 +213,18 @@ pub const Disassembler = struct {
             .int => "int",
             .float => "float",
             .boolean => "boolean",
+            .type_ => "type",
+            .pointer => "*",
             .none => "none",
             .err => "err",
         };
         try self.writer.writeAll(name);
+
+        // Now print complex types
+        switch (ty) {
+            .pointer => |to| try self.disassembleType(to.*),
+            else => {},
+        }
     }
 
     fn printParams(self: Disassembler, params: []const VarDecl) !void {

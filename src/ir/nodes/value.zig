@@ -4,6 +4,7 @@ const NodeError = @import("../errors.zig").NodeError;
 const Token = @import("../token.zig").Token;
 const Loc = @import("../sourceloc.zig").Loc;
 const Decl = @import("decl.zig").Decl;
+const Type = @import("type.zig").Type;
 
 const ValueTag = enum {
     undef,
@@ -14,6 +15,7 @@ const ValueTag = enum {
     unary,
     binary,
     call,
+    type_,
 };
 
 pub const VarAccess = struct {
@@ -24,10 +26,12 @@ pub const VarAccess = struct {
 pub const UnaryOp = struct {
     pub const Kind = enum {
         not,
+        deref,
 
         pub fn fromTag(tag: Token.Tag) !Kind {
             return switch (tag) {
                 .bang => .not,
+                .star => .deref,
                 else => error.NotAnOperator,
             };
         }
@@ -96,6 +100,7 @@ pub const BinaryOp = struct {
 pub const FuncCall = struct {
     function: []const u8,
     resolved: ?*Decl,
+    builtin: bool,
     arguments: []Value,
 
     pub fn deinit(self: *FuncCall, allocator: std.mem.Allocator) void {
@@ -116,6 +121,7 @@ pub const ValueKind = union(ValueTag) {
     unary: UnaryOp,
     binary: BinaryOp,
     call: FuncCall,
+    type_: Type,
 
     pub fn deinit(self: *ValueKind, allocator: std.mem.Allocator) void {
         switch (self.*) {
@@ -190,15 +196,25 @@ pub const Value = struct {
         };
     }
 
-    pub fn initCall(function: []const u8, arguments: []Value, loc: Loc) Value {
+    pub fn initCall(
+        function: []const u8, builtin: bool, arguments: []Value, loc: Loc
+    ) Value {
         return .{
             .val_kind = .{
                 .call = .{
                     .function = function,
                     .resolved = null,
+                    .builtin = builtin,
                     .arguments = arguments
                 }
             },
+            .loc = loc,
+        };
+    }
+
+    pub fn initType(ty: Type, loc: Loc) Value {
+        return .{
+            .val_kind = .{ .type_ = ty },
             .loc = loc,
         };
     }

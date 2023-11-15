@@ -13,6 +13,7 @@ const VarAccess = @import("../nodes/value.zig").VarAccess;
 const UnaryOp = @import("../nodes/value.zig").UnaryOp;
 const BinaryOp = @import("../nodes/value.zig").BinaryOp;
 const FuncCall = @import("../nodes/value.zig").FuncCall;
+const Type = @import("../nodes/type.zig").Type;
 
 pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
     return struct {
@@ -38,6 +39,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         visitUnaryOp: VisitUnaryOpFn = defaultVisitUnaryOp,
         visitBinaryOp: VisitBinaryOpFn = defaultVisitBinaryOp,
         visitFuncCall: VisitFuncCallFn = defaultVisitFuncCall,
+        visitTypeVal: VisitTypeValFn = defaultVisitTypeVal,
 
         const Self = @This();
 
@@ -66,6 +68,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const VisitUnaryOpFn = *const fn(self: Self, arg: ArgTy, uo: *UnaryOp) RetTy;
         const VisitBinaryOpFn = *const fn(self: Self, arg: ArgTy, bo: *BinaryOp) RetTy;
         const VisitFuncCallFn = *const fn(self: Self, arg: ArgTy, call: *FuncCall) RetTy;
+        const VisitTypeValFn = *const fn(self: Self, arg: ArgTy, ty: *Type) RetTy;
 
         pub fn walkProgram(self: Self, arg: ArgTy, program: *Program) RetTy {
             for (program.decls) |*function| {
@@ -135,6 +138,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
                 .unary => |*uo| try self.visitUnaryOp(self, arg, uo),
                 .binary => |*bo| try self.visitBinaryOp(self, arg, bo),
                 .call => |*call| try self.visitFuncCall(self, arg, call),
+                .type_ => |*ty| try self.visitTypeVal(self, arg, ty),
             }
         }
 
@@ -239,6 +243,9 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
 
         pub fn defaultVisitFuncCall(self: Self, arg: ArgTy, call: *FuncCall) RetTy {
             try self.walkFuncCall(arg, call);
+        }
+
+        pub fn defaultVisitTypeVal(_: Self, _: ArgTy, _: *Type) RetTy {
         }
     };
 }

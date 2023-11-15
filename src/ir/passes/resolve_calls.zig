@@ -50,6 +50,10 @@ pub const ResolveCallsPass = struct {
         self: *Self,
         call: *FuncCall
     ) ResolveError!void {
+        if (call.builtin) {
+            return;
+        }
+
         // Don't re-resolve if it's already been resolved.
         if (call.resolved != null) {
             return;

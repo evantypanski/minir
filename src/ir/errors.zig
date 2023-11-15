@@ -41,6 +41,7 @@ pub const TokenParseError = error {
     NotANumber,
     NotALiteral,
     NotABoolean,
+    KeywordInvalidIdentifier,
 };
 
 pub const LexError = error {
@@ -83,6 +84,7 @@ pub fn getErrStr(comptime err: anyerror) ?[]const u8 {
         error.NotANumber => "'{s}' is not a valid number",
         error.BadArity => "call to '{s}' expected {} argument(s); found {}",
         error.Unresolved => "unresolved variable access to '{s}'",
+        error.KeywordInvalidIdentifier => "'{s}' is a keyword and cannot be used as an identifier",
         else => null,
     };
 }

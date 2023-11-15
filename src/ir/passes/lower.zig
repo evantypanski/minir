@@ -262,6 +262,8 @@ pub const Lowerer = struct {
         try visitor.visitValue(visitor, self, op.*.val);
         const op_opcode = switch (op.*.kind) {
             .not => OpCode.not,
+            // TODO
+            .deref => OpCode.not,
         };
         self.builder.addOp(op_opcode) catch return error.BuilderError;
     }
