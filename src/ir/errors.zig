@@ -68,6 +68,10 @@ pub const ResolveError = error{
     NoSuchFunction,
 };
 
+pub const HeapError = error{
+    Bad,
+};
+
 pub const TypecheckError = TypecheckErrorInner || ResolveError;
 
 pub const ParseError = TokenParseError || NodeError || LexError;

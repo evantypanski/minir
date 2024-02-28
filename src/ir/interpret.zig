@@ -17,6 +17,7 @@ const FuncCall = @import("nodes/value.zig").FuncCall;
 const Decl = @import("nodes/decl.zig").Decl;
 const Type = @import("nodes/type.zig").Type;
 const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
+const Heap = @import("memory.zig").Heap;
 
 const Frame = struct {
     frame_env_begin: usize,
@@ -35,6 +36,10 @@ pub const Interpreter = struct {
     call_stack: ArrayList(Frame),
 
     pub fn init(allocator: Allocator, writer: Writer, program: Program) !Self {
+        var heap = try Heap.init();
+        const ptr = try heap.alloc(10);
+        heap.free(ptr);
+
         return .{
             .writer = writer,
             .program = program,
