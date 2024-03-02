@@ -31,7 +31,7 @@ pub const NodeError = error{
     NotABranch,
 };
 
-pub const IrError = InterpError || NodeError;
+pub const IrError = InterpError || NodeError || HeapError;
 
 pub const TokenParseError = error {
     Unexpected,

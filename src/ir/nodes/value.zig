@@ -16,6 +16,7 @@ const ValueTag = enum {
     binary,
     call,
     type_,
+    ptr,
 };
 
 pub const VarAccess = struct {
@@ -122,6 +123,7 @@ pub const ValueKind = union(ValueTag) {
     binary: BinaryOp,
     call: FuncCall,
     type_: Type,
+    ptr: usize,
 
     pub fn deinit(self: *ValueKind, allocator: std.mem.Allocator) void {
         switch (self.*) {
@@ -215,6 +217,13 @@ pub const Value = struct {
     pub fn initType(ty: Type, loc: Loc) Value {
         return .{
             .val_kind = .{ .type_ = ty },
+            .loc = loc,
+        };
+    }
+
+    pub fn initPtr(to: usize, loc: Loc) Value {
+        return .{
+            .val_kind = .{ .ptr = to },
             .loc = loc,
         };
     }

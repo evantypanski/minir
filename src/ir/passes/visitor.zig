@@ -40,6 +40,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         visitBinaryOp: VisitBinaryOpFn = defaultVisitBinaryOp,
         visitFuncCall: VisitFuncCallFn = defaultVisitFuncCall,
         visitTypeVal: VisitTypeValFn = defaultVisitTypeVal,
+        visitPtr: VisitPtrFn = defaultVisitPtr,
 
         const Self = @This();
 
@@ -69,6 +70,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const VisitBinaryOpFn = *const fn(self: Self, arg: ArgTy, bo: *BinaryOp) RetTy;
         const VisitFuncCallFn = *const fn(self: Self, arg: ArgTy, call: *FuncCall) RetTy;
         const VisitTypeValFn = *const fn(self: Self, arg: ArgTy, ty: *Type) RetTy;
+        const VisitPtrFn = *const fn(self: Self, arg: ArgTy, to: *usize) RetTy;
 
         pub fn walkProgram(self: Self, arg: ArgTy, program: *Program) RetTy {
             for (program.decls) |*function| {
@@ -139,6 +141,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
                 .binary => |*bo| try self.visitBinaryOp(self, arg, bo),
                 .call => |*call| try self.visitFuncCall(self, arg, call),
                 .type_ => |*ty| try self.visitTypeVal(self, arg, ty),
+                .ptr => |*to| try self.visitPtr(self, arg, to),
             }
         }
 
@@ -246,6 +249,9 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         }
 
         pub fn defaultVisitTypeVal(_: Self, _: ArgTy, _: *Type) RetTy {
+        }
+
+        pub fn defaultVisitPtr(_: Self, _: ArgTy, _: *usize) RetTy {
         }
     };
 }

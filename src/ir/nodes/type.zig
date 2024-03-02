@@ -1,3 +1,4 @@
+const Value = @import("value.zig").Value;
 pub const TypeTag = enum {
     int,
     float,
@@ -18,6 +19,15 @@ pub const Type = union(TypeTag) {
     pointer: *Type,
     none: void,
     err: void,
+
+    /// Gets the size of this type in bytes
+    pub fn size(self: Type) usize {
+        return switch (self) {
+            .err, .none => 0,
+            // All types are allocated as a single value so... yeah
+            else => @sizeOf(Value),
+        };
+    }
 
     /// A wrapper around type equality so that error types are equal to
     /// all other types. This helps avoid double diagnosing an error.

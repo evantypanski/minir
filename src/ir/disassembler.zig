@@ -170,6 +170,7 @@ pub const Disassembler = struct {
                 try self.writer.writeAll(")");
             },
             .type_ => |ty| try self.disassembleType(ty),
+            .ptr => |to| try self.disassemblePtr(to),
         }
     }
 
@@ -225,6 +226,10 @@ pub const Disassembler = struct {
             .pointer => |to| try self.disassembleType(to.*),
             else => {},
         }
+    }
+
+    pub fn disassemblePtr(self: Disassembler, to: usize) Writer.Error!void {
+        try self.writer.print("@{d}", .{to});
     }
 
     fn printParams(self: Disassembler, params: []const VarDecl) !void {

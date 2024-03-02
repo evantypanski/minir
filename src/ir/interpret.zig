@@ -34,18 +34,16 @@ pub const Interpreter = struct {
     current_ele: ?usize,
     env: ArrayList(Value),
     call_stack: ArrayList(Frame),
+    heap: Heap,
 
     pub fn init(allocator: Allocator, writer: Writer, program: Program) !Self {
-        var heap = try Heap.init();
-        const ptr = try heap.alloc(10);
-        heap.free(ptr);
-
         return .{
             .writer = writer,
             .program = program,
             .current_ele = null,
             .env = try ArrayList(Value).initCapacity(allocator, 50),
             .call_stack = ArrayList(Frame).init(allocator),
+            .heap = try Heap.init(),
         };
     }
 
@@ -201,7 +199,7 @@ pub const Interpreter = struct {
                     return error.ExpectedNumifiedAccess;
                 }
             },
-            .int, .float, .type_ => return error.TypeError,
+            .int, .float, .type_, .ptr => return error.TypeError,
             .bool => return value,
             .call => |call| {
                 const ret = try self.evalCall(call);
@@ -236,7 +234,7 @@ pub const Interpreter = struct {
                     return error.ExpectedNumifiedAccess;
                 }
             },
-            .int, .float, .bool, .unary, .binary => return error.TypeError,
+            .int, .float, .bool, .unary, .binary, .ptr => return error.TypeError,
             .call => |call| {
                 const ret = try self.evalCall(call);
                 if (ret) |val| {
@@ -399,7 +397,7 @@ pub const Interpreter = struct {
                     return error.ExpectedNumifiedAccess;
                 }
             },
-            .int, .float, .bool, .type_ => try self.pushValue(value),
+            .int, .float, .bool, .type_, .ptr => try self.pushValue(value),
             .unary => |op| {
                 try self.evalUnaryOp(op);
             },
@@ -471,10 +469,8 @@ pub const Interpreter = struct {
     // Allocates a type on the stack and returns a Value with a pointer
     // to that spot
     fn allocateType(self: *Self, ty: Type) IrError!Value {
-        // TODO
-        _ = ty;
-        _ = self;
-        return Value.initUndef(Loc.default());
+        const to = try self.heap.alloc(ty.size());
+        return Value.initPtr(to, Loc.default());
     }
 
     fn pushFrame(self: *Self) IrError!void {
@@ -514,6 +510,8 @@ pub const Interpreter = struct {
                 self.writer.writeAll(")")
                         catch return error.WriterError;
             },
+            .ptr => |to| self.writer.print("@{d}", .{to})
+                    catch return error.WriterError,
             else => return error.InvalidValue,
         }
 
