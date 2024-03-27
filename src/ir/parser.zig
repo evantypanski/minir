@@ -169,6 +169,9 @@ pub const Parser = struct {
     }
 
     fn parseStmt(self: *Self) ParseError!Stmt {
+        // Possibly match a semicolon in order to optionally delineate
+        // statements
+        defer _ = self.match(.semi);
         const label = if (self.match(.at))
                 try self.parseLabel()
             else

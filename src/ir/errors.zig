@@ -21,6 +21,7 @@ pub const InterpError = error{
 pub const NodeError = error{
     NotAnInt,
     NotAFloat,
+    NotAPtr,
     NotABool,
     ExpectedTerminator,
     UnexpectedTerminator,

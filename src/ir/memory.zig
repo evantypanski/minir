@@ -72,7 +72,6 @@ pub const Heap = struct {
             b.next = block;
         }
 
-
         return block_i;
     }
 
@@ -116,5 +115,13 @@ pub const Heap = struct {
     pub fn free(self: *Self, ptr: usize) void {
         var block = self.get_block_ptr(ptr);
         block.free = true;
+    }
+
+    pub fn getBytes(self: *Self, ptr: usize, size: usize) []u8 {
+        return self.memory[ptr..ptr + size];
+    }
+
+    pub fn setBytes(self: *Self, ptr: usize, bytes: []const u8) void {
+        std.mem.copyForwards(u8, self.memory[ptr..ptr + bytes.len], bytes);
     }
 };

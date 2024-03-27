@@ -13,6 +13,7 @@ const VarAccess = @import("../nodes/value.zig").VarAccess;
 const UnaryOp = @import("../nodes/value.zig").UnaryOp;
 const BinaryOp = @import("../nodes/value.zig").BinaryOp;
 const FuncCall = @import("../nodes/value.zig").FuncCall;
+const Pointer = @import("../nodes/value.zig").Pointer;
 const Type = @import("../nodes/type.zig").Type;
 
 pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
@@ -70,7 +71,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const VisitBinaryOpFn = *const fn(self: Self, arg: ArgTy, bo: *BinaryOp) RetTy;
         const VisitFuncCallFn = *const fn(self: Self, arg: ArgTy, call: *FuncCall) RetTy;
         const VisitTypeValFn = *const fn(self: Self, arg: ArgTy, ty: *Type) RetTy;
-        const VisitPtrFn = *const fn(self: Self, arg: ArgTy, to: *usize) RetTy;
+        const VisitPtrFn = *const fn(self: Self, arg: ArgTy, ptr: *Pointer) RetTy;
 
         pub fn walkProgram(self: Self, arg: ArgTy, program: *Program) RetTy {
             for (program.decls) |*function| {
@@ -141,7 +142,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
                 .binary => |*bo| try self.visitBinaryOp(self, arg, bo),
                 .call => |*call| try self.visitFuncCall(self, arg, call),
                 .type_ => |*ty| try self.visitTypeVal(self, arg, ty),
-                .ptr => |*to| try self.visitPtr(self, arg, to),
+                .ptr => |*ptr| try self.visitPtr(self, arg, ptr),
             }
         }
 
@@ -251,7 +252,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         pub fn defaultVisitTypeVal(_: Self, _: ArgTy, _: *Type) RetTy {
         }
 
-        pub fn defaultVisitPtr(_: Self, _: ArgTy, _: *usize) RetTy {
+        pub fn defaultVisitPtr(_: Self, _: ArgTy, _: *Pointer) RetTy {
         }
     };
 }

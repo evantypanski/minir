@@ -113,6 +113,11 @@ pub const FuncCall = struct {
     }
 };
 
+pub const Pointer = struct {
+    to: usize,
+    ty: Type,
+};
+
 pub const ValueKind = union(ValueTag) {
     undef,
     access: VarAccess,
@@ -123,7 +128,7 @@ pub const ValueKind = union(ValueTag) {
     binary: BinaryOp,
     call: FuncCall,
     type_: Type,
-    ptr: usize,
+    ptr: Pointer,
 
     pub fn deinit(self: *ValueKind, allocator: std.mem.Allocator) void {
         switch (self.*) {
@@ -221,9 +226,9 @@ pub const Value = struct {
         };
     }
 
-    pub fn initPtr(to: usize, loc: Loc) Value {
+    pub fn initPtr(to: usize, ty: Type, loc: Loc) Value {
         return .{
-            .val_kind = .{ .ptr = to },
+            .val_kind = .{ .ptr = .{ .to = to, .ty = ty } },
             .loc = loc,
         };
     }
@@ -252,6 +257,13 @@ pub const Value = struct {
         switch (self.val_kind) {
             .float => |val| return val,
             else => return error.NotAFloat,
+        }
+    }
+
+    pub fn asPtr(self: Value) NodeError!Pointer {
+        switch (self.val_kind) {
+            .ptr => |val| return val,
+            else => return error.NotAPtr,
         }
     }
 

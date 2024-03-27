@@ -260,8 +260,11 @@ pub const Interpreter = struct {
                 try self.pushValue(boolVal);
             },
             .deref => {
-                // TODO
                 self.evalValue(op.val.*) catch return error.OperandError;
+                const ptrVal = self.env.pop();
+                const ptr = try ptrVal.asPtr();
+                const bytes = self.heap.getBytes(ptr.to, ptr.ty.size());
+                try self.pushValue(std.mem.bytesAsValue(Value, bytes[0..@sizeOf(Value)]).*);
             }
         }
     }
@@ -272,20 +275,30 @@ pub const Interpreter = struct {
         // Special ops that don't just pop both values off and do a thing
         switch (op.kind) {
             .assign => {
-                const index = switch (op.lhs.*.val_kind) {
-                    .access => |va| blk: {
-                        if (va.offset) |offset| {
-                            break :blk offset;
-                        } else {
+                switch (op.lhs.*.val_kind) {
+                    .access => |va| {
+                        const index = if (va.offset) |offset|
+                            offset
+                        else
                             return error.ExpectedNumifiedAccess;
-                        }
+                        self.evalValue(op.rhs.*) catch return error.OperandError;
+                        const rhs = self.env.getLast();
+                        self.env.items[self.getAbsoluteOffset(index)] = rhs;
+                        return;
+                    },
+                    .unary => |uo| {
+                        // Get the pointer
+                        if (uo.kind != .deref) return error.InvalidLHSAssign;
+                        self.evalValue(uo.val.*) catch return error.OperandError;
+                        const ptrVal = self.env.pop();
+                        const ptr = try ptrVal.asPtr();
+                        self.evalValue(op.rhs.*) catch return error.OperandError;
+                        const rhs = self.env.getLast();
+                        self.heap.setBytes(ptr.to, std.mem.toBytes(rhs)[0..]);
+                        return;
                     },
                     else => return error.InvalidLHSAssign,
-                };
-                self.evalValue(op.rhs.*) catch return error.OperandError;
-                const rhs = self.env.getLast();
-                self.env.items[self.getAbsoluteOffset(index)] = rhs;
-                return;
+                }
             },
             .and_ => {
                 self.evalValue(op.lhs.*) catch return error.OperandError;
@@ -470,7 +483,7 @@ pub const Interpreter = struct {
     // to that spot
     fn allocateType(self: *Self, ty: Type) IrError!Value {
         const to = try self.heap.alloc(ty.size());
-        return Value.initPtr(to, Loc.default());
+        return Value.initPtr(to, ty, Loc.default());
     }
 
     fn pushFrame(self: *Self) IrError!void {
@@ -510,7 +523,7 @@ pub const Interpreter = struct {
                 self.writer.writeAll(")")
                         catch return error.WriterError;
             },
-            .ptr => |to| self.writer.print("@{d}", .{to})
+            .ptr => |ptr| self.writer.print("@{d}", .{ptr.to})
                     catch return error.WriterError,
             else => return error.InvalidValue,
         }

@@ -12,6 +12,7 @@ pub const Token = struct {
         arrow,
         at,
         colon,
+        semi,
         comma,
         identifier,
         num,

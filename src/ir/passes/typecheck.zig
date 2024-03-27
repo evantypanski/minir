@@ -174,8 +174,20 @@ pub const TypecheckPass = struct {
                         }
                     },
                     .deref => {
-                        // TODO
-                        break :blk .err;
+                        const ty = self.valTy(uo.*.val);
+                        // Can only deref pointers
+                        switch (ty) {
+                            .pointer => |to_ty| break :blk to_ty.*,
+                            else => {
+                                self.num_errors += 1;
+                                self.diag.err(
+                                    error.InvalidType,
+                                    .{@tagName(ty), "*"},
+                                    val.*.loc
+                                );
+                                break :blk .err;
+                            }
+                        }
                     }
                 }
             },
@@ -239,8 +251,7 @@ pub const TypecheckPass = struct {
                 }
             },
             .type_ => .type_,
-            // TODO: Dunno type it points to..
-            .ptr => .none,
+            .ptr => |ptr| ptr.ty,
         };
     }
 

@@ -8,6 +8,7 @@ const VarDecl = @import("nodes/statement.zig").VarDecl;
 const Value = @import("nodes/value.zig").Value;
 const UnaryOp = @import("nodes/value.zig").UnaryOp;
 const BinaryOp = @import("nodes/value.zig").BinaryOp;
+const Pointer = @import("nodes/value.zig").Pointer;
 const Type = @import("nodes/type.zig").Type;
 const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 const Decl = @import("nodes/decl.zig").Decl;
@@ -170,7 +171,7 @@ pub const Disassembler = struct {
                 try self.writer.writeAll(")");
             },
             .type_ => |ty| try self.disassembleType(ty),
-            .ptr => |to| try self.disassemblePtr(to),
+            .ptr => |ptr| try self.disassemblePtr(ptr),
         }
     }
 
@@ -228,8 +229,10 @@ pub const Disassembler = struct {
         }
     }
 
-    pub fn disassemblePtr(self: Disassembler, to: usize) Writer.Error!void {
-        try self.writer.print("@{d}", .{to});
+    pub fn disassemblePtr(self: Disassembler, ptr: Pointer) Writer.Error!void {
+        try self.writer.writeAll("@[");
+        try self.disassembleType(ptr.ty);
+        try self.writer.print("]{d}", .{ptr.to});
     }
 
     fn printParams(self: Disassembler, params: []const VarDecl) !void {

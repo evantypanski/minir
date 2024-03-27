@@ -52,6 +52,7 @@ pub const Lexer = struct {
             '}' => Token.init(.rbrace, self.start, self.current),
             '@' => Token.init(.at, self.start, self.current),
             ':' => Token.init(.colon, self.start, self.current),
+            ';' => Token.init(.semi, self.start, self.current),
             ',' => Token.init(.comma, self.start, self.current),
             '=' => if (self.match('='))
                         Token.init(.eq_eq, self.start, self.current)
