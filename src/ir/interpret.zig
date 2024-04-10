@@ -440,7 +440,7 @@ pub const Interpreter = struct {
         }
         // TODO: We make assumptions here that should be analyzed, like a
         // return type actually means a value is returned.
-        const func = try self.getFunction(call.function);
+        const func = try self.getFunction(call.name());
         try self.pushFrame();
         defer {
             const frame = self.popFrame();
@@ -464,7 +464,7 @@ pub const Interpreter = struct {
         // earlier even if it's a builtin. Probably also worth doing
         // this more efficiently. Then there may be a difference between
         // builtin in a stdlib or builtin to the language. Who knows!
-        if (std.mem.eql(u8, "alloc", call.function)) {
+        if (std.mem.eql(u8, "alloc", call.name())) {
             // Runtime analysis here I guess.
             if (call.arguments.len != 1) {
                 return error.NoSuchFunction;
@@ -518,7 +518,7 @@ pub const Interpreter = struct {
             .bool => |b| self.writer.print("{}", .{b})
                     catch return error.WriterError,
             .call => |call| {
-                self.writer.print("{s}(", .{call.function})
+                self.writer.print("{s}(", .{call.name()})
                         catch return error.WriterError;
                 self.writer.writeAll(")")
                         catch return error.WriterError;

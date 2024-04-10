@@ -32,7 +32,11 @@ pub const Token = struct {
         greater,
         greater_eq,
 
-        // Keywords
+        // Invalid token
+        err,
+    };
+
+    pub const Keyword = enum {
         func,
         alloc,
         debug,
@@ -45,24 +49,33 @@ pub const Token = struct {
         int,
         boolean,
         none,
+
         // Branch keywords
         br,
         brc,
 
-        pub fn isBranch(self: Tag) bool {
-            return switch (self) {
-                .br, .brc => true,
-                else => false,
-            };
-        }
     };
 
     tag: Tag,
+    kw: ?Keyword,
     loc: Loc,
 
     pub fn init(tag: Tag, start: usize, end: usize) Self {
         return .{
             .tag = tag,
+            .kw = null,
+            .loc = .{
+                .start = start,
+                .end = end,
+            },
+        };
+    }
+
+    /// All keywords are identifiers, so that is given.
+    pub fn initKw(kw: Keyword, start: usize, end: usize) Self {
+        return .{
+            .tag = .identifier,
+            .kw = kw,
             .loc = .{
                 .start = start,
                 .end = end,
@@ -71,7 +84,7 @@ pub const Token = struct {
     }
 
     pub fn isValid(self: Self) bool {
-        return self.tag != .none;
+        return self.tag != .err;
     }
 
     pub fn isUnaryOp(self: Self) bool {
@@ -87,5 +100,15 @@ pub const Token = struct {
             .less, .less_eq, .greater, .greater_eq => true,
             else => false,
         };
+    }
+
+    pub fn isBranch(self: Self) bool {
+        return if (self.kw) |kw|
+            switch (kw) {
+                .br, .brc => true,
+                else => false,
+            }
+        else
+            false;
     }
 };

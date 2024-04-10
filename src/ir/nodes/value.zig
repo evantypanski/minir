@@ -99,7 +99,7 @@ pub const BinaryOp = struct {
 };
 
 pub const FuncCall = struct {
-    function: []const u8,
+    function: *Value,
     resolved: ?*Decl,
     builtin: bool,
     arguments: []Value,
@@ -110,6 +110,12 @@ pub const FuncCall = struct {
         }
 
         allocator.free(self.arguments);
+    }
+
+    // For now, function calls can only be var access.
+    // TODO: It should have better handling for non-var access cases
+    pub fn name(self: FuncCall) []const u8 {
+        return self.function.*.val_kind.access.name.?;
     }
 };
 
@@ -204,7 +210,7 @@ pub const Value = struct {
     }
 
     pub fn initCall(
-        function: []const u8, builtin: bool, arguments: []Value, loc: Loc
+        function: *Value, builtin: bool, arguments: []Value, loc: Loc
     ) Value {
         return .{
             .val_kind = .{

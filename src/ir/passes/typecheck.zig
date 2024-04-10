@@ -137,7 +137,7 @@ pub const TypecheckPass = struct {
                     self.num_errors += 1;
                     self.diag.err(
                         error.BadArity,
-                        .{ call.*.function, decl_params_len, args_len },
+                        .{ call.*.name(), decl_params_len, args_len },
                         val.*.loc
                     );
                 }
@@ -225,7 +225,7 @@ pub const TypecheckPass = struct {
             // the type of this particular expression.
             .call => |call| blk: {
                 if (call.builtin) {
-                    if (std.mem.eql(u8, "alloc", call.function)) {
+                    if (std.mem.eql(u8, "alloc", call.name())) {
                         if (call.arguments.len != 1) {
                             self.num_errors += 1;
                             // TODO diag

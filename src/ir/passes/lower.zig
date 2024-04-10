@@ -346,11 +346,11 @@ pub const Lowerer = struct {
         const placeholder = self.builder.addPlaceholderShort()
             catch return error.BuilderError;
 
-        const list = self.placeholder_map.get(call.*.function) orelse blk: {
+        const list = self.placeholder_map.get(call.*.name()) orelse blk: {
             const list = self.allocator.create(std.ArrayList(usize))
                 catch return error.MemoryError;
             list.* = std.ArrayList(usize).init(self.allocator);
-            self.placeholder_map.put(call.*.function, list)
+            self.placeholder_map.put(call.*.name(), list)
                 catch return error.MemoryError;
             break :blk list;
         };

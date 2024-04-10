@@ -156,7 +156,7 @@ pub const Disassembler = struct {
             .unary => |unary| try self.disassembleUnary(unary),
             .binary => |binary| try self.disassembleBinary(binary),
             .call => |call| {
-                try self.writer.writeAll(call.function);
+                try self.writer.writeAll(call.name());
                 try self.writer.writeAll("(");
                 var first = true;
                 for (call.arguments) |arg| {

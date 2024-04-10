@@ -102,7 +102,9 @@ pub const Lexer = struct {
     /// keywords :)
     ///
     /// Grabbed this tiny trie impl from crafting interpreters.
-    fn identifierTag(self: Self) Token.Tag {
+    /// TODO: The trie should be a separate struct and it's setup at the
+    /// beginning
+    fn identifierKw(self: Self) ?Token.Keyword {
         const token_len = self.current - self.start;
         switch (self.source_mgr.get(self.start)) {
             'a' => return self.checkKeyword(self.start + 1, 4, "lloc", .alloc),
@@ -111,10 +113,10 @@ pub const Lexer = struct {
                         'u' => return self.checkKeyword(self.start + 2, 2, "nc", .func),
                         'a' => return self.checkKeyword(self.start + 2, 3, "lse", .false_),
                         'l' => return self.checkKeyword(self.start + 2, 2, "oat", .float),
-                        else => return .identifier,
+                        else => return null,
                     }
                 } else {
-                    return .identifier;
+                    return null;
                 },
             'd' => return self.checkKeyword(self.start + 1, 4, "ebug", .debug),
             'i' => return self.checkKeyword(self.start + 1, 2, "nt", .int),
@@ -133,30 +135,30 @@ pub const Lexer = struct {
                                     self.source_mgr.get(self.start + 2) == 'c')
                                     return .brc
                                 else
-                                    return .identifier;
+                                    return null;
                         },
                         'o' => return self.checkKeyword(self.start + 1, 5, "olean", .boolean),
-                        else => return .identifier,
+                        else => return null,
                     }
                 } else {
-                    return .identifier;
+                    return null;
                 },
-            else => return .identifier,
+            else => return null,
         }
     }
 
     fn checkKeyword(self: Self, start: usize, len: usize,
-        rest: []const u8, tag: Token.Tag) Token.Tag {
+        rest: []const u8, kw: Token.Keyword) ?Token.Keyword {
         if (self.current - start == len
             and std.mem.eql(
                 u8,
                 self.source_mgr.snip(start, self.current),
                 rest)
             ) {
-                return tag;
+                return kw;
         }
 
-        return .identifier;
+        return null;
     }
 
     pub fn lexIdentifier(self: *Self) Token {
@@ -165,7 +167,11 @@ pub const Lexer = struct {
             or ascii.isDigit(self.peek())
             or self.peek() == '_')
                 : (_ = self.advance()) {}
-        return Token.init(self.identifierTag(), self.start, self.current);
+        const opt_kw = self.identifierKw();
+        return if (opt_kw) |kw|
+            Token.initKw(kw, self.start, self.current)
+        else
+            Token.init(.identifier, self.start, self.current);
     }
 
     pub fn getTokString(self: Self, token: Token) []const u8 {

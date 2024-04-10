@@ -59,7 +59,7 @@ pub const ResolveCallsPass = struct {
             return;
         }
 
-        const decl = self.resolved.get(call.function);
+        const decl = self.resolved.get(call.name());
         if (decl == null) {
             return error.NoSuchFunction;
         }

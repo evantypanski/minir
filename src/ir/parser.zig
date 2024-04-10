@@ -47,11 +47,20 @@ pub const Parser = struct {
         }
     };
 
+    const Rule = struct {
+        prefix: ?*const fn (self: *Self) ParseError!Value = null,
+        infix: ?*const fn (self: *Self, other: Value) ParseError!Value = null,
+        prec: Precedence = Precedence.none,
+    };
+    const RuleArray = [@typeInfo(Token.Tag).Enum.fields.len] Rule;
+
     allocator: std.mem.Allocator,
     lexer: Lexer,
     current: Token,
     previous: Token,
     diag: Diagnostics,
+
+    rules: RuleArray,
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -61,9 +70,10 @@ pub const Parser = struct {
         return .{
             .allocator = allocator,
             .lexer = lexer,
-            .current = Token.init(.none, 0, 0),
-            .previous = Token.init(.none, 0, 0),
-            .diag = diag_engine
+            .current = Token.init(.err, 0, 0),
+            .previous = Token.init(.err, 0, 0),
+            .diag = diag_engine,
+            .rules = make_rules(),
         };
     }
 
@@ -108,12 +118,24 @@ pub const Parser = struct {
         return error.Expected;
     }
 
+    fn consumeKw(self: *Self, kw: Token.Keyword) ParseError!void {
+        if (self.current.kw) |tok_kw| {
+            if (tok_kw == kw) {
+                self.advance();
+                return;
+            }
+        }
+
+        self.diag.err(error.Expected, .{ @tagName(kw) }, self.current.loc);
+        return error.Expected;
+    }
+
     fn parseDecl(self: *Self) ParseError!Decl {
         return Decl { .function = try self.parseFnDecl() };
     }
 
     fn parseFnDecl(self: *Self) ParseError!Function(Stmt) {
-        try self.consume(.func);
+        try self.consumeKw(.func);
         try self.consume(.identifier);
         var builder = FunctionBuilder(Stmt)
             .init(self.allocator, self.lexer.getTokString(self.previous));
@@ -176,16 +198,16 @@ pub const Parser = struct {
                 try self.parseLabel()
             else
                 null;
-        if (self.match(.debug)) {
+        if (self.matchKw(.debug)) {
             // Debug looks like a call, but really it's just a statement
             // that we print the result of. That may change one day, since
             // alloc is implemented as a function call.
             return self.parseDebug(label);
-        } else if (self.match(.let)) {
+        } else if (self.matchKw(.let)) {
             return self.parseLet(label);
-        } else if (self.match(.ret)) {
+        } else if (self.matchKw(.ret)) {
             return self.parseRet(label);
-        } else if (self.current.tag.isBranch()) {
+        } else if (self.current.isBranch()) {
             return self.parseBranch(label);
         } else {
             return self.parseExprStmt(label);
@@ -253,19 +275,20 @@ pub const Parser = struct {
     }
 
     fn parseBranch(self: *Self, label: ?[]const u8) ParseError!Stmt {
-        const start = self.previous.loc.start;
-        const branch_tag = self.current.tag;
+        std.debug.assert(self.current.kw != null);
+        const start = self.current.loc.start;
+        const branch_kw = self.current.kw.?;
         self.advance();
         try self.consume(.identifier);
         const to = self.lexer.getTokString(self.previous);
-        if (branch_tag == .br) {
+        if (branch_kw == .br) {
             // Unconditional jump
             return Stmt.init(
                 .{ .branch = Branch.initJump(to) },
                 label,
                 Loc.init(start, self.previous.loc.end),
             );
-        } else if (branch_tag == .brc) {
+        } else if (branch_kw == .brc) {
             const if_true = try self.parseExpr();
             return Stmt.init(
                 .{ .branch = Branch.initConditional(to, if_true) },
@@ -309,22 +332,19 @@ pub const Parser = struct {
         return val;
     }
 
+    fn getRule(self: Self, tok: Token) ?Rule {
+        return self.rules[@intFromEnum(tok.tag)];
+    }
+
     fn parsePrecedence(self: *Self, prec: Precedence) ParseError!Value {
         const start = self.previous.loc.start;
-        // Prefixes. Literals, parenthesized expressions, and ids can start an
-        // expression statement.
-        // TODO add precedence here
-        var lhs = if (self.current.tag == .lparen)
-            try self.parseGrouping()
-        else if (self.match(.identifier) or self.match(.alloc))
-            if (self.current.tag == .lparen)
-                try self.parseCall()
+        var lhs = if (self.getRule(self.current)) |rule|
+            if (rule.prefix) |func|
+                try func(self)
             else
-                try self.parseIdentifier()
-        else if (self.current.isUnaryOp())
-            try self.parseUnary()
+                return error.Unexpected
         else
-            try self.parseLiteral();
+            return error.Unexpected;
 
         while (true) {
             const this_prec = bindingPower(self.current.tag);
@@ -355,21 +375,19 @@ pub const Parser = struct {
 
     // Parses an identifier as a value
     fn parseIdentifier(self: *Self) ParseError!Value {
-        // We may get here with a keyword, so make sure the token is an
-        // identifier since they are not valid identifiers.
-        if (self.previous.tag != .identifier) {
+        if (self.current.tag != .identifier) {
             self.diag.err(
                 error.KeywordInvalidIdentifier,
                 .{
                     self.diag.source_mgr.snip(
-                        self.previous.loc.start, self.previous.loc.end
+                        self.current.loc.start, self.current.loc.end
                     )
                 },
-                self.previous.loc
+                self.current.loc
             );
             return error.KeywordInvalidIdentifier;
         }
-        // Already consumed identifier
+        try self.consume(.identifier);
         const name = self.lexer.getTokString(self.previous);
         const start = self.previous.loc.start;
         const loc = Loc.init(start, self.previous.loc.end);
@@ -377,11 +395,11 @@ pub const Parser = struct {
     }
 
     // Parses a function call, where the identifier is the previous token.
-    fn parseCall(self: *Self) ParseError!Value {
+    fn parseCall(self: *Self, other: Value) ParseError!Value {
         const start = self.previous.loc.start;
         const builtin = self.previous.tag != .identifier;
         // Already consumed identifier
-        const name = self.lexer.getTokString(self.previous);
+        //const name = self.lexer.getTokString(self.previous);
         try self.consume(.lparen);
         var arguments = std.ArrayList(Value).init(self.allocator);
         if (self.current.tag != .rparen) {
@@ -397,7 +415,12 @@ pub const Parser = struct {
         const arg_slice = arguments.toOwnedSlice()
             catch return error.MemoryError;
         const loc = Loc.init(start, self.previous.loc.end);
-        return Value.initCall(name, builtin, arg_slice, loc);
+        const fn_ptr = if (self.allocator.create(Value)) |ptr|
+                ptr
+            else |_|
+                return error.MemoryError;
+        fn_ptr.* = other;
+        return Value.initCall(fn_ptr, builtin, arg_slice, loc);
     }
 
     // Parses a unary op
@@ -422,7 +445,7 @@ pub const Parser = struct {
             try self.parseBoolean()
         else if (self.current.tag == .num)
             try self.parseNumber()
-        else if (self.match(.undefined_))
+        else if (self.matchKw(.undefined_))
             Value.initUndef(Loc.init(start, self.previous.loc.end))
         else if (self.parseType() catch null) |ty|
             Value.initType(ty, Loc.init(start, self.previous.loc.end))
@@ -433,9 +456,9 @@ pub const Parser = struct {
     fn parseBoolean(self: *Self) ParseError!Value {
         const start = self.previous.loc.start;
         const loc = Loc.init(start, self.previous.loc.end);
-        return if (self.match(.true_))
+        return if (self.matchKw(.true_))
             Value.initBool(true, loc)
-        else if (self.match(.false_))
+        else if (self.matchKw(.false_))
             Value.initBool(false, loc)
         else
             error.NotABoolean;
@@ -479,10 +502,19 @@ pub const Parser = struct {
         }
     }
 
+    fn parseTypeValue(self: *Self) ParseError!Value {
+        const start = self.previous.loc.start;
+        const ty = try self.parseType();
+        return Value.initType(ty, Loc.init(start, self.previous.loc.end));
+    }
+
     // Parses a type name
     fn parseType(self: *Self) ParseError!Type {
+        if (self.current.kw == null) {
+            return error.InvalidTypeName;
+        }
         self.advance();
-        return switch (self.previous.tag) {
+        return switch (self.previous.kw.?) {
             .int => .int,
             .float => .float,
             .boolean => .boolean,
@@ -512,5 +544,45 @@ pub const Parser = struct {
 
         self.advance();
         return true;
+    }
+
+    fn matchKw(self: *Self, kw: Token.Keyword) bool {
+        if (self.current.kw) |tok_kw| {
+            if (tok_kw == kw) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    fn make_rules() RuleArray {
+        var rules = std.mem.zeroes(RuleArray);
+        rules[@intFromEnum(Token.Tag.lparen)] = .{
+            .prefix = parseGrouping,
+            .infix = null,//parseCall,
+            .prec = Precedence.call
+        };
+        rules[@intFromEnum(Token.Tag.identifier)] = .{
+            .prefix = parseIdentifier,
+            .infix = null,
+            .prec = Precedence.none
+        };
+        rules[@intFromEnum(Token.Tag.bang)] = .{
+            .prefix = parseUnary,
+            .infix = null,
+            .prec = Precedence.unary
+        };
+        rules[@intFromEnum(Token.Tag.star)] = .{
+            .prefix = parseUnary,
+            .infix = null,
+            .prec = Precedence.unary
+        };
+        rules[@intFromEnum(Token.Tag.num)] = .{
+            .prefix = parseNumber,
+            .infix = null,
+            .prec = Precedence.none
+        };
+        return rules;
     }
 };
