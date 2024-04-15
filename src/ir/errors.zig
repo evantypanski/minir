@@ -40,9 +40,7 @@ pub const TokenParseError = error {
     Expected,
     MemoryError,
     NotANumber,
-    NotALiteral,
     NotABoolean,
-    KeywordInvalidIdentifier,
 };
 
 pub const LexError = error {

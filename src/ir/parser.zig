@@ -332,60 +332,45 @@ pub const Parser = struct {
         return val;
     }
 
-    fn getRule(self: Self, tok: Token) ?Rule {
+    fn getRule(self: Self, tok: Token) Rule {
         return self.rules[@intFromEnum(tok.tag)];
     }
 
     fn parsePrecedence(self: *Self, prec: Precedence) ParseError!Value {
-        const start = self.previous.loc.start;
-        var lhs = if (self.getRule(self.current)) |rule|
-            if (rule.prefix) |func|
-                try func(self)
-            else
-                return error.Unexpected
+        var lhs = if (self.getRule(self.current).prefix) |func|
+            try func(self)
         else
             return error.Unexpected;
 
-        while (true) {
-            const this_prec = bindingPower(self.current.tag);
-            if (self.current.isBinaryOp() and this_prec.gte(prec)) {
-                const op_kind =
-                    try BinaryOp.Kind.fromTag(self.current.tag);
-                self.advance();
-                var rhs = try self.parsePrecedence(this_prec.inc());
-                const lhs_ptr = if (self.allocator.create(Value)) |ptr|
-                        ptr
-                    else |_|
-                        return error.MemoryError;
-                lhs_ptr.* = lhs;
-                const rhs_ptr = if (self.allocator.create(Value)) |ptr|
-                        ptr
-                    else |_|
-                        return error.MemoryError;
-
-                rhs_ptr.* = rhs;
-
-                const loc = Loc.init(start, self.previous.loc.end);
-                lhs = Value.initBinary(op_kind, lhs_ptr, rhs_ptr, loc);
-            } else {
-                return lhs;
-            }
+        while (self.precedenceOf(self.current.tag).gte(prec)) {
+            lhs = if (self.getRule(self.current).infix) |func|
+                try func(self, lhs)
+            else
+                return error.Unexpected;
         }
+
+        return lhs;
     }
 
     // Parses an identifier as a value
     fn parseIdentifier(self: *Self) ParseError!Value {
-        if (self.current.tag != .identifier) {
-            self.diag.err(
-                error.KeywordInvalidIdentifier,
-                .{
-                    self.diag.source_mgr.snip(
-                        self.current.loc.start, self.current.loc.end
-                    )
+        // Some keywords have special handling
+        if (self.current.kw) |kw| {
+            const start = self.previous.loc.start;
+            switch (kw) {
+                .true_, .false_ => return self.parseBoolean(),
+                .undefined_ => {
+                    self.advance();
+                    return Value.initUndef(Loc.init(start, self.previous.loc.end));
                 },
-                self.current.loc
-            );
-            return error.KeywordInvalidIdentifier;
+                else => {
+                    // Anything else we'll just try to parse as a type
+                    if (self.parseTypeValue() catch null) |ty_val| {
+                        return ty_val;
+                    }
+                    // Intentionally fallthrough
+                }
+            }
         }
         try self.consume(.identifier);
         const name = self.lexer.getTokString(self.previous);
@@ -397,9 +382,7 @@ pub const Parser = struct {
     // Parses a function call, where the identifier is the previous token.
     fn parseCall(self: *Self, other: Value) ParseError!Value {
         const start = self.previous.loc.start;
-        const builtin = self.previous.tag != .identifier;
-        // Already consumed identifier
-        //const name = self.lexer.getTokString(self.previous);
+        const builtin = self.previous.kw != null;
         try self.consume(.lparen);
         var arguments = std.ArrayList(Value).init(self.allocator);
         if (self.current.tag != .rparen) {
@@ -437,20 +420,6 @@ pub const Parser = struct {
 
         const loc = Loc.init(start, self.previous.loc.end);
         return Value.initUnary(op_kind, val_ptr, loc);
-    }
-
-    fn parseLiteral(self: *Self) ParseError!Value {
-        const start = self.previous.loc.start;
-        return if (self.current.tag == .true_ or self.current.tag == .false_)
-            try self.parseBoolean()
-        else if (self.current.tag == .num)
-            try self.parseNumber()
-        else if (self.matchKw(.undefined_))
-            Value.initUndef(Loc.init(start, self.previous.loc.end))
-        else if (self.parseType() catch null) |ty|
-            Value.initType(ty, Loc.init(start, self.previous.loc.end))
-        else
-            error.NotALiteral;
     }
 
     fn parseBoolean(self: *Self) ParseError!Value {
@@ -502,6 +471,29 @@ pub const Parser = struct {
         }
     }
 
+    fn parseBinary(self: *Self, other: Value) ParseError!Value {
+        // TODO: start here is wrong
+        const start = self.previous.loc.start;
+        const prec = self.precedenceOf(self.current.tag);
+        const op_kind = try BinaryOp.Kind.fromTag(self.current.tag);
+        self.advance();
+        var rhs = try self.parsePrecedence(prec.inc());
+        const lhs_ptr = if (self.allocator.create(Value)) |ptr|
+                ptr
+            else |_|
+                return error.MemoryError;
+        lhs_ptr.* = other;
+        const rhs_ptr = if (self.allocator.create(Value)) |ptr|
+                ptr
+            else |_|
+                return error.MemoryError;
+
+        rhs_ptr.* = rhs;
+
+        const loc = Loc.init(start, self.previous.loc.end);
+        return Value.initBinary(op_kind, lhs_ptr, rhs_ptr, loc);
+    }
+
     fn parseTypeValue(self: *Self) ParseError!Value {
         const start = self.previous.loc.start;
         const ty = try self.parseType();
@@ -513,28 +505,20 @@ pub const Parser = struct {
         if (self.current.kw == null) {
             return error.InvalidTypeName;
         }
-        self.advance();
-        return switch (self.previous.kw.?) {
+        const ret: Type = switch (self.current.kw.?) {
             .int => .int,
             .float => .float,
             .boolean => .boolean,
             .none => .none,
-            else => error.InvalidTypeName,
+            else => return error.InvalidTypeName,
         };
+
+        self.advance();
+        return ret;
     }
 
-    fn bindingPower(tag: Token.Tag) Precedence {
-        return switch (tag) {
-            .bang => .unary,
-            .eq => .assign,
-            .pipe_pipe => .or_,
-            .amp_amp => .and_,
-            .eq_eq => .equal,
-            .less, .less_eq, .greater, .greater_eq => .compare,
-            .plus, .minus => .term,
-            .star, .slash => .factor,
-            else => .none,
-        };
+    fn precedenceOf(self: Self, tag: Token.Tag) Precedence {
+        return self.rules[@intFromEnum(tag)].prec;
     }
 
     fn match(self: *Self, tag: Token.Tag) bool {
@@ -549,6 +533,7 @@ pub const Parser = struct {
     fn matchKw(self: *Self, kw: Token.Keyword) bool {
         if (self.current.kw) |tok_kw| {
             if (tok_kw == kw) {
+                self.advance();
                 return true;
             }
         }
@@ -560,7 +545,7 @@ pub const Parser = struct {
         var rules = std.mem.zeroes(RuleArray);
         rules[@intFromEnum(Token.Tag.lparen)] = .{
             .prefix = parseGrouping,
-            .infix = null,//parseCall,
+            .infix = parseCall,
             .prec = Precedence.call
         };
         rules[@intFromEnum(Token.Tag.identifier)] = .{
@@ -568,20 +553,75 @@ pub const Parser = struct {
             .infix = null,
             .prec = Precedence.none
         };
-        rules[@intFromEnum(Token.Tag.bang)] = .{
-            .prefix = parseUnary,
-            .infix = null,
-            .prec = Precedence.unary
-        };
-        rules[@intFromEnum(Token.Tag.star)] = .{
-            .prefix = parseUnary,
-            .infix = null,
-            .prec = Precedence.unary
-        };
         rules[@intFromEnum(Token.Tag.num)] = .{
             .prefix = parseNumber,
             .infix = null,
             .prec = Precedence.none
+        };
+        rules[@intFromEnum(Token.Tag.bang)] = .{
+            .prefix = parseUnary,
+            .infix = parseBinary,
+            .prec = Precedence.unary
+        };
+        rules[@intFromEnum(Token.Tag.eq)] = .{
+            .prefix = null,
+            .infix = parseBinary,
+            .prec = Precedence.assign
+        };
+        rules[@intFromEnum(Token.Tag.pipe_pipe)] = .{
+            .prefix = null,
+            .infix = parseBinary,
+            .prec = Precedence.or_
+        };
+        rules[@intFromEnum(Token.Tag.amp_amp)] = .{
+            .prefix = null,
+            .infix = parseBinary,
+            .prec = Precedence.and_
+        };
+        rules[@intFromEnum(Token.Tag.eq_eq)] = .{
+            .prefix = null,
+            .infix = parseBinary,
+            .prec = Precedence.equal
+        };
+        rules[@intFromEnum(Token.Tag.less)] = .{
+            .prefix = null,
+            .infix = parseBinary,
+            .prec = Precedence.compare
+        };
+        rules[@intFromEnum(Token.Tag.less_eq)] = .{
+            .prefix = null,
+            .infix = parseBinary,
+            .prec = Precedence.compare
+        };
+        rules[@intFromEnum(Token.Tag.greater)] = .{
+            .prefix = null,
+            .infix = parseBinary,
+            .prec = Precedence.compare
+        };
+        rules[@intFromEnum(Token.Tag.greater_eq)] = .{
+            .prefix = null,
+            .infix = parseBinary,
+            .prec = Precedence.compare
+        };
+        rules[@intFromEnum(Token.Tag.plus)] = .{
+            .prefix = null,
+            .infix = parseBinary,
+            .prec = Precedence.term
+        };
+        rules[@intFromEnum(Token.Tag.minus)] = .{
+            .prefix = null,
+            .infix = parseBinary,
+            .prec = Precedence.term
+        };
+        rules[@intFromEnum(Token.Tag.star)] = .{
+            .prefix = parseUnary,
+            .infix = parseBinary,
+            .prec = Precedence.unary
+        };
+        rules[@intFromEnum(Token.Tag.slash)] = .{
+            .prefix = null,
+            .infix = parseBinary,
+            .prec = Precedence.unary
         };
         return rules;
     }
