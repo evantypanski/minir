@@ -18,7 +18,7 @@ pub const SourceManager = struct {
 
     allocator: std.mem.Allocator,
     source: []const u8,
-    filename: []const u8,
+    filename: ?[]const u8,
     // Indexes for line endings (\n)
     line_ends: []usize,
     owns_source: bool,
@@ -26,13 +26,12 @@ pub const SourceManager = struct {
     pub fn init(
         allocator: std.mem.Allocator,
         source: []const u8,
-        filename: []const u8,
         owns_source: bool
     ) !Self {
         var self = Self {
             .allocator = allocator,
             .source = source,
-            .filename = filename,
+            .filename = null,
             .line_ends = try analyzeLineEnds(allocator, source),
             .owns_source = owns_source,
         };

@@ -84,9 +84,11 @@ test "deinit works" {
             Loc.default()
         )
     );
+    var func_access = try std.testing.allocator.create(Value);
+    func_access.* = Value.initAccessName("f", Loc.default());
     try bb1_builder.addStatement(
         Stmt.init(
-            .{ .debug = Value.initCall("f", &.{}, Loc.default()) },
+            .{ .debug = Value.initCall(func_access, false, &.{}, Loc.default())},
             null,
             Loc.default()
         )

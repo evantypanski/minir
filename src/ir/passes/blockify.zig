@@ -120,10 +120,11 @@ test "Changes all functions into BB functions" {
             Loc.default()
         )
     );
-    // Labeled so new basic block
+    var func_access = try std.testing.allocator.create(Value);
+    func_access.* = Value.initAccessName("f", Loc.default());
     try func_builder.addElement(
         Stmt.init(
-            .{ .debug = Value.initCall("f", &.{}, Loc.default()) },
+            .{ .debug = Value.initCall(func_access, false, &.{}, Loc.default()) },
             "testme",
             Loc.default()
         )

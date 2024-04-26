@@ -50,7 +50,7 @@ pub const Diagnostics = struct {
         // rather avoid that if possible. We can't do it in a new message
         // since `std.log` adds 'error:' before the message
         const msg = if (comptime errors.getErrStr(the_err)) |str|
-            "at {s}:{}: " ++ str ++ "\n{s}"
+            "at {?s}:{}: " ++ str ++ "\n{s}"
         else
             "at {s}:{}:\n{s}";
 

@@ -8,6 +8,9 @@ pub const BasicBlock = struct {
     label: ?[]const u8,
 
     pub fn deinit(self: *BasicBlock, allocator: std.mem.Allocator) void {
+        for (self.statements) |*stmt| {
+            stmt.deinit(allocator);
+        }
         allocator.free(self.statements);
     }
 };

@@ -13,7 +13,7 @@ const BlockifyPass = @import("../passes/blockify.zig").BlockifyPass;
 const FoldConstantsPass = @import("../passes/fold_constants.zig").FoldConstantsPass;
 
 fn parseProgramFromString(str: []const u8) !Program {
-    var source_mgr = try SourceManager.init(std.testing.allocator, str, "test", false);
+    var source_mgr = try SourceManager.init(std.testing.allocator, str, false);
     defer source_mgr.deinit();
     const diag_engine = Diagnostics.init(source_mgr);
     var lexer = Lexer.init(source_mgr);
@@ -67,7 +67,11 @@ test "Test simple blockify" {
         ;
 
     var start = try parseProgramFromString(begin_str);
-    var pass_manager = PassManager.init(std.testing.allocator, &start);
+    // TODO: diag better, since above call also does this
+    var source_mgr = try SourceManager.init(std.testing.allocator, begin_str, false);
+    defer source_mgr.deinit();
+    const diag = Diagnostics.init(source_mgr);
+    var pass_manager = PassManager.init(std.testing.allocator, &start, diag);
     try pass_manager.run(BlockifyPass);
     defer start.deinit(std.testing.allocator);
 
@@ -91,7 +95,11 @@ test "Test blockify with jump" {
         ;
 
     var start = try parseProgramFromString(begin_str);
-    var pass_manager = PassManager.init(std.testing.allocator, &start);
+    // TODO: diag better, since above call also does this
+    var source_mgr = try SourceManager.init(std.testing.allocator, begin_str, false);
+    defer source_mgr.deinit();
+    const diag = Diagnostics.init(source_mgr);
+    var pass_manager = PassManager.init(std.testing.allocator, &start, diag);
     try pass_manager.run(BlockifyPass);
     defer start.deinit(std.testing.allocator);
 
@@ -116,7 +124,11 @@ test "Test simple constant folding" {
         ;
 
     var start = try parseProgramFromString(begin_str);
-    var pass_manager = PassManager.init(std.testing.allocator, &start);
+    // TODO: diag better, since above call also does this
+    var source_mgr = try SourceManager.init(std.testing.allocator, begin_str, false);
+    defer source_mgr.deinit();
+    const diag = Diagnostics.init(source_mgr);
+    var pass_manager = PassManager.init(std.testing.allocator, &start, diag);
     try pass_manager.run(FoldConstantsPass);
     defer start.deinit(std.testing.allocator);
 

@@ -105,6 +105,9 @@ pub const FuncCall = struct {
     arguments: []Value,
 
     pub fn deinit(self: *FuncCall, allocator: std.mem.Allocator) void {
+        self.function.*.deinit(allocator);
+        allocator.destroy(self.function);
+
         for (self.arguments) |*arg| {
             arg.deinit(allocator);
         }
