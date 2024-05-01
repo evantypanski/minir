@@ -28,20 +28,25 @@ pub const SourceManager = struct {
         source: []const u8,
         owns_source: bool
     ) !Self {
-        var self = Self {
+        return .{
             .allocator = allocator,
             .source = source,
             .filename = null,
             .line_ends = try analyzeLineEnds(allocator, source),
             .owns_source = owns_source,
         };
-
-        return self;
     }
 
     pub fn initFilename(allocator: std.mem.Allocator, name: []const u8) !Self {
         const file = try std.fs.cwd().openFile(name, .{ .mode = .read_only });
-        return init(allocator, try file.readToEndAlloc(allocator, 10000), name, true);
+        const source = try file.readToEndAlloc(allocator, 10000);
+        return .{
+            .allocator = allocator,
+            .source = source,
+            .filename = name,
+            .line_ends = try analyzeLineEnds(allocator, source),
+            .owns_source = true,
+        };
     }
 
     pub fn deinit(self: *Self) void {
