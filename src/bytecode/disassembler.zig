@@ -7,7 +7,7 @@ const Chunk = @import("chunk.zig").Chunk;
 const Value = @import("value.zig").Value;
 const InvalidBytecodeError = @import("errors.zig").InvalidBytecodeError;
 
-pub const DisassembleError = InvalidBytecodeError || Writer.Error;
+pub const DisassembleError = InvalidBytecodeError || Writer.Error || fmt.format_float.FormatError;
 
 pub const Disassembler = struct {
     const Self = @This();
@@ -107,7 +107,11 @@ pub const Disassembler = struct {
         switch (value) {
             .undef => try self.writer.writeAll("undef"),
             .int => |i| try fmt.formatInt(i, 10, .lower, .{}, self.writer),
-            .float => |f| try fmt.formatFloatDecimal(f, .{}, self.writer),
+            .float => |f| {
+                var buf: [fmt.format_float.bufferSize(.decimal, f32)]u8 = undefined;
+                const s = try fmt.format_float.formatFloat(&buf, f, .{});
+                try fmt.formatBuf(s, .{}, self.writer);
+            },
             .boolean => |b| try self.writer.print("{}", .{b}),
         }
     }

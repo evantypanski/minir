@@ -36,7 +36,7 @@ pub const Lexer = struct {
             );
         }
 
-        var c = self.advance();
+        const c = self.advance();
 
         if (ascii.isAlphabetic(c) or c == '_') {
             return self.lexIdentifier();

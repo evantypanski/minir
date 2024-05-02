@@ -477,7 +477,7 @@ pub const Parser = struct {
         const prec = self.precedenceOf(self.current.tag);
         const op_kind = try BinaryOp.Kind.fromTag(self.current.tag);
         self.advance();
-        var rhs = try self.parsePrecedence(prec.inc());
+        const rhs = try self.parsePrecedence(prec.inc());
         const lhs_ptr = if (self.allocator.create(Value)) |ptr|
                 ptr
             else |_|

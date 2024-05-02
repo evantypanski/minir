@@ -8,7 +8,7 @@ const Value = @import("value.zig").Value;
 const OpCode = @import("opcodes.zig").OpCode;
 const errors = @import("errors.zig");
 
-const InterpreterError = errors.RuntimeError || errors.InvalidBytecodeError || Writer.Error;
+const InterpreterError = errors.RuntimeError || errors.InvalidBytecodeError || Writer.Error || fmt.format_float.FormatError;
 
 pub const array_size = 256;
 
@@ -132,7 +132,7 @@ pub const Interpreter = struct {
             .set => {
                 const new_val = try self.popVal();
                 const offset = try self.getSignedByte();
-                var lhs = try self.getVar(offset);
+                const lhs = try self.getVar(offset);
                 lhs.* = new_val;
             },
             .get => {
@@ -296,7 +296,11 @@ pub const Interpreter = struct {
         switch (value) {
             .undef => try self.writer.writeAll("undef"),
             .int => |i| try fmt.formatInt(i, 10, .lower, .{}, self.writer),
-            .float => |f| try fmt.formatFloatDecimal(f, .{}, self.writer),
+            .float => |f| {
+                var buf: [fmt.format_float.bufferSize(.decimal, f32)]u8 = undefined;
+                const s = try fmt.format_float.formatFloat(&buf, f, .{});
+                try fmt.formatBuf(s, .{}, self.writer);
+            },
             .boolean => |b| try self.writer.print("{}", .{b}),
         }
 

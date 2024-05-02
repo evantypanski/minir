@@ -513,8 +513,12 @@ pub const Interpreter = struct {
             },
             .int => |i| fmt.formatInt(i, 10, .lower, .{}, self.writer)
                     catch return error.WriterError,
-            .float => |f| fmt.formatFloatDecimal(f, .{}, self.writer)
-                    catch return error.WriterError,
+            .float => |f| {
+                var buf: [fmt.format_float.bufferSize(.decimal, f32)]u8 = undefined;
+                const s = fmt.format_float.formatFloat(&buf, f, .{})
+                        catch return error.WriterError;
+                fmt.formatBuf(s, .{}, self.writer) catch return error.WriterError;
+            },
             .bool => |b| self.writer.print("{}", .{b})
                     catch return error.WriterError,
             .call => |call| {

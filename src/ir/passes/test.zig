@@ -16,7 +16,7 @@ fn parseProgramFromString(str: []const u8) !Program {
     var source_mgr = try SourceManager.init(std.testing.allocator, str, false);
     defer source_mgr.deinit();
     const diag_engine = Diagnostics.init(source_mgr);
-    var lexer = Lexer.init(source_mgr);
+    const lexer = Lexer.init(source_mgr);
     var parser = Parser.init(std.testing.allocator, lexer, diag_engine);
     return try parser.parse();
 }

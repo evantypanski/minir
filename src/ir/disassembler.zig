@@ -14,18 +14,20 @@ const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 const Decl = @import("nodes/decl.zig").Decl;
 const Function = @import("nodes/decl.zig").Function;
 
+const DisassemblerError = Writer.Error || fmt.format_float.FormatError;
+
 pub const Disassembler = struct {
     writer: Writer,
     program: Program,
     var indent: usize = 0;
 
-    pub fn disassemble(self: Disassembler) Writer.Error!void {
+    pub fn disassemble(self: Disassembler) DisassemblerError!void {
         for (self.program.decls) |decl| {
             try self.disassembleDecl(decl);
         }
     }
 
-    pub fn disassembleDecl(self: Disassembler, decl: Decl) Writer.Error!void {
+    pub fn disassembleDecl(self: Disassembler, decl: Decl) DisassemblerError!void {
         switch (decl) {
             .function => |func| try self.disassembleFunction(func),
             .bb_function => |func| try self.disassembleBBFunction(func),
@@ -35,7 +37,7 @@ pub const Disassembler = struct {
     pub fn disassembleFunction(
         self: Disassembler,
         function: Function(Stmt)
-    ) Writer.Error!void {
+    ) DisassemblerError!void {
         try self.writer.print("func {s}(", .{function.name});
         try self.printParams(function.params);
         try self.writer.writeAll(") -> ");
@@ -54,7 +56,7 @@ pub const Disassembler = struct {
     pub fn disassembleBBFunction(
         self: Disassembler,
         function: Function(BasicBlock),
-    ) Writer.Error!void {
+    ) DisassemblerError!void {
         try self.writer.print("func {s}(", .{function.name});
         try self.printParams(function.params);
         try self.writer.writeAll(") -> ");
@@ -88,7 +90,7 @@ pub const Disassembler = struct {
         try self.newline();
     }
 
-    pub fn disassembleStmt(self: Disassembler, stmt: Stmt) Writer.Error!void {
+    pub fn disassembleStmt(self: Disassembler, stmt: Stmt) DisassemblerError!void {
         try self.newline();
         if (stmt.label) |label| {
             try self.writer.print("@{s}", .{label});
@@ -132,7 +134,7 @@ pub const Disassembler = struct {
         }
     }
 
-    pub fn disassembleValue(self: Disassembler, value: Value) Writer.Error!void {
+    pub fn disassembleValue(self: Disassembler, value: Value) DisassemblerError!void {
         switch (value.val_kind) {
             .undef => try self.writer.writeAll("undefined"),
             .access => |va| {
@@ -145,7 +147,11 @@ pub const Disassembler = struct {
                 }
             },
             .int => |i| try fmt.formatInt(i, 10, .lower, .{}, self.writer),
-            .float => |f| try fmt.formatFloatDecimal(f, .{}, self.writer),
+            .float => |f| {
+                var buf: [fmt.format_float.bufferSize(.decimal, f32)]u8 = undefined;
+                const s = try fmt.format_float.formatFloat(&buf, f, .{});
+                try fmt.formatBuf(s, .{}, self.writer);
+            },
             .bool => |b| {
                 if (b == 1) {
                     try self.writer.writeAll("true");
@@ -176,7 +182,7 @@ pub const Disassembler = struct {
     }
 
     pub fn disassembleUnary(self: Disassembler, unary: UnaryOp)
-                Writer.Error!void {
+                DisassemblerError!void {
         const op = switch (unary.kind) {
             .not => "!",
             .deref => "*",
@@ -187,7 +193,7 @@ pub const Disassembler = struct {
     }
 
     pub fn disassembleBinary(self: Disassembler, binary: BinaryOp)
-                Writer.Error!void {
+                DisassemblerError!void {
         // TODO: Only print parens if necessary?
         try self.writer.writeAll("(");
         try self.disassembleValue(binary.lhs.*);
@@ -210,7 +216,7 @@ pub const Disassembler = struct {
         try self.writer.writeAll(")");
     }
 
-    pub fn disassembleType(self: Disassembler, ty: Type) Writer.Error!void {
+    pub fn disassembleType(self: Disassembler, ty: Type) DisassemblerError!void {
         const name = switch (ty) {
             .int => "int",
             .float => "float",
@@ -229,7 +235,7 @@ pub const Disassembler = struct {
         }
     }
 
-    pub fn disassemblePtr(self: Disassembler, ptr: Pointer) Writer.Error!void {
+    pub fn disassemblePtr(self: Disassembler, ptr: Pointer) DisassemblerError!void {
         try self.writer.writeAll("@[");
         try self.disassembleType(ptr.ty);
         try self.writer.print("]{d}", .{ptr.to});
