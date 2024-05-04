@@ -158,10 +158,10 @@ pub const Interpreter = struct {
                 self.current_ele = branch.dest_index;
             },
             .ret => |opt_val| {
-                self.current_ele = null;
                 if (opt_val) |val| {
-                    try self.pushValue(val);
+                    try self.evalValue(val);
                 }
+                self.current_ele = null;
             },
         }
     }

@@ -43,21 +43,6 @@ pub const Branch = struct {
     pub fn labelName(self: Branch) []const u8 {
         return self.dest_label;
     }
-
-    pub fn labelIndex(self: Branch) usize {
-        switch (self) {
-            .jump => |j| return j.dest_index,
-            .conditional => |conditional| return conditional.dest_index,
-        }
-    }
-
-    pub fn setIndex(self: *Branch, index: usize) void {
-        switch (self.*) {
-            .jump => |*j| j.dest_index = index,
-            .conditional => |*conditional| conditional.dest_index = index,
-        }
-    }
-
 };
 
 pub const StmtKind = union(StmtTag) {
@@ -86,6 +71,10 @@ pub const Stmt = struct {
             .debug, .id, .value => return false,
             .branch, .ret => return true,
         }
+    }
+
+    pub fn getLabel(self: Stmt) ?[]const u8 {
+        return self.label;
     }
 
     pub fn deinit(self: *Stmt, allocator: std.mem.Allocator) void {

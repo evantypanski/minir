@@ -7,6 +7,10 @@ pub const BasicBlock = struct {
     terminator: ?Stmt,
     label: ?[]const u8,
 
+    pub fn getLabel(self: BasicBlock) ?[]const u8 {
+        return self.label;
+    }
+
     pub fn deinit(self: *BasicBlock, allocator: std.mem.Allocator) void {
         for (self.statements) |*stmt| {
             stmt.deinit(allocator);
