@@ -15,6 +15,7 @@ const UnaryOp = @import("nodes/value.zig").UnaryOp;
 const BinaryOp = @import("nodes/value.zig").BinaryOp;
 const FuncCall = @import("nodes/value.zig").FuncCall;
 const Decl = @import("nodes/decl.zig").Decl;
+const Builtin = @import("nodes/decl.zig").Builtin;
 const Type = @import("nodes/type.zig").Type;
 const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 const Heap = @import("memory.zig").Heap;
@@ -69,6 +70,7 @@ pub const Interpreter = struct {
         switch (decl) {
             .function => |function| try self.interpretFn(function),
             .bb_function => |bb_function| try self.interpretBBFn(bb_function),
+            .builtin => |builtin| try self.interpretBuiltin(builtin),
         }
     }
 
@@ -162,17 +164,6 @@ pub const Interpreter = struct {
                 }
             },
         }
-    }
-
-    fn getFunction(self: Self, name: []const u8) IrError!Decl {
-        // Just linear search for now
-        for (self.program.decls) |decl| {
-            if (std.mem.eql(u8, decl.name(), name)) {
-                return decl;
-            }
-        }
-
-        return error.NoSuchFunction;
     }
 
     fn getAbsoluteOffset(self: Self, offset: isize) usize {
@@ -431,22 +422,18 @@ pub const Interpreter = struct {
     }
 
     fn evalCall(self: *Self, call: FuncCall) IrError!?Value {
-        if (call.builtin) {
-            return self.evalBuiltinCall(call);
-        }
-
         for (call.arguments) |arg| {
             try self.evalValue(arg);
         }
         // TODO: We make assumptions here that should be analyzed, like a
         // return type actually means a value is returned.
-        const func = try self.getFunction(call.name());
+        const func = call.resolved orelse return error.NoSuchFunction;
         try self.pushFrame();
         defer {
             const frame = self.popFrame();
             self.current_ele = frame.return_ele_index;
         }
-        try self.interpretDecl(func);
+        try self.interpretDecl(func.*);
         if (func.ty() != .none) {
             try self.evalValue(self.env.pop());
             const ret = self.env.pop();
@@ -456,26 +443,13 @@ pub const Interpreter = struct {
         return null;
     }
 
-    fn evalBuiltinCall(self: *Self, call: FuncCall) IrError!?Value {
-        std.debug.assert(call.builtin);
-        // TODO: Move builtin analysis and resolving to resolve pass
-        //
-        // This "resolves" the builtin. It may be worth resolving it
-        // earlier even if it's a builtin. Probably also worth doing
-        // this more efficiently. Then there may be a difference between
-        // builtin in a stdlib or builtin to the language. Who knows!
-        if (std.mem.eql(u8, "alloc", call.name())) {
-            // Runtime analysis here I guess.
-            if (call.arguments.len != 1) {
-                return error.NoSuchFunction;
+    fn interpretBuiltin(self: *Self, builtin: Builtin) IrError!void {
+        switch (builtin.kind) {
+            .alloc => {
+                const val_ty = self.env.pop();
+                const allocated = try self.allocateType(val_ty.val_kind.type_);
+                try self.pushValue(allocated);
             }
-
-            const val_ty = try self.evalType(call.arguments[0]);
-            const allocated = try self.allocateType(val_ty.val_kind.type_);
-
-            return allocated;
-        } else {
-            return error.NoSuchFunction;
         }
     }
 

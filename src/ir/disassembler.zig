@@ -13,6 +13,7 @@ const Type = @import("nodes/type.zig").Type;
 const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 const Decl = @import("nodes/decl.zig").Decl;
 const Function = @import("nodes/decl.zig").Function;
+const Builtin = @import("nodes/decl.zig").Builtin;
 
 const DisassemblerError = Writer.Error || fmt.format_float.FormatError;
 
@@ -31,6 +32,7 @@ pub const Disassembler = struct {
         switch (decl) {
             .function => |func| try self.disassembleFunction(func),
             .bb_function => |func| try self.disassembleBBFunction(func),
+            .builtin => |builtin| try self.disassembleBuiltin(builtin),
         }
     }
 
@@ -87,6 +89,18 @@ pub const Disassembler = struct {
         indent -= 1;
         try self.newline();
         try self.writer.writeAll("}");
+        try self.newline();
+    }
+
+    pub fn disassembleBuiltin(
+        self: Disassembler,
+        builtin: Builtin
+    ) DisassemblerError!void {
+        try self.writer.print("func {s}(", .{@tagName(builtin.kind)});
+        try self.printParams(builtin.params);
+        try self.writer.writeAll(") -> ");
+        try self.disassembleType(builtin.ret_ty);
+        try self.writer.writeAll(";");
         try self.newline();
     }
 
@@ -224,6 +238,7 @@ pub const Disassembler = struct {
             .type_ => "type",
             .pointer => "*",
             .none => "none",
+            .runtime => "runtime",
             .err => "err",
         };
         try self.writer.writeAll(name);

@@ -7,6 +7,7 @@ const Branch = statement.Branch;
 const VarDecl = statement.VarDecl;
 const Decl = @import("../nodes/decl.zig").Decl;
 const Function = @import("../nodes/decl.zig").Function;
+const Builtin = @import("../nodes/decl.zig").Builtin;
 const Program = @import("../nodes/program.zig").Program;
 const Value = @import("../nodes/value.zig").Value;
 const VarAccess = @import("../nodes/value.zig").VarAccess;
@@ -22,6 +23,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         visitDecl: VisitDeclFn = defaultVisitDecl,
         visitFunction: VisitFunctionFn = defaultVisitFunction,
         visitBBFunction: VisitBBFunctionFn = defaultVisitBBFunction,
+        visitBuiltin: VisitBuiltinFn = defaultVisitBuiltin,
         visitBasicBlock: VisitBasicBlockFn = defaultVisitBasicBlock,
 
         visitStatement: VisitStatementFn = defaultVisitStatement,
@@ -50,6 +52,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const VisitDeclFn = *const fn(self: Self, arg: ArgTy, decl: *Decl) RetTy;
         const VisitFunctionFn = *const fn(self: Self, arg: ArgTy, function: *Function(Stmt)) RetTy;
         const VisitBBFunctionFn = *const fn(self: Self, arg: ArgTy, bb_function: *Function(BasicBlock)) RetTy;
+        const VisitBuiltinFn = *const fn(self: Self, arg: ArgTy, builtin: *Builtin) RetTy;
         const VisitBasicBlockFn = *const fn(self: Self, arg: ArgTy, bb: *BasicBlock) RetTy;
 
         // Statements
@@ -83,6 +86,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             switch (decl.*) {
                 .function => |*func| try self.visitFunction(self, arg, func),
                 .bb_function => |*bb_func| try self.visitBBFunction(self, arg, bb_func),
+                .builtin => |*b| try self.visitBuiltin(self, arg, b),
             }
         }
 
@@ -96,6 +100,13 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             for (function.elements) |*bb| {
                 try self.visitBasicBlock(self, arg, bb);
             }
+        }
+
+        pub fn walkBuiltin(self: Self, arg: ArgTy, builtin: *Builtin) RetTy {
+            _ = self;
+            _ = arg;
+            _ = builtin;
+            // TODO: Shouldn't this and other decls also walk params?
         }
 
         pub fn walkBasicBlock(self: Self, arg: ArgTy, bb: *BasicBlock) RetTy {
@@ -175,6 +186,10 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
 
         pub fn defaultVisitBBFunction(self: Self, arg: ArgTy, bb_function: *Function(BasicBlock)) RetTy {
             try self.walkBBFunction(arg, bb_function);
+        }
+
+        pub fn defaultVisitBuiltin(self: Self, arg: ArgTy, builtin: *Builtin) RetTy {
+            try self.walkBuiltin(arg, builtin);
         }
 
         pub fn defaultVisitBasicBlock(self: Self, arg: ArgTy, bb: *BasicBlock) RetTy {

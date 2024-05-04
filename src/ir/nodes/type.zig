@@ -7,6 +7,8 @@ pub const TypeTag = enum {
     pointer,
     // void but avoiding name conflicts is good :)
     none,
+    // A runtime-known type, for example the return type of 'alloc'
+    runtime,
     // this is only applied if we cannot determine the type
     err,
 };
@@ -16,8 +18,9 @@ pub const Type = union(TypeTag) {
     float: void,
     boolean: void,
     type_: void,
-    pointer: *Type,
+    pointer: *const Type,
     none: void,
+    runtime: void,
     err: void,
 
     /// Gets the size of this type in bytes
@@ -32,7 +35,9 @@ pub const Type = union(TypeTag) {
     /// A wrapper around type equality so that error types are equal to
     /// all other types. This helps avoid double diagnosing an error.
     pub fn eq(self: Type, other: Type) bool {
-        if (self == .err or other == .err) {
+        // TODO: Real runtime type checking
+        if (self == .err or other == .err or
+            self == .runtime or other == .runtime) {
             return true;
         }
 
@@ -51,8 +56,7 @@ pub const Type = union(TypeTag) {
             .boolean => return other == .boolean,
             .type_ => return other == .type_,
             .none => return other == .none,
-            // Can't happen because of guard but oh well
-            .err => return true,
+            .runtime, .err => return true,
         }
     }
 };

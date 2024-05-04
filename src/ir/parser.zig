@@ -382,7 +382,6 @@ pub const Parser = struct {
     // Parses a function call, where the identifier is the previous token.
     fn parseCall(self: *Self, other: Value) ParseError!Value {
         const start = self.previous.loc.start;
-        const builtin = self.previous.kw != null;
         try self.consume(.lparen);
         var arguments = std.ArrayList(Value).init(self.allocator);
         if (self.current.tag != .rparen) {
@@ -403,7 +402,7 @@ pub const Parser = struct {
             else |_|
                 return error.MemoryError;
         fn_ptr.* = other;
-        return Value.initCall(fn_ptr, builtin, arg_slice, loc);
+        return Value.initCall(fn_ptr, arg_slice, loc);
     }
 
     // Parses a unary op

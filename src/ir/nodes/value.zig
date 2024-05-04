@@ -100,8 +100,7 @@ pub const BinaryOp = struct {
 
 pub const FuncCall = struct {
     function: *Value,
-    resolved: ?*Decl,
-    builtin: bool,
+    resolved: ?*const Decl,
     arguments: []Value,
 
     pub fn deinit(self: *FuncCall, allocator: std.mem.Allocator) void {
@@ -213,14 +212,13 @@ pub const Value = struct {
     }
 
     pub fn initCall(
-        function: *Value, builtin: bool, arguments: []Value, loc: Loc
+        function: *Value, arguments: []Value, loc: Loc
     ) Value {
         return .{
             .val_kind = .{
                 .call = .{
                     .function = function,
                     .resolved = null,
-                    .builtin = builtin,
                     .arguments = arguments
                 }
             },

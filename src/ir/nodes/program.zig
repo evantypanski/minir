@@ -36,6 +36,7 @@ pub const ProgramBuilder = struct {
         const is_main = switch (decl) {
             .function => |func| std.mem.eql(u8, func.name, "main"),
             .bb_function => |func| std.mem.eql(u8, func.name, "main"),
+            .builtin => false,
         };
 
         if (is_main) {

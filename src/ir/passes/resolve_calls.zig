@@ -3,6 +3,7 @@ const std = @import("std");
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
+const builtins = @import("../nodes/decl.zig").builtins;
 const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
 const BasicBlockBuilder = @import("../nodes/basic_block.zig").BasicBlockBuilder;
 const Stmt = @import("../nodes/statement.zig").Stmt;
@@ -50,16 +51,14 @@ pub const ResolveCallsPass = struct {
         self: *Self,
         call: *FuncCall
     ) ResolveError!void {
-        if (call.builtin) {
-            return;
-        }
-
         // Don't re-resolve if it's already been resolved.
         if (call.resolved != null) {
             return;
         }
 
-        const decl = self.resolved.get(call.name());
+        const decl = builtins.get(call.name()) orelse
+            self.resolved.get(call.name());
+
         if (decl == null) {
             return error.NoSuchFunction;
         }

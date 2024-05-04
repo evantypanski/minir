@@ -131,8 +131,7 @@ pub const TypecheckPass = struct {
                 // good dependencies between passes yet. We do actually run the
                 // resolving pass first though, so we can assume resolved is set.
                 const args_len = call.*.arguments.len;
-                // TODO actual builtin handling
-                const decl_params_len = if (call.builtin) 1 else call.*.resolved.?.params().len;
+                const decl_params_len = call.*.resolved.?.params().len;
                 if (args_len != decl_params_len) {
                     self.num_errors += 1;
                     self.diag.err(
@@ -224,31 +223,7 @@ pub const TypecheckPass = struct {
             // Don't check whether params are right here since it won't change
             // the type of this particular expression.
             .call => |call| blk: {
-                if (call.builtin) {
-                    if (std.mem.eql(u8, "alloc", call.name())) {
-                        if (call.arguments.len != 1) {
-                            self.num_errors += 1;
-                            // TODO diag
-                            break :blk .err;
-                        }
-
-                        var arg = call.arguments[0];
-                        switch (arg.val_kind) {
-                            .type_ => |*ty| break :blk .{ .pointer = ty },
-                            else => {
-                                self.num_errors += 1;
-                                // TODO diag
-                                break :blk .err;
-                            }
-                        }
-                    } else {
-                        self.num_errors += 1;
-                        // TODO diag
-                        break :blk .err;
-                    }
-                } else {
-                    break :blk call.resolved.?.ty();
-                }
+                break :blk call.resolved.?.ty();
             },
             .type_ => .type_,
             .ptr => |ptr| ptr.ty,
