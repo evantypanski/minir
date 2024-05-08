@@ -98,6 +98,16 @@ pub const Disassembler = struct {
                 const absolute = (b1 << 8) | b2;
                 try fmt.formatInt(absolute, 16, .upper, .{.fill = '0', .width = 8 }, self.writer);
             },
+            .alloc => {
+                try self.writer.writeAll("ALLOC ");
+                const immediate = try self.getByte();
+                try fmt.formatInt(immediate, 10, .lower, .{}, self.writer);
+            },
+            .deref => {
+                try self.writer.writeAll("DEREF ");
+                const immediate = try self.getByte();
+                try fmt.formatInt(immediate, 10, .lower, .{}, self.writer);
+            }
         }
 
         try self.writer.writeAll("\n");
@@ -113,6 +123,7 @@ pub const Disassembler = struct {
                 try fmt.formatBuf(s, .{}, self.writer);
             },
             .boolean => |b| try self.writer.print("{}", .{b}),
+            .ptr => |p| try self.writer.print("@{d}", .{p}),
         }
     }
 

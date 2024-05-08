@@ -3,6 +3,7 @@ const std = @import("std");
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
+const Builtin = @import("../nodes/decl.zig").Builtin;
 const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
 const BasicBlockBuilder = @import("../nodes/basic_block.zig").BasicBlockBuilder;
 const Stmt = @import("../nodes/statement.zig").Stmt;
@@ -27,6 +28,7 @@ const LowerError = error{
     InvalidLHS,
     NoSuchFunction,
     NoSuchLabel,
+    InvalidBuiltin,
 };
 
 pub const Lowerer = struct {
@@ -260,12 +262,14 @@ pub const Lowerer = struct {
         op: *UnaryOp
     ) LowerError!void {
         try visitor.visitValue(visitor, self, op.*.val);
-        const op_opcode = switch (op.*.kind) {
-            .not => OpCode.not,
-            // TODO
-            .deref => OpCode.not,
-        };
-        self.builder.addOp(op_opcode) catch return error.BuilderError;
+        switch (op.*.kind) {
+            .not => self.builder.addOp(.not) catch return error.BuilderError,
+            .deref => {
+                self.builder.addOp(.deref) catch return error.BuilderError;
+                self.builder.addByte(@sizeOf(ByteValue))
+                        catch return error.BuilderError;
+            },
+        }
     }
 
     pub fn visitBinaryOp(
@@ -333,6 +337,13 @@ pub const Lowerer = struct {
         self: *Self,
         call: *FuncCall
     ) LowerError!void {
+        if (call.*.resolved) |resolved| {
+            switch (resolved.*) {
+                .builtin => |*builtin| return try self.lowerBuiltin(call, builtin),
+                else => {},
+            }
+        }
+
         // Return value goes here
         self.builder.addOp(.constant) catch return error.BuilderError;
         // 0 is undef
@@ -359,6 +370,27 @@ pub const Lowerer = struct {
         // Pop each argument
         for (call.*.arguments) |_| {
             self.builder.addOp(.pop) catch return error.BuilderError;
+        }
+    }
+
+    fn lowerBuiltin(
+        self: *Self,
+        call: *FuncCall,
+        builtin: *const Builtin
+    ) LowerError!void {
+        switch (builtin.*.kind) {
+            .alloc => {
+                self.builder.addOp(.alloc) catch return error.BuilderError;
+                // TODO: Maybe allow alloc type to be runtime-known?
+                // This is just easier for now.
+                const tyVal = call.*.arguments[0];
+                _ = tyVal;
+                // TODO: This only works because everything is the same size
+                // In the future, use the type from tyVal to determine, hence
+                // why it's stubbed out
+                self.builder.addByte(@sizeOf(ByteValue))
+                        catch return error.BuilderError;
+            },
         }
     }
 

@@ -7,8 +7,11 @@ const Chunk = @import("chunk.zig").Chunk;
 const Value = @import("value.zig").Value;
 const OpCode = @import("opcodes.zig").OpCode;
 const errors = @import("errors.zig");
+// TODO: Move heap to "common" or something
+const Heap = @import("../ir/memory.zig").Heap;
+const HeapError = @import("../ir/errors.zig").HeapError;
 
-const InterpreterError = errors.RuntimeError || errors.InvalidBytecodeError || Writer.Error || fmt.format_float.FormatError;
+const InterpreterError = errors.RuntimeError || errors.InvalidBytecodeError || Writer.Error || fmt.format_float.FormatError || HeapError;
 
 pub const array_size = 256;
 
@@ -20,6 +23,7 @@ const Frame = struct {
 pub const Interpreter = struct {
     const Self = @This();
 
+    heap: Heap,
     writer: Writer,
     chunk: Chunk,
 
@@ -37,6 +41,7 @@ pub const Interpreter = struct {
 
     pub fn init(chunk: Chunk, writer: Writer) Self {
         return .{
+            .heap = try Heap.init(),
             .writer = writer,
             .call_stack = [_] Frame { .{
                     .frame_stack_begin = 0,
@@ -161,6 +166,23 @@ pub const Interpreter = struct {
                 try self.pushFrame();
                 self.pc = absolute;
             },
+            .alloc => {
+                const size = try self.getByte();
+                const to = try self.heap.alloc(size);
+                try self.pushValue(.{ .ptr = to });
+
+                // TODO: This is just here to test deref, remove later
+                //const bytes = self.heap.getBytes(to, size);
+                //const val = std.mem.bytesAsValue(Value, bytes[0..@sizeOf(Value)]);
+                //val.* = .{ .int = 5 };
+            },
+            .deref => {
+                const size = try self.getByte();
+                const val = try self.popVal();
+                const ptr = try val.asPtr();
+                const bytes = self.heap.getBytes(ptr, size);
+                try self.pushValue(std.mem.bytesAsValue(Value, bytes[0..size]).*);
+            }
         }
     }
 
@@ -302,6 +324,7 @@ pub const Interpreter = struct {
                 try fmt.formatBuf(s, .{}, self.writer);
             },
             .boolean => |b| try self.writer.print("{}", .{b}),
+            .ptr => |p| try self.writer.print("@{d}", .{p}),
         }
 
         try self.writer.writeAll("\n");

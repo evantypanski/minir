@@ -5,7 +5,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const Value = @import("nodes/value.zig").Value;
 const HeapError = @import("errors.zig").HeapError;
 
 const HEAP_MAX: usize = 1000;
@@ -24,7 +23,6 @@ pub const BlockMeta = struct {
     }
 };
 
-/// For the heap, all sizes are based on Values, not on bytes.
 pub const Heap = struct {
     const Self = @This();
     global_base: ?*align(1) BlockMeta,

@@ -40,10 +40,15 @@ pub const OpCode = enum(u8) {
     // Call an absolute address
     call,
 
+    // Allocate a pointer with the given size
+    alloc,
+    // Dereference a pointer with the given size
+    deref,
+
     pub fn numImmediates(self: Self) usize {
          return switch (self) {
              .jmp, .jmpt, .call => 2,
-             .constant, .set, .get => 1,
+             .constant, .set, .get, .alloc, .deref => 1,
              .ret, .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
              .pop, .and_, .or_ => 0,
          };
@@ -51,8 +56,8 @@ pub const OpCode = enum(u8) {
 
     pub fn stackEffect(self: Self) isize {
          return switch (self) {
-             .constant, .get => 1,
-             .ret, .call, .jmp => 0,
+             .constant, .get, .alloc => 1,
+             .ret, .call, .jmp, .deref => 0,
              .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
              .set, .jmpt, .pop, .and_, .or_ => -1,
          };

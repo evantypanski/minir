@@ -5,6 +5,7 @@ pub const ValueKind = enum {
     int,
     float,
     boolean,
+    ptr,
 };
 
 pub const Value = union(ValueKind) {
@@ -14,6 +15,7 @@ pub const Value = union(ValueKind) {
     int: i32,
     float: f32,
     boolean: bool,
+    ptr: usize,
 
     pub fn initUndef() Value {
         return .undef;
@@ -37,6 +39,7 @@ pub const Value = union(ValueKind) {
             .int => |*i| i.* += try other.asInt(),
             .float => |*f| f.* += try other.asFloat(),
             .boolean => return error.InvalidOperand,
+            .ptr => return error.InvalidOperand,
         }
     }
 
@@ -46,6 +49,7 @@ pub const Value = union(ValueKind) {
             .int => |*i| i.* -= try other.asInt(),
             .float => |*f| f.* -= try other.asFloat(),
             .boolean => return error.InvalidOperand,
+            .ptr => return error.InvalidOperand,
         }
     }
 
@@ -55,6 +59,7 @@ pub const Value = union(ValueKind) {
             .int => |*i| i.* *= try other.asInt(),
             .float => |*f| f.* *= try other.asFloat(),
             .boolean => return error.InvalidOperand,
+            .ptr => return error.InvalidOperand,
         }
     }
 
@@ -64,6 +69,7 @@ pub const Value = union(ValueKind) {
             .int => |*i| i.* = @divTrunc(i.*, try other.asInt()),
             .float => |*f| f.* /= try other.asFloat(),
             .boolean => return error.InvalidOperand,
+            .ptr => return error.InvalidOperand,
         }
     }
 
@@ -73,6 +79,7 @@ pub const Value = union(ValueKind) {
             .int => return error.InvalidOperand,
             .float => return error.InvalidOperand,
             .boolean => |b| b and try other.asBool(),
+            .ptr => return error.InvalidOperand,
         };
 
         return Self.initBool(result);
@@ -84,6 +91,7 @@ pub const Value = union(ValueKind) {
             .int => return error.InvalidOperand,
             .float => return error.InvalidOperand,
             .boolean => |b| b or try other.asBool(),
+            .ptr => return error.InvalidOperand,
         };
 
         return Self.initBool(result);
@@ -95,6 +103,7 @@ pub const Value = union(ValueKind) {
             .int => |i| i == try other.asInt(),
             .float => |f| f == try other.asFloat(),
             .boolean => return error.InvalidOperand,
+            .ptr => return error.InvalidOperand,
         };
 
         return Self.initBool(result);
@@ -106,6 +115,7 @@ pub const Value = union(ValueKind) {
             .int => |i| i != try other.asInt(),
             .float => |f| f != try other.asFloat(),
             .boolean => return error.InvalidOperand,
+            .ptr => return error.InvalidOperand,
         };
 
         return Self.initBool(result);
@@ -117,6 +127,7 @@ pub const Value = union(ValueKind) {
             .int => |i| i > try other.asInt(),
             .float => |f| f > try other.asFloat(),
             .boolean => return error.InvalidOperand,
+            .ptr => return error.InvalidOperand,
         };
 
         return Self.initBool(result);
@@ -128,6 +139,7 @@ pub const Value = union(ValueKind) {
             .int => |i| i >= try other.asInt(),
             .float => |f| f >= try other.asFloat(),
             .boolean => return error.InvalidOperand,
+            .ptr => return error.InvalidOperand,
         };
 
         return Self.initBool(result);
@@ -139,6 +151,7 @@ pub const Value = union(ValueKind) {
             .int => |i| i < try other.asInt(),
             .float => |f| f < try other.asFloat(),
             .boolean => return error.InvalidOperand,
+            .ptr => return error.InvalidOperand,
         };
 
         return Self.initBool(result);
@@ -150,6 +163,7 @@ pub const Value = union(ValueKind) {
             .int => |i| i <= try other.asInt(),
             .float => |f| f <= try other.asFloat(),
             .boolean => return error.InvalidOperand,
+            .ptr => return error.InvalidOperand,
         };
 
         return Self.initBool(result);
@@ -173,6 +187,13 @@ pub const Value = union(ValueKind) {
         switch (self) {
             .boolean => |b| return b,
             else => return error.ExpectedBool,
+        }
+    }
+
+    pub fn asPtr(self: Self) RuntimeError!usize {
+        switch (self) {
+            .ptr => |to| return to,
+            else => return error.ExpectedPtr,
         }
     }
 };
