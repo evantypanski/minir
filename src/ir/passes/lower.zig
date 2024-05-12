@@ -279,17 +279,33 @@ pub const Lowerer = struct {
     ) LowerError!void {
         // Assign is special
         if (op.*.kind == .assign) {
-            // This will need to change when we can set based on pointers etc.
-            // Grab the variable offset.
-            const offset = switch (op.*.lhs.*.val_kind) {
-                .access => |access| try self.getOffsetForName(access.name.?),
-                else => return error.InvalidLHS,
-            };
             try visitor.visitValue(visitor, self, op.*.rhs);
-            try self.setVarOffset(offset);
+            switch (op.*.lhs.*.val_kind) {
+                // Simple variable access, so set is fine
+                .access => |access| {
+                    const offset = try self.getOffsetForName(access.name.?);
+                    try self.setVarOffset(offset);
+                    try self.getVarOffset(offset);
+                },
+                .unary => |uo| {
+                    if (uo.kind != .deref) {
+                        return error.InvalidLHS;
+                    }
+
+                    try visitor.visitValue(visitor, self, uo.val);
+                    // Skip tho deref so we can get the pointer val with
+                    // heapset
+                    self.builder.addOp(.heapset) catch return error.BuilderError;
+                    self.builder.addByte(@sizeOf(ByteValue))
+                            catch return error.BuilderError;
+                    // Then put derefed value at top of the stack, which is
+                    // just the op's LHS
+                    try visitor.visitValue(visitor, self, op.*.lhs);
+                },
+                else => return error.InvalidLHS,
+            }
 
             // Assign also pushes the value to the top of the stack
-            try self.getVarOffset(offset);
 
             return;
         }

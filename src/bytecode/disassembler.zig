@@ -107,7 +107,12 @@ pub const Disassembler = struct {
                 try self.writer.writeAll("DEREF ");
                 const immediate = try self.getByte();
                 try fmt.formatInt(immediate, 10, .lower, .{}, self.writer);
-            }
+            },
+            .heapset => {
+                try self.writer.writeAll("HEAPSET ");
+                const immediate = try self.getByte();
+                try fmt.formatInt(immediate, 10, .lower, .{}, self.writer);
+            },
         }
 
         try self.writer.writeAll("\n");

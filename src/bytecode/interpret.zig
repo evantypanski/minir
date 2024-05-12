@@ -182,6 +182,14 @@ pub const Interpreter = struct {
                 const ptr = try val.asPtr();
                 const bytes = self.heap.getBytes(ptr, size);
                 try self.pushValue(std.mem.bytesAsValue(Value, bytes[0..size]).*);
+            },
+            .heapset => {
+                const size = try self.getByte();
+                const toVal = try self.popVal();
+                const to = try toVal.asPtr();
+                const bytes = self.heap.getBytes(to, size);
+                const val = std.mem.bytesAsValue(Value, bytes[0..size]);
+                val.* = try self.popVal();
             }
         }
     }
