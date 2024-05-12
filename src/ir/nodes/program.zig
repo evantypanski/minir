@@ -89,7 +89,7 @@ test "deinit works" {
     func_access.* = Value.initAccessName("f", Loc.default());
     try bb1_builder.addStatement(
         Stmt.init(
-            .{ .debug = Value.initCall(func_access, false, &.{}, Loc.default())},
+            .{ .debug = Value.initCall(func_access, &.{}, Loc.default())},
             null,
             Loc.default()
         )

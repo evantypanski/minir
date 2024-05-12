@@ -90,7 +90,8 @@ pub const BlockifyPass = struct {
             },
             .bb_function => {
                 return error.AlreadyBlockified;
-            }
+            },
+            .builtin => {},
         }
     }
 };
@@ -124,7 +125,7 @@ test "Changes all functions into BB functions" {
     func_access.* = Value.initAccessName("f", Loc.default());
     try func_builder.addElement(
         Stmt.init(
-            .{ .debug = Value.initCall(func_access, false, &.{}, Loc.default()) },
+            .{ .debug = Value.initCall(func_access, &.{}, Loc.default()) },
             "testme",
             Loc.default()
         )
@@ -141,6 +142,7 @@ test "Changes all functions into BB functions" {
         .function => |main_func|
             try std.testing.expectEqual(main_func.elements.len, 3),
         .bb_function => try std.testing.expect(false),
+        .builtin => try std.testing.expect(false),
     }
 
     var pass = BlockifyPass.init(std.testing.allocator);
@@ -151,6 +153,7 @@ test "Changes all functions into BB functions" {
         .function => try std.testing.expect(false),
         .bb_function => |bb_func|
             try std.testing.expectEqual(bb_func.elements.len, 2),
+        .builtin => try std.testing.expect(false),
     }
 
     program.deinit(std.testing.allocator);
