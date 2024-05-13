@@ -41,7 +41,10 @@ pub fn drive(self: Self) !void {
     const cli = try CommandLine.init(self.allocator, self.out);
     const cli_result = try cli.parse();
     defer cli.deinit();
+    try self.drive_with_opts(cli_result);
+}
 
+pub fn drive_with_opts(self: Self, cli_result: CommandLine.CommandLineResult) !void {
     if (cli_result == .none) {
         return;
     }
@@ -53,6 +56,7 @@ pub fn drive(self: Self) !void {
     const lexer = Lexer.init(source_mgr);
     var parser = Parser.init(self.allocator, lexer, diag_engine);
     var program = try parser.parse();
+    defer program.deinit(self.allocator);
 
     var pass_manager = PassManager.init(self.allocator, &program, diag_engine);
     try pass_manager.run(Numify);
@@ -93,7 +97,6 @@ pub fn drive(self: Self) !void {
             var disassembler = Disassembler.init(chunk, self.out);
             try disassembler.disassemble();
         },
-        .none => return,
+        .none => {},
     }
-
 }

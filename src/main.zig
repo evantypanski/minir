@@ -16,4 +16,5 @@ test {
     _ = @import("ir/passes/test.zig");
     _ = @import("ir/nodes/program.zig");
     _ = @import("ir/passes/blockify.zig");
+    _ = @import("test/output.zig");
 }
