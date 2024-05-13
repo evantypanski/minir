@@ -39,7 +39,7 @@ pub const TypecheckPass = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        _ = self;
+        self.vars.clearAndFree();
     }
 
     pub const TypecheckVisitor = VisitorTy {

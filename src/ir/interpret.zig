@@ -48,6 +48,11 @@ pub const Interpreter = struct {
         };
     }
 
+    pub fn deinit(self: *Self) void {
+        self.env.clearAndFree();
+        self.call_stack.clearAndFree();
+    }
+
     pub fn interpret(self: *Self) IrError!void {
         var main_fn: ?Decl = null;
         for (self.program.decls) |decl| {

@@ -82,6 +82,8 @@ pub fn drive_with_opts(self: Self, cli_result: CommandLine.CommandLineResult) !v
                         self.allocator, self.out, program
                     );
                     try treewalk_interp.interpret();
+                    source_mgr.deinit();
+                    treewalk_interp.deinit();
                 },
             }
         },

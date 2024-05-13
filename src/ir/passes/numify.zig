@@ -29,7 +29,7 @@ pub fn init(allocator: std.mem.Allocator) Self {
 }
 
 pub fn deinit(self: *Self) void {
-    _ = self;
+    self.map.clearAndFree();
 }
 
 pub const NumifyVisitor = VisitorTy {
