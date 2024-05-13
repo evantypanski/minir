@@ -28,6 +28,10 @@ pub const BlockifyPass = struct {
         };
     }
 
+    pub fn deinit(self: *Self) void {
+        _ = self;
+    }
+
     pub const BlockifyVisitor = VisitorTy {
         .visitDecl = visitDecl,
     };

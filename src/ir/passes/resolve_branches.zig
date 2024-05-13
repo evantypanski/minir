@@ -31,6 +31,10 @@ pub const ResolveBranchesPass = struct {
         };
     }
 
+    pub fn deinit(self: *Self) void {
+        _ = self;
+    }
+
     pub const FindBranchesVisitor = VisitorTy {
         .visitFunction = visitFunction,
         .visitBBFunction = visitBBFunction,

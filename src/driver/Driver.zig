@@ -68,6 +68,9 @@ pub fn drive_with_opts(self: Self, cli_result: CommandLine.CommandLineResult) !v
             switch (config.interpreter_type) {
                 .byte => {
                     const chunk = try pass_manager.run(Lowerer);
+                    // TODO: Maybe deinit should be in the interpreter, but it
+                    // doesn't allocate so eh.
+                    defer chunk.deinit(self.allocator);
 
                     source_mgr.deinit();
 

@@ -71,6 +71,13 @@ pub const Lowerer = struct {
         };
     }
 
+    pub fn deinit(self: *Self) void {
+        self.placeholder_map.clearAndFree();
+        self.fn_map.clearAndFree();
+        self.label_placeholder_map.clearAndFree();
+        self.label_map.clearAndFree();
+    }
+
     pub const LowerVisitor = VisitorTy {
         .visitStatement = visitStatement,
         .visitBasicBlock = visitBasicBlock,

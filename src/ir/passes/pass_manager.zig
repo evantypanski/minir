@@ -42,6 +42,8 @@ pub const PassManager = struct {
             PassType.init(self.allocator, self.diag)
         else
             PassType.init(self.allocator);
+        // Make sure we deinit too
+        defer pass.deinit();
         return pass.execute(self.program);
     }
 

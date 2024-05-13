@@ -26,6 +26,10 @@ pub const FoldConstantsPass = struct {
         };
     }
 
+    pub fn deinit(self: *Self) void {
+        _ = self;
+    }
+
     pub const FoldVisitor = VisitorTy {
         .visitValue = visitValue,
     };

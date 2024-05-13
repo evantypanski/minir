@@ -38,6 +38,10 @@ pub const TypecheckPass = struct {
         };
     }
 
+    pub fn deinit(self: *Self) void {
+        _ = self;
+    }
+
     pub const TypecheckVisitor = VisitorTy {
         .visitDecl = visitDecl,
         .visitFunction = visitFunction,

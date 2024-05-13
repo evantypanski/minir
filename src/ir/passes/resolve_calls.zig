@@ -29,6 +29,10 @@ pub const ResolveCallsPass = struct {
         };
     }
 
+    pub fn deinit(self: *Self) void {
+        self.resolved.clearAndFree();
+    }
+
     pub const ResolveVisitor = VisitorTy {
         .visitFuncCall = visitFuncCall,
     };

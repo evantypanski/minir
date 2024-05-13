@@ -8,7 +8,7 @@ pub const Chunk = struct {
     bytes: []u8,
     values: []Value,
 
-    pub fn deinit(self: *Chunk, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *const Chunk, allocator: std.mem.Allocator) void {
         allocator.free(self.bytes);
         allocator.free(self.values);
     }
