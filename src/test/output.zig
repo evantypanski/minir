@@ -7,7 +7,7 @@ const Driver = @import("../driver/Driver.zig");
 const CommandLine = @import("../driver/command_line.zig").CommandLine;
 
 // Runs the given test, where test is within the top-level 'tests/output' dir
-fn run(name: []const u8) !void {
+fn run(comptime name: []const u8) !void {
     const tests_dir = try std.fs.cwd().openDir("tests/output", .{});
     const test_file = try tests_dir.realpathAlloc(std.testing.allocator, name);
     defer std.testing.allocator.free(test_file);
@@ -53,10 +53,17 @@ fn run(name: []const u8) !void {
     // Ensure the bytecode and treewalk interpreter are the same
     try std.testing.expectEqualStrings(byteResult, treewalkResult);
 
-    // TODO: .expected file too?
+    // If we have <filename>.expected, then check against that too
+    const expected_name = name ++ ".expected";
+    const expected_file = tests_dir.openFile(expected_name, .{ .mode = .read_only }) catch return;
+    const expected = try expected_file.readToEndAlloc(std.testing.allocator, 1000);
+    defer std.testing.allocator.free(expected);
+
+    try std.testing.expectEqualStrings(expected, byteResult);
 }
 
 test "output examples" {
     try run("minimal.min");
     try run("print.min");
+    try run("binops.min");
 }

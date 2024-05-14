@@ -1,0 +1,9 @@
+func main() -> none {
+  debug(1 + 2)
+  debug(1 + 2 * 3)
+  debug(5 - 1)
+  debug(5 / 2)
+  let i = 40
+  debug(i + 2)
+  ret
+}
