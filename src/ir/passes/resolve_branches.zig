@@ -32,7 +32,7 @@ pub const ResolveBranchesPass = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        _ = self;
+        self.label_map.clearAndFree();
     }
 
     pub const FindBranchesVisitor = VisitorTy {

@@ -67,4 +67,6 @@ test "output examples" {
     try run("print.min");
     try run("binops.min");
     try run("simple_heap.min");
+    try run("count_to_42.min");
+    try run("recursive_fib.min");
 }

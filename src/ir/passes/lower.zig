@@ -72,8 +72,22 @@ pub const Lowerer = struct {
     }
 
     pub fn deinit(self: *Self) void {
+        var placeholder_it = self.*.placeholder_map.iterator();
+        var placeholder_opt_entry = placeholder_it.next();
+        while (placeholder_opt_entry) |entry| {
+            entry.value_ptr.*.deinit();
+            self.allocator.destroy(entry.value_ptr.*);
+            placeholder_opt_entry = placeholder_it.next();
+        }
         self.placeholder_map.clearAndFree();
         self.fn_map.clearAndFree();
+        var label_placeholder_it = self.*.label_placeholder_map.iterator();
+        var label_placeholder_opt_entry = label_placeholder_it.next();
+        while (label_placeholder_opt_entry) |entry| {
+            entry.value_ptr.*.deinit();
+            self.allocator.destroy(entry.value_ptr.*);
+            label_placeholder_opt_entry = label_placeholder_it.next();
+        }
         self.label_placeholder_map.clearAndFree();
         self.label_map.clearAndFree();
     }
