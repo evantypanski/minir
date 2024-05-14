@@ -1,0 +1,7 @@
+func main() -> none {
+  let a = alloc(int);
+  debug(*a);
+  *a = 5;
+  debug(*a);
+  ret
+}

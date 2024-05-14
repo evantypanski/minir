@@ -324,7 +324,7 @@ pub const Interpreter = struct {
 
     fn printValue(self: *Self, value: Value) InterpreterError!void {
         switch (value) {
-            .undef => try self.writer.writeAll("undef"),
+            .undef => try self.writer.writeAll("undefined"),
             .int => |i| try fmt.formatInt(i, 10, .lower, .{}, self.writer),
             .float => |f| {
                 var buf: [fmt.format_float.bufferSize(.decimal, f32)]u8 = undefined;

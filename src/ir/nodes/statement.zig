@@ -91,7 +91,11 @@ pub const Stmt = struct {
                     val.deinit(allocator);
                 }
             },
-            else => {},
+            .id => |*vd| {
+                if (vd.val) |*val| {
+                    val.deinit(allocator);
+                }
+            },
         }
     }
 };

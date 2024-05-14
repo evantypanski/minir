@@ -66,4 +66,5 @@ test "output examples" {
     try run("minimal.min");
     try run("print.min");
     try run("binops.min");
+    try run("simple_heap.min");
 }
