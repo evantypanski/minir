@@ -5,7 +5,6 @@ const Type = @import("type.zig").Type;
 const Loc = @import("../sourceloc.zig").Loc;
 
 const StmtTag = enum {
-    debug,
     id,
     branch,
     ret,
@@ -46,7 +45,6 @@ pub const Branch = struct {
 };
 
 pub const StmtKind = union(StmtTag) {
-    debug: Value,
     id: VarDecl,
     branch: Branch,
     ret: ?Value,
@@ -68,7 +66,7 @@ pub const Stmt = struct {
 
     pub fn isTerminator(self: Stmt) bool {
         switch (self.stmt_kind) {
-            .debug, .id, .value => return false,
+            .id, .value => return false,
             .branch, .ret => return true,
         }
     }
@@ -79,7 +77,6 @@ pub const Stmt = struct {
 
     pub fn deinit(self: *Stmt, allocator: std.mem.Allocator) void {
         switch (self.*.stmt_kind) {
-            .debug => |*val| val.deinit(allocator),
             .ret => |*ret| {
                 if (ret.*) |*val| {
                     val.deinit(allocator);

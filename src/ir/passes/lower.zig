@@ -96,7 +96,6 @@ pub const Lowerer = struct {
         .visitStatement = visitStatement,
         .visitBasicBlock = visitBasicBlock,
         .visitInt = visitInt,
-        .visitDebug = visitDebug,
         .visitVarDecl = visitVarDecl,
         .visitValueStmt = visitValueStmt,
         .visitRet = visitRet,
@@ -225,15 +224,6 @@ pub const Lowerer = struct {
             ) catch return error.MemoryError;
         }
         try visitor.walkBasicBlock(self, bb);
-    }
-
-    pub fn visitDebug(
-        visitor: VisitorTy,
-        self: *Self,
-        val: *Value
-    ) LowerError!void {
-        try visitor.visitValue(visitor, self, val);
-        self.builder.addOp(.debug) catch return error.BuilderError;
     }
 
     pub fn visitVarDecl(
@@ -377,7 +367,7 @@ pub const Lowerer = struct {
     ) LowerError!void {
         if (call.*.resolved) |resolved| {
             switch (resolved.*) {
-                .builtin => |*builtin| return try self.lowerBuiltin(call, builtin),
+                .builtin => |*builtin| return try self.lowerBuiltin(visitor, call, builtin),
                 else => {},
             }
         }
@@ -413,6 +403,7 @@ pub const Lowerer = struct {
 
     fn lowerBuiltin(
         self: *Self,
+        visitor: VisitorTy,
         call: *FuncCall,
         builtin: *const Builtin
     ) LowerError!void {
@@ -428,6 +419,16 @@ pub const Lowerer = struct {
                 // why it's stubbed out
                 self.builder.addByte(@sizeOf(ByteValue))
                         catch return error.BuilderError;
+            },
+            .debug => {
+                // Push the "return value" so pop doesn't underflow
+                self.builder.addOp(.constant) catch return error.BuilderError;
+                self.builder.addByte(0) catch return error.BuilderError;
+                // TODO: Fix this so it only does one?
+                for (call.*.arguments) |*arg| {
+                    try visitor.visitValue(visitor, self, arg);
+                }
+                self.builder.addOp(.debug) catch return error.BuilderError;
             },
         }
     }

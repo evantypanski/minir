@@ -120,7 +120,7 @@ test "Changes all functions into BB functions" {
     const hi_access = Value.initAccessName("hi", Loc.default());
     try func_builder.addElement(
         Stmt.init(
-            .{ .debug = hi_access },
+            .{ .value = hi_access },
             null,
             Loc.default()
         )
@@ -129,7 +129,7 @@ test "Changes all functions into BB functions" {
     func_access.* = Value.initAccessName("f", Loc.default());
     try func_builder.addElement(
         Stmt.init(
-            .{ .debug = Value.initCall(func_access, &.{}, Loc.default()) },
+            .{ .value = Value.initCall(func_access, &.{}, Loc.default()) },
             "testme",
             Loc.default()
         )

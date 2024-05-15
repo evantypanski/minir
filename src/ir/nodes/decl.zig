@@ -8,6 +8,7 @@ const StaticStringMap = std.static_string_map.StaticStringMap;
 
 pub const BuiltinKind = enum {
     alloc,
+    debug,
 };
 
 pub const builtins = blk: {
@@ -17,6 +18,13 @@ pub const builtins = blk: {
                 .params = &.{ VarDecl{ .name = "ty", .val = null, .ty = Type.type_ }},
                 .ret_ty = Type { .pointer = &.{.runtime = {} } },
                 .kind = .alloc
+            }}
+        },
+        .{
+            "debug", &.{ .builtin = .{
+                .params = &.{ VarDecl{ .name = "val", .val = null, .ty = Type.runtime }},
+                .ret_ty = .none,
+                .kind = .debug
             }}
         }
     });

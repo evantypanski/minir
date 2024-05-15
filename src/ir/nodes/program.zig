@@ -80,7 +80,7 @@ test "deinit works" {
     const hi_access = Value.initAccessName("hi", Loc.default());
     try bb1_builder.addStatement(
         Stmt.init(
-            .{ .debug = hi_access },
+            .{ .value = hi_access },
             null,
             Loc.default()
         )
@@ -89,7 +89,7 @@ test "deinit works" {
     func_access.* = Value.initAccessName("f", Loc.default());
     try bb1_builder.addStatement(
         Stmt.init(
-            .{ .debug = Value.initCall(func_access, &.{}, Loc.default())},
+            .{ .value = Value.initCall(func_access, &.{}, Loc.default())},
             null,
             Loc.default()
         )

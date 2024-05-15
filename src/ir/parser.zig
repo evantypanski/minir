@@ -198,12 +198,7 @@ pub const Parser = struct {
                 try self.parseLabel()
             else
                 null;
-        if (self.matchKw(.debug)) {
-            // Debug looks like a call, but really it's just a statement
-            // that we print the result of. That may change one day, since
-            // alloc is implemented as a function call.
-            return self.parseDebug(label);
-        } else if (self.matchKw(.let)) {
+        if (self.matchKw(.let)) {
             return self.parseLet(label);
         } else if (self.matchKw(.ret)) {
             return self.parseRet(label);
@@ -217,18 +212,6 @@ pub const Parser = struct {
     fn parseLabel(self: *Self) ParseError![]const u8 {
         try self.consume(.identifier);
         return self.lexer.getTokString(self.previous);
-    }
-
-    fn parseDebug(self: *Self, label: ?[]const u8) ParseError!Stmt {
-        const start = self.previous.loc.start;
-        try self.consume(.lparen);
-        const val = try self.parseExpr();
-        try self.consume(.rparen);
-        return Stmt.init(
-            .{ .debug = val },
-            label,
-            Loc.init(start, self.previous.loc.end),
-        );
     }
 
     fn parseLet(self: *Self, label: ?[]const u8) ParseError!Stmt {

@@ -122,11 +122,6 @@ pub const Interpreter = struct {
 
     fn evalStmt(self: *Self, stmt: Stmt) IrError!void {
         switch (stmt.stmt_kind) {
-            .debug => |value| {
-                // Evaluate binary ops etc.
-                try self.evalValue(value);
-                try self.printValue(self.env.pop());
-            },
             .id => |vd| {
                 if (vd.val) |val| {
                     try self.evalValue(val);
@@ -145,7 +140,7 @@ pub const Interpreter = struct {
 
     fn evalTerminator(self: *Self, stmt: Stmt) IrError!void {
         switch (stmt.stmt_kind) {
-            .debug, .id, .value => return error.ExpectedTerminator,
+            .id, .value => return error.ExpectedTerminator,
             .branch => |branch| {
                 if (branch.expr) |val| {
                     try self.evalValue(val);
@@ -469,7 +464,10 @@ pub const Interpreter = struct {
                 const val_ty = self.env.pop();
                 const allocated = try self.allocateType(val_ty.val_kind.type_);
                 try self.pushValue(allocated);
-            }
+            },
+            .debug => {
+                try self.printValue(self.env.pop());
+            },
         }
     }
 

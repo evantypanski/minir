@@ -112,11 +112,6 @@ pub const Disassembler = struct {
         }
 
         switch (stmt.stmt_kind) {
-            .debug => |val| {
-                try self.writer.writeAll("debug(");
-                try self.disassembleValue(val);
-                try self.writer.writeAll(")");
-            },
             .id => |decl| {
                 try self.writer.print("let {s}", .{decl.name});
                 if (decl.ty) |ty| {
