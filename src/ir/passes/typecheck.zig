@@ -161,9 +161,9 @@ pub const TypecheckPass = struct {
             // it'll error if more are added
             .unary => |*uo| blk: {
                 // Unary ops can only apply to specific types
+                const ty = self.valTy(uo.*.val);
                 switch (uo.*.kind) {
                     .not => {
-                        const ty = self.valTy(uo.*.val);
                         if (!ty.eq(.boolean)) {
                             self.num_errors += 1;
                             self.diag.err(
@@ -177,7 +177,6 @@ pub const TypecheckPass = struct {
                         }
                     },
                     .deref => {
-                        const ty = self.valTy(uo.*.val);
                         // Can only deref pointers
                         switch (ty) {
                             .pointer => |to_ty| break :blk to_ty.*,
@@ -186,6 +185,21 @@ pub const TypecheckPass = struct {
                                 self.diag.err(
                                     error.InvalidType,
                                     .{@tagName(ty), "*"},
+                                    val.*.loc
+                                );
+                                break :blk .err;
+                            }
+                        }
+                    },
+                    .neg => {
+                        // Can only negate int/float
+                        switch (ty) {
+                            .int, .float => break :blk ty,
+                            else => {
+                                self.num_errors += 1;
+                                self.diag.err(
+                                    error.InvalidType,
+                                    .{@tagName(ty), "-"},
                                     val.*.loc
                                 );
                                 break :blk .err;

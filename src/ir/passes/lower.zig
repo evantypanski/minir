@@ -290,6 +290,7 @@ pub const Lowerer = struct {
                 self.builder.addByte(@sizeOf(ByteValue))
                         catch return error.BuilderError;
             },
+            .neg => self.builder.addOp(.neg) catch return error.BuilderError,
         }
     }
 

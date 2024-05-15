@@ -69,4 +69,5 @@ test "output examples" {
     try run("simple_heap.min");
     try run("count_to_42.min");
     try run("recursive_fib.min");
+    try run("unary_neg.min");
 }

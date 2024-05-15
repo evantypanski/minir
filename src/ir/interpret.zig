@@ -261,7 +261,22 @@ pub const Interpreter = struct {
                 const ptr = try ptrVal.asPtr();
                 const bytes = self.heap.getBytes(ptr.to, ptr.ty.size());
                 try self.pushValue(std.mem.bytesAsValue(Value, bytes[0..@sizeOf(Value)]).*);
-            }
+            },
+            .neg => {
+                self.evalValue(op.val.*) catch return error.OperandError;
+                const numVal = self.env.pop();
+                // TODO: Fix locs to include the op, but UnaryOp doesn't
+                // have a reference to its whole loc
+                switch (numVal.val_kind) {
+                    .int => |i| try self.pushValue(
+                        Value.initInt(-1 * i, op.val.*.loc)
+                    ),
+                    .float => |f| try self.pushValue(
+                        Value.initFloat(-1 * f, op.val.*.loc)
+                    ),
+                    else => return error.OperandError,
+                }
+            },
         }
     }
 

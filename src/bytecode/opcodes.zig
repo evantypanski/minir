@@ -15,6 +15,7 @@ pub const OpCode = enum(u8) {
     div,
 
     not,
+    neg,
     and_,
     or_,
     // Comparisons
@@ -52,14 +53,14 @@ pub const OpCode = enum(u8) {
              .jmp, .jmpt, .call => 2,
              .constant, .set, .get, .alloc, .deref, .heapset => 1,
              .ret, .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
-             .pop, .and_, .or_ => 0,
+             .pop, .and_, .or_, .neg, .not => 0,
          };
     }
 
     pub fn stackEffect(self: Self) isize {
          return switch (self) {
              .constant, .get, .alloc => 1,
-             .ret, .call, .jmp, .deref => 0,
+             .ret, .call, .jmp, .deref, .neg, .not => 0,
              .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
              .set, .jmpt, .pop, .and_, .or_ => -1,
              .heapset => -2,

@@ -608,19 +608,19 @@ pub const Parser = struct {
             .prec = Precedence.term
         };
         rules[@intFromEnum(Token.Tag.minus)] = .{
-            .prefix = null,
+            .prefix = parseUnary,
             .infix = parseBinary,
             .prec = Precedence.term
         };
         rules[@intFromEnum(Token.Tag.star)] = .{
             .prefix = parseUnary,
             .infix = parseBinary,
-            .prec = Precedence.unary
+            .prec = Precedence.factor
         };
         rules[@intFromEnum(Token.Tag.slash)] = .{
             .prefix = null,
             .infix = parseBinary,
-            .prec = Precedence.unary
+            .prec = Precedence.factor
         };
         return rules;
     }

@@ -27,6 +27,12 @@ pub const Value = union(ValueKind) {
         };
     }
 
+    pub fn initFloat(f: f32) Value {
+        return Self {
+            .float = f,
+        };
+    }
+
     pub fn initBool(b: bool) Value {
         return Self {
             .boolean = b,

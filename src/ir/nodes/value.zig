@@ -28,11 +28,13 @@ pub const UnaryOp = struct {
     pub const Kind = enum {
         not,
         deref,
+        neg,
 
         pub fn fromTag(tag: Token.Tag) !Kind {
             return switch (tag) {
                 .bang => .not,
                 .star => .deref,
+                .minus => .neg,
                 else => error.NotAnOperator,
             };
         }

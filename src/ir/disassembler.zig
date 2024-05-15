@@ -200,6 +200,7 @@ pub const Disassembler = struct {
         const op = switch (unary.kind) {
             .not => "!",
             .deref => "*",
+            .neg => "-",
         };
 
         try self.writer.writeAll(op);

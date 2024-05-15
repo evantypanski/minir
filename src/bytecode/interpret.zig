@@ -115,6 +115,14 @@ pub const Interpreter = struct {
                 const b = try val.asBool();
                 try self.pushValue(Value.initBool(!b));
             },
+            .neg => {
+                const val = try self.popVal();
+                switch (val) {
+                    .int => |i| try self.pushValue(Value.initInt(-1 * i)),
+                    .float => |f| try self.pushValue(Value.initFloat(-1 * f)),
+                    else => return error.InvalidOperand,
+                }
+            },
             .and_, .or_, .eq, .ne, .gt, .ge, .lt, .le => {
                 // These don't replace the value since they change the type.
                 const rhs = try self.popVal();
