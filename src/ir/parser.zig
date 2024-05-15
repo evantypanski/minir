@@ -484,6 +484,11 @@ pub const Parser = struct {
 
     // Parses a type name
     fn parseType(self: *Self) ParseError!Type {
+        if (self.match(.star)) {
+            const ty = try self.parseType();
+            return Type.initPtrAlloc(ty, self.allocator)
+                    catch return error.MemoryError;
+        }
         if (self.current.kw == null) {
             return error.InvalidTypeName;
         }

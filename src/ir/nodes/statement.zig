@@ -16,6 +16,15 @@ pub const VarDecl = struct {
     // Initial decl
     val: ?Value,
     ty: ?Type,
+
+    pub fn deinit(self: *VarDecl, allocator: std.mem.Allocator) void {
+        if (self.val) |*val| {
+            val.deinit(allocator);
+        }
+        if (self.ty) |*ty| {
+            ty.deinit(allocator);
+        }
+    }
 };
 
 pub const Branch = struct {
@@ -88,11 +97,7 @@ pub const Stmt = struct {
                     val.deinit(allocator);
                 }
             },
-            .id => |*vd| {
-                if (vd.val) |*val| {
-                    val.deinit(allocator);
-                }
-            },
+            .id => |*vd| vd.deinit(allocator),
         }
     }
 };

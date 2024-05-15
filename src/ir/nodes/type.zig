@@ -1,4 +1,7 @@
+const std = @import("std");
+
 const Value = @import("value.zig").Value;
+
 pub const TypeTag = enum {
     int,
     float,
@@ -22,6 +25,25 @@ pub const Type = union(TypeTag) {
     none: void,
     runtime: void,
     err: void,
+
+    // Initializes a pointer by allocating memory for the 'to' to live
+    pub fn initPtrAlloc(to: Type, allocator: std.mem.Allocator) !Type {
+        const ty_ptr = try allocator.create(Type);
+        ty_ptr.* = to;
+        return .{
+            .pointer = ty_ptr
+        };
+    }
+
+    pub fn deinit(self: *Type, allocator: std.mem.Allocator) void {
+        switch (self.*) {
+            .pointer => |*to| {
+                @constCast(to.*).deinit(allocator);
+                allocator.destroy(to.*);
+            },
+            else => {}
+        }
+    }
 
     /// Gets the size of this type in bytes
     pub fn size(self: Type) usize {

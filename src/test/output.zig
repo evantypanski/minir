@@ -61,6 +61,7 @@ test "output examples" {
     try run("count_to_42.min");
     try run("recursive_fib.min");
     try run("unary_neg.min");
+    try run("ptr_fn.min");
 
     outDir.cleanup();
 }

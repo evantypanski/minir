@@ -38,7 +38,11 @@ pub const Builtin = struct {
     kind: BuiltinKind,
 
     pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+        for (self.params) |*param| {
+            @constCast(param).deinit(allocator);
+        }
         allocator.free(self.params);
+        self.ret_ty.deinit(allocator);
     }
 };
 
@@ -66,7 +70,11 @@ pub fn Function(comptime ElementType: type) type {
                 element.deinit(allocator);
             }
             allocator.free(self.elements);
+            for (self.params) |*param| {
+                param.deinit(allocator);
+            }
             allocator.free(self.params);
+            self.ret_ty.deinit(allocator);
         }
 
         // Dunno how else to do this. This will just free what this function
