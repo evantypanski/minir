@@ -100,10 +100,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             }
         }
 
-        pub fn walkBuiltin(self: Self, arg: ArgTy, builtin: *Builtin) RetTy {
-            _ = self;
-            _ = arg;
-            _ = builtin;
+        pub fn walkBuiltin(_: Self, _: ArgTy, _: *Builtin) RetTy {
             // TODO: Shouldn't this and other decls also walk params?
         }
 
@@ -197,9 +194,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             try self.walkStatement(arg, stmt);
         }
 
-        pub fn defaultVisitUndef(self: Self, arg: ArgTy) RetTy {
-            _ = self;
-            _ = arg;
+        pub fn defaultVisitUndef(_: Self, _: ArgTy) RetTy {
         }
 
         pub fn defaultVisitVarDecl(self: Self, arg: ArgTy, decl: *VarDecl) RetTy {
@@ -216,22 +211,13 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             }
         }
 
-        pub fn defaultVisitInt(self: Self, arg: ArgTy, i: *i32) RetTy {
-            _ = self;
-            _ = arg;
-            _ = i;
+        pub fn defaultVisitInt(_: Self, _: ArgTy, _: *i32) RetTy {
         }
 
-        pub fn defaultVisitFloat(self: Self, arg: ArgTy, f: *f32) RetTy {
-            _ = self;
-            _ = arg;
-            _ = f;
+        pub fn defaultVisitFloat(_: Self, _: ArgTy, _: *f32) RetTy {
         }
 
-        pub fn defaultVisitBool(self: Self, arg: ArgTy, b: *u1) RetTy {
-            _ = self;
-            _ = arg;
-            _ = b;
+        pub fn defaultVisitBool(_: Self, _: ArgTy, _: *u1) RetTy {
         }
 
         pub fn defaultVisitBranch(self: Self, arg: ArgTy, branch: *Branch) RetTy {
