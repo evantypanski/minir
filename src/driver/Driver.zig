@@ -24,6 +24,7 @@ const Diagnostics = @import("../ir/diagnostics_engine.zig").Diagnostics;
 const Interpreter = @import("../bytecode/interpret.zig").Interpreter;
 const Disassembler = @import("../bytecode/disassembler.zig").Disassembler;
 const CommandLine = @import("command_line.zig").CommandLine;
+const Options = @import("options.zig").Options;
 
 const Self = @This();
 
@@ -44,12 +45,12 @@ pub fn drive(self: Self) !void {
     try self.drive_with_opts(cli_result);
 }
 
-pub fn drive_with_opts(self: Self, cli_result: CommandLine.CommandLineResult) !void {
-    if (cli_result == .none) {
+pub fn drive_with_opts(self: Self, options: Options) !void {
+    if (options == .none) {
         return;
     }
 
-    const filename = cli_result.filename() orelse return;
+    const filename = options.filename() orelse return;
 
     var source_mgr = try SourceManager.initFilename(self.allocator, filename);
     const diag_engine = Diagnostics.init(source_mgr);
@@ -63,7 +64,7 @@ pub fn drive_with_opts(self: Self, cli_result: CommandLine.CommandLineResult) !v
     try pass_manager.run(ResolveBranchesPass);
     try pass_manager.run(TypecheckPass);
 
-    switch (cli_result) {
+    switch (options) {
         .interpret => |config| {
             switch (config.interpreter_type) {
                 .byte => {

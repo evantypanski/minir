@@ -4,7 +4,8 @@
 const std = @import("std");
 
 const Driver = @import("../driver/Driver.zig");
-const CommandLine = @import("../driver/command_line.zig").CommandLine;
+const Options = @import("../driver/options.zig").Options;
+const InterpretConfig = @import("../driver/options.zig").InterpretConfig;
 
 var outDir: std.testing.TmpDir = undefined;
 
@@ -37,11 +38,11 @@ fn run(comptime name: []const u8) !void {
 fn get_output(test_file: []const u8, comptime interpreter: enum { byte, treewalk }) ![]u8 {
     const out = try outDir.dir.createFile(@tagName(interpreter) ++ ".out", .{ .read = true });
 
-    const config = CommandLine.InterpretConfig {
+    const config = InterpretConfig {
         .filename = test_file,
         .interpreter_type = .byte
     };
-    const cmd = CommandLine.CommandLineResult {
+    const cmd = Options {
         .interpret = config,
     };
 

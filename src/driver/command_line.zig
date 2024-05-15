@@ -1,5 +1,11 @@
 const std = @import("std");
+
 const Writer = std.fs.File.Writer;
+const Options = @import("options.zig").Options;
+const Config = @import("options.zig").Config;
+const InterpretConfig = @import("options.zig").InterpretConfig;
+const FmtConfig = @import("options.zig").FmtConfig;
+const DumpConfig = @import("options.zig").DumpConfig;
 
 pub const ParseError = error {
     UnknownCommand,
@@ -7,61 +13,6 @@ pub const ParseError = error {
 
 pub const CommandLine = struct {
     const Self = @This();
-
-    const Command = enum {
-        interpret,
-        fmt,
-        dump,
-        none,
-    };
-
-    pub const CommandLineResult = union(Command) {
-        interpret: InterpretConfig,
-        fmt: FmtConfig,
-        dump: DumpConfig,
-        none,
-
-        pub fn filename(self: CommandLineResult) ?[]const u8 {
-            return switch (self) {
-                .interpret => |config| config.filename,
-                .fmt => |config| config.filename,
-                .dump => |config| config.filename,
-                .none => null,
-            };
-        }
-    };
-
-    pub const InterpretConfig = struct {
-        filename: ?[]const u8,
-        interpreter_type: enum { byte, treewalk },
-
-        pub fn default() InterpretConfig {
-            return .{
-                .filename = null,
-                .interpreter_type = .byte,
-            };
-        }
-    };
-
-    pub const FmtConfig = struct {
-        filename: ?[]const u8,
-
-        pub fn default() FmtConfig {
-            return .{
-                .filename = null,
-            };
-        }
-    };
-
-    pub const DumpConfig = struct {
-        filename: ?[]const u8,
-
-        pub fn default() DumpConfig {
-            return .{
-                .filename = null,
-            };
-        }
-    };
 
     allocator: std.mem.Allocator,
     writer: Writer,
@@ -135,7 +86,7 @@ pub const CommandLine = struct {
         );
     }
 
-    fn parseCommand(arg: []const u8) ParseError!Command {
+    fn parseCommand(arg: []const u8) ParseError!Config {
         return if (std.mem.eql(u8, arg, "interpret"))
             .interpret
         else if (std.mem.eql(u8, arg, "fmt"))
@@ -146,7 +97,7 @@ pub const CommandLine = struct {
             error.UnknownCommand;
     }
 
-    fn parseInterpret(self: Self) !CommandLineResult {
+    fn parseInterpret(self: Self) !Options {
         if (self.args.len <= 2) {
             try self.printInterpretHelp();
             return .none;
@@ -181,7 +132,7 @@ pub const CommandLine = struct {
         return .{ .interpret = config };
     }
 
-    fn parseFmt(self: Self) !CommandLineResult {
+    fn parseFmt(self: Self) !Options {
         if (self.args.len <= 2) {
             try self.printFmtHelp();
             return .none;
@@ -212,7 +163,7 @@ pub const CommandLine = struct {
         return .{ .fmt = config };
     }
 
-    fn parseDump(self: Self) !CommandLineResult {
+    fn parseDump(self: Self) !Options {
         if (self.args.len <= 2) {
             try self.printDumpHelp();
             return .none;
@@ -258,7 +209,7 @@ pub const CommandLine = struct {
         );
     }
 
-    pub fn parse(self: Self) !CommandLineResult {
+    pub fn parse(self: Self) !Options {
         if (self.args.len == 1) {
             try self.printHelp();
             return .none;
