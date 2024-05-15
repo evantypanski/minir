@@ -17,8 +17,7 @@ ParamList ::= (Param ("," Param)*)?
 Param ::= ID ":" Type
 
 Label ::= "@" ID
-Stmt ::= Label? (Debug | Let | Ret | Branch | ExprStmt)
-Debug ::= "debug" "(" Expr ")"
+Stmt ::= Label? (Let | Ret | Branch | ExprStmt)
 Let ::= ID (LetWithTypePart | LetWithoutTypePart)
 LetWithTypePart ::= ":" Type ("=" Expr)?
 LetWithoutTypePart ::= "=" Expr
@@ -31,7 +30,8 @@ ExprStmt ::= Expr
 Expr ::= Grouping | FuncCall | ID | Unary | Literal | Binary
 Grouping ::= "(" Expr ")"
 FuncCall ::= ID "(" ArgList ")"
-Unary ::= "!" Expr
+Unary ::= UnaryOp Expr
+UnaryOp ::= "!" | "*" | "-"
 Literal ::= "true" | "false" | "undefined" | Number
 Number ::= Int | Float
 Int ::= Digit+
@@ -51,7 +51,7 @@ The expressions above are not grouped by precedence for simplicity. The preceden
 5) Comparisons (`<` etc.)
 6) Term (`+` and `-`)
 7) Factor (`*` and `/`)
-8) Unary (`!`)
+8) Unary (`!`, `*`, `-`)
 9) Function calls (`ID()`)
 10) Groupings (`( Expr )`)
 11) Primary expressions or literals (`true` or `123`)

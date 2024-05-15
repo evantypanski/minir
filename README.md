@@ -47,7 +47,6 @@ Minir uses a simple frontend and a bytecode interpreter for execution. The tree 
 Here's a wishlist of things I want to work on.
 
 Near term:
- - Heap memory
  - Slightly better formatting
  - More optimizations
  - A language specification (or just docs)
