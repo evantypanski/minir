@@ -29,6 +29,8 @@ const LowerError = error{
     NoSuchFunction,
     NoSuchLabel,
     InvalidBuiltin,
+    InvalidType,
+    BadArity,
 };
 
 pub const Lowerer = struct {
@@ -410,24 +412,29 @@ pub const Lowerer = struct {
         switch (builtin.*.kind) {
             .alloc => {
                 self.builder.addOp(.alloc) catch return error.BuilderError;
-                // TODO: Maybe allow alloc type to be runtime-known?
-                // This is just easier for now.
+
+                if (call.*.arguments.len != 1) {
+                    return error.BadArity;
+                }
+
                 const tyVal = call.*.arguments[0];
-                _ = tyVal;
-                // TODO: This only works because everything is the same size
-                // In the future, use the type from tyVal to determine, hence
-                // why it's stubbed out
-                self.builder.addByte(@sizeOf(ByteValue))
+                if (tyVal.val_kind != .type_) {
+                    // Our own little typecheck
+                    return error.InvalidType;
+                }
+                self.builder.addByte(@intCast(tyVal.val_kind.type_.size()))
                         catch return error.BuilderError;
             },
             .debug => {
                 // Push the "return value" so pop doesn't underflow
                 self.builder.addOp(.constant) catch return error.BuilderError;
                 self.builder.addByte(0) catch return error.BuilderError;
-                // TODO: Fix this so it only does one?
-                for (call.*.arguments) |*arg| {
-                    try visitor.visitValue(visitor, self, arg);
+
+                if (call.*.arguments.len != 1) {
+                    return error.BadArity;
                 }
+                try visitor.visitValue(visitor, self, &call.*.arguments[0]);
+
                 self.builder.addOp(.debug) catch return error.BuilderError;
             },
         }

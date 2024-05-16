@@ -14,6 +14,7 @@ const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 const Decl = @import("nodes/decl.zig").Decl;
 const Function = @import("nodes/decl.zig").Function;
 const Builtin = @import("nodes/decl.zig").Builtin;
+const Precedence = @import("precedence.zig").Precedence;
 
 const DisassemblerError = Writer.Error || fmt.format_float.FormatError;
 
@@ -204,9 +205,13 @@ pub const Disassembler = struct {
 
     pub fn disassembleBinary(self: Disassembler, binary: BinaryOp)
                 DisassemblerError!void {
-        // TODO: Only print parens if necessary?
-        try self.writer.writeAll("(");
+        if (shouldPrintParens(binary.lhs, binary.kind)) {
+            try self.writer.writeAll("(");
+        }
         try self.disassembleValue(binary.lhs.*);
+        if (shouldPrintParens(binary.lhs, binary.kind)) {
+            try self.writer.writeAll(")");
+        }
         const op = switch (binary.kind) {
             .assign => " = ",
             .eq => " == ",
@@ -222,8 +227,34 @@ pub const Disassembler = struct {
             .ge => " >= ",
         };
         try self.writer.writeAll(op);
+        if (shouldPrintParens(binary.rhs, binary.kind)) {
+            try self.writer.writeAll("(");
+        }
         try self.disassembleValue(binary.rhs.*);
-        try self.writer.writeAll(")");
+        if (shouldPrintParens(binary.rhs, binary.kind)) {
+            try self.writer.writeAll(")");
+        }
+    }
+
+    /// Whether this should print parentheses around the child given this
+    /// operator
+    fn shouldPrintParens(child: *Value, op: BinaryOp.Kind) bool {
+        return switch (child.*.val_kind) {
+            .binary => |bo| !precedenceOf(bo.kind).gte(precedenceOf(op)),
+            else => false,
+        };
+    }
+
+    fn precedenceOf(op: BinaryOp.Kind) Precedence {
+        return switch (op) {
+            .assign => .assign,
+            .eq => .equal,
+            .add, .sub => .term,
+            .mul, .div => .factor,
+            .and_ => .and_,
+            .or_ => .or_,
+            .lt, .le, .gt, .ge => .compare,
+        };
     }
 
     pub fn disassembleType(self: Disassembler, ty: Type) DisassemblerError!void {

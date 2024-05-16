@@ -17,35 +17,10 @@ const Type = @import("nodes/type.zig").Type;
 const Loc = @import("sourceloc.zig").Loc;
 const VarDecl = @import("nodes/statement.zig").VarDecl;
 const Diagnostics = @import("diagnostics_engine.zig").Diagnostics;
+const Precedence = @import("precedence.zig").Precedence;
 
 pub const Parser = struct {
     const Self = @This();
-
-    const Precedence = enum(u8) {
-        none,
-        assign,
-        or_,
-        and_,
-        equal,
-        compare,
-        term,
-        factor,
-        unary,
-        call,
-        primary,
-
-        pub fn gte(self: Precedence, other: Precedence) bool {
-            return @intFromEnum(self) >= @intFromEnum(other);
-        }
-
-        pub fn inc(self: Precedence) Precedence {
-            if (self == .primary) {
-                return .primary;
-            }
-
-            return @enumFromInt(@intFromEnum(self) + 1);
-        }
-    };
 
     const Rule = struct {
         prefix: ?*const fn (self: *Self) ParseError!Value = null,
@@ -454,8 +429,6 @@ pub const Parser = struct {
     }
 
     fn parseBinary(self: *Self, other: Value) ParseError!Value {
-        // TODO: start here is wrong
-        const start = self.previous.loc.start;
         const prec = self.precedenceOf(self.current.tag);
         const op_kind = try BinaryOp.Kind.fromTag(self.current.tag);
         self.advance();
@@ -472,8 +445,7 @@ pub const Parser = struct {
 
         rhs_ptr.* = rhs;
 
-        const loc = Loc.init(start, self.previous.loc.end);
-        return Value.initBinary(op_kind, lhs_ptr, rhs_ptr, loc);
+        return Value.initBinary(op_kind, lhs_ptr, rhs_ptr, other.loc.combine(rhs.loc));
     }
 
     fn parseTypeValue(self: *Self) ParseError!Value {

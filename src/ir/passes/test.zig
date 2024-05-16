@@ -16,6 +16,10 @@ fn parseProgramFromString(str: []const u8) !Program {
     var source_mgr = try SourceManager.init(std.testing.allocator, str, false);
     defer source_mgr.deinit();
     const diag_engine = Diagnostics.init(source_mgr);
+    return parseProgram(source_mgr, diag_engine);
+}
+
+fn parseProgram(source_mgr: SourceManager, diag_engine: Diagnostics) !Program {
     const lexer = Lexer.init(source_mgr);
     var parser = Parser.init(std.testing.allocator, lexer, diag_engine);
     return try parser.parse();
@@ -33,8 +37,6 @@ fn expectDisassembled(program: Program, expected: []const u8) !void {
     try disassembler.disassemble();
     outFile.close();
 
-    // TODO: For some reason the read/write at same time didn't work so we do it this way.
-    // Is there a better way? Maybe I just missed something.
     var outFileRead = try tmpdir.dir.openFile("out", .{.mode = .read_only});
     const disassembled = try outFileRead.readToEndAlloc(std.testing.allocator, 10000);
     defer std.testing.allocator.free(disassembled);
@@ -67,7 +69,6 @@ test "Test simple blockify" {
         ;
 
     var start = try parseProgramFromString(begin_str);
-    // TODO: diag better, since above call also does this
     var source_mgr = try SourceManager.init(std.testing.allocator, begin_str, false);
     defer source_mgr.deinit();
     const diag = Diagnostics.init(source_mgr);
@@ -94,11 +95,10 @@ test "Test blockify with jump" {
         \\}
         ;
 
-    var start = try parseProgramFromString(begin_str);
-    // TODO: diag better, since above call also does this
     var source_mgr = try SourceManager.init(std.testing.allocator, begin_str, false);
     defer source_mgr.deinit();
     const diag = Diagnostics.init(source_mgr);
+    var start = try parseProgram(source_mgr, diag);
     var pass_manager = PassManager.init(std.testing.allocator, &start, diag);
     try pass_manager.run(BlockifyPass);
     defer start.deinit(std.testing.allocator);
@@ -123,11 +123,10 @@ test "Test simple constant folding" {
         \\}
         ;
 
-    var start = try parseProgramFromString(begin_str);
-    // TODO: diag better, since above call also does this
     var source_mgr = try SourceManager.init(std.testing.allocator, begin_str, false);
     defer source_mgr.deinit();
     const diag = Diagnostics.init(source_mgr);
+    var start = try parseProgram(source_mgr, diag);
     var pass_manager = PassManager.init(std.testing.allocator, &start, diag);
     try pass_manager.run(FoldConstantsPass);
     defer start.deinit(std.testing.allocator);
