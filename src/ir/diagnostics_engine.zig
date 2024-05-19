@@ -65,6 +65,7 @@ pub const Diagnostics = struct {
 
     /// Finds the start of the line for a Loc
     fn startLineLoc(self: Self, loc: Loc) usize {
+        if (loc.start == 0) return 0;
         var line_start = loc.start - 1;
         while (line_start > 0 and self.source_mgr.get(line_start) != '\n')
             : (line_start -= 1) {}

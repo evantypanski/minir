@@ -8,7 +8,9 @@ pub fn main() !void {
     const gpa = general_purpose_allocator.allocator();
     const stdout = std.io.getStdOut().writer();
 
-    try Driver.init(gpa, stdout).drive();
+    Driver.init(gpa, stdout).drive() catch {
+        std.log.err("Fatal error occurred; aborting", .{});
+    };
 }
 
 test {
@@ -17,4 +19,5 @@ test {
     _ = @import("ir/nodes/program.zig");
     _ = @import("ir/passes/blockify.zig");
     _ = @import("test/output.zig");
+    _ = @import("test/ui.zig");
 }
