@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const util = @import("util.zig");
+
 // Runs the given test, where test is within the top-level 'tests/ui' dir
 fn run(comptime name: []const u8) !void {
     // TODO: Get executable better?
@@ -28,29 +30,18 @@ fn run(comptime name: []const u8) !void {
     const stderr = try stderr_list.toOwnedSlice();
     defer std.testing.allocator.free(stderr);
 
-    // Now we have stdout and stderr - test to make sure they're what we expect
-    const stdout_expected_name = name ++ ".stdout";
-    const stderr_expected_name = name ++ ".stderr";
-
     const tests_dir = try std.fs.cwd().openDir(ui_dir_name, .{});
+    // Now we have stdout and stderr - test to make sure they're what we expect
+    // If they don't exist, bless them
+    const stdout_expected_name = name ++ ".stdout";
+    if (!try util.compareOutput(tests_dir, stdout_expected_name, stdout)) {
+        try util.bless(tests_dir, stdout_expected_name, stdout);
+    }
 
-    const stdout_expected_file = try tests_dir.openFile(
-        stdout_expected_name, .{ .mode = .read_only }
-    );
-    const stderr_expected_file = try tests_dir.openFile(
-        stderr_expected_name, .{ .mode = .read_only }
-    );
-
-    const stdout_expected =
-        try stdout_expected_file.readToEndAlloc(std.testing.allocator, 10000);
-    defer std.testing.allocator.free(stdout_expected);
-
-    const stderr_expected =
-        try stderr_expected_file.readToEndAlloc(std.testing.allocator, 10000);
-    defer std.testing.allocator.free(stderr_expected);
-
-    try std.testing.expectEqualStrings(stdout_expected, stdout);
-    try std.testing.expectEqualStrings(stderr_expected, stderr);
+    const stderr_expected_name = name ++ ".stderr";
+    if (!try util.compareOutput(tests_dir, stderr_expected_name, stderr)) {
+        try util.bless(tests_dir, stderr_expected_name, stderr);
+    }
 }
 
 
