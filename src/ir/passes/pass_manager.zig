@@ -49,6 +49,21 @@ pub const PassManager = struct {
         return pass.execute(self.program);
     }
 
+    /// Gets the result of a given pass type through the new Pass interface
+    pub fn get(
+        self: Self,
+        comptime PassType: type,
+        comptime Inner: type
+    ) PassType.RetType {
+        var pass = if (comptime shouldPassDiagToPass(Inner))
+            Inner.init(self.allocator, self.diag)
+        else
+            Inner.init(self.allocator);
+        defer pass.deinit();
+        var new_pass = PassType {};
+        return new_pass.get(&pass, self.program);
+    }
+
     fn passRetTy(comptime PassType: type) type {
         // Is there a better way to do this????
         return @typeInfo(@TypeOf(PassType.execute)).Fn.return_type.?;

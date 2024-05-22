@@ -2,6 +2,7 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
+const Pass = @import("pass.zig").Pass;
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -96,6 +97,8 @@ pub const BlockifyPass = struct {
         }
     }
 };
+
+pub const Blockify = Pass(BlockifyPass, BlockifyPass.Error!void, BlockifyPass.execute);
 
 test "Changes all functions into BB functions" {
     const ProgramBuilder = @import("../nodes/program.zig").ProgramBuilder;

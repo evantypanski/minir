@@ -10,6 +10,7 @@ const Lexer = @import("../lexer.zig").Lexer;
 const Parser = @import("../parser.zig").Parser;
 const PassManager = @import("../passes/pass_manager.zig").PassManager;
 const BlockifyPass = @import("../passes/blockify.zig").BlockifyPass;
+const Blockify = @import("../passes/blockify.zig").Blockify;
 const FoldConstantsPass = @import("../passes/fold_constants.zig").FoldConstantsPass;
 
 fn parseProgramFromString(str: []const u8) !Program {
@@ -111,6 +112,30 @@ test "Test blockify with jump" {
         \\  }
         \\  {
         \\    let j: int = 420
+        \\  }
+        \\}
+    );
+}
+
+test "Test blockify with lazy Pass" {
+    const begin_str =
+        \\func main() -> none {
+        \\  let i: int = 42
+        \\}
+        ;
+
+    var start = try parseProgramFromString(begin_str);
+    var source_mgr = try SourceManager.init(std.testing.allocator, begin_str, false);
+    defer source_mgr.deinit();
+    const diag = Diagnostics.init(source_mgr);
+    var pass_manager = PassManager.init(std.testing.allocator, &start, diag);
+    try pass_manager.get(Blockify, BlockifyPass);
+    defer start.deinit(std.testing.allocator);
+
+    try expectDisassembled(start,
+        \\func main() -> none {
+        \\  {
+        \\    let i: int = 42
         \\  }
         \\}
     );
