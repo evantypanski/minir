@@ -20,9 +20,9 @@ pub const FoldConstantsPass = struct {
 
     allocator: Allocator,
 
-    pub fn init(allocator: Allocator) Self {
+    pub fn init(args: anytype) Self {
         return .{
-            .allocator = allocator,
+            .allocator = args.allocator,
         };
     }
 

@@ -129,7 +129,7 @@ test "Test blockify with lazy Pass" {
     defer source_mgr.deinit();
     const diag = Diagnostics.init(source_mgr);
     var pass_manager = PassManager.init(std.testing.allocator, &start, diag);
-    try pass_manager.get(Blockify, BlockifyPass);
+    try pass_manager.get(Blockify);
     defer start.deinit(std.testing.allocator);
 
     try expectDisassembled(start,

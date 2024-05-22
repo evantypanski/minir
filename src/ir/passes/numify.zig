@@ -23,9 +23,9 @@ map: std.StringHashMap(isize),
 // Current number of variables in a function
 num_vars: usize,
 
-pub fn init(allocator: Allocator) Self {
+pub fn init(args: anytype) Self {
     return .{
-        .map = std.StringHashMap(isize).init(allocator),
+        .map = std.StringHashMap(isize).init(args.allocator),
         .num_vars = 0,
     };
 }

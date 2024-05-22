@@ -25,9 +25,9 @@ pub const BlockifyPass = struct {
 
     allocator: Allocator,
 
-    pub fn init(allocator: Allocator) Self {
+    pub fn init(args: anytype) Self {
         return .{
-            .allocator = allocator,
+            .allocator = args.allocator,
         };
     }
 
@@ -98,7 +98,7 @@ pub const BlockifyPass = struct {
     }
 };
 
-pub const Blockify = Pass(BlockifyPass, BlockifyPass.Error!void, BlockifyPass.execute);
+pub const Blockify = Pass(BlockifyPass, BlockifyPass.Error!void, BlockifyPass.init, BlockifyPass.execute);
 
 test "Changes all functions into BB functions" {
     const ProgramBuilder = @import("../nodes/program.zig").ProgramBuilder;
@@ -149,7 +149,7 @@ test "Changes all functions into BB functions" {
         .builtin => try std.testing.expect(false),
     }
 
-    var pass = BlockifyPass.init(std.testing.allocator);
+    var pass = BlockifyPass.init(.{ .allocator = std.testing.allocator });
     try pass.execute(&program);
 
     // Now it should be blockified
@@ -192,7 +192,7 @@ test "Errors when already blockified" {
     try prog_builder.addDecl(Decl { .bb_function = func });
     var program = try prog_builder.build();
 
-    var pass = BlockifyPass.init(std.testing.allocator);
+    var pass = BlockifyPass.init(.{.allocator = std.testing.allocator});
     try std.testing.expectError(error.AlreadyBlockified, pass.execute(&program));
 
     program.deinit(std.testing.allocator);

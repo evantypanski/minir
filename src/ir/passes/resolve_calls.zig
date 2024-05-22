@@ -27,11 +27,11 @@ pub const ResolveCallsPass = struct {
     diag: Diagnostics,
     resolved: std.StringHashMap(*Decl),
 
-    pub fn init(allocator: Allocator, diag: Diagnostics) Self {
+    pub fn init(args: anytype) Self {
         return .{
-            .allocator = allocator,
-            .diag = diag,
-            .resolved = std.StringHashMap(*Decl).init(allocator),
+            .allocator = args.allocator,
+            .diag = args.diag,
+            .resolved = std.StringHashMap(*Decl).init(args.allocator),
         };
     }
 

@@ -57,19 +57,19 @@ pub const Lowerer = struct {
     label_placeholder_map: std.StringHashMap(*std.ArrayList(usize)),
     label_map: std.StringHashMap(u16),
 
-    pub fn init(allocator: Allocator) Self {
+    pub fn init(args: anytype) Self {
         return .{
-            .allocator = allocator,
+            .allocator = args.allocator,
             .variables = .{""} ** 256,
             .num_locals = 0,
             .num_params = 0,
-            .builder = ChunkBuilder.init(allocator),
+            .builder = ChunkBuilder.init(args.allocator),
             .placeholder_map =
-                std.StringHashMap(*std.ArrayList(usize)).init(allocator),
-            .fn_map = std.StringHashMap(u16).init(allocator),
+                std.StringHashMap(*std.ArrayList(usize)).init(args.allocator),
+            .fn_map = std.StringHashMap(u16).init(args.allocator),
             .label_placeholder_map =
-                std.StringHashMap(*std.ArrayList(usize)).init(allocator),
-            .label_map = std.StringHashMap(u16).init(allocator),
+                std.StringHashMap(*std.ArrayList(usize)).init(args.allocator),
+            .label_map = std.StringHashMap(u16).init(args.allocator),
         };
     }
 

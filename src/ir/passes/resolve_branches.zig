@@ -24,10 +24,10 @@ pub const ResolveBranchesPass = struct {
     label_map: std.StringHashMap(usize),
     fn_element: usize,
 
-    pub fn init(allocator: Allocator) Self {
+    pub fn init(args: anytype) Self {
         return .{
-            .allocator = allocator,
-            .label_map = std.StringHashMap(usize).init(allocator),
+            .allocator = args.allocator,
+            .label_map = std.StringHashMap(usize).init(args.allocator),
             .fn_element = 0,
         };
     }

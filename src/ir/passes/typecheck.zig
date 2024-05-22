@@ -43,11 +43,11 @@ pub const TypecheckPass = struct {
     num_errors: usize,
     current_fn: ?*Decl,
 
-    pub fn init(allocator: Allocator, diag: Diagnostics) Self {
+    pub fn init(args: anytype) Self {
         return .{
-            .allocator = allocator,
-            .vars = std.StringHashMap(Type).init(allocator),
-            .diag = diag,
+            .allocator = args.allocator,
+            .vars = std.StringHashMap(Type).init(args.allocator),
+            .diag = args.diag,
             .num_errors = 0,
             .current_fn = null,
         };

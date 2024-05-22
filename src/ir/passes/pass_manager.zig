@@ -40,10 +40,11 @@ pub const PassManager = struct {
         comptime PassType: type
     ) passRetTy(PassType) {
         try self.resolvePassDependencies(PassType);
-        var pass = if (comptime shouldPassDiagToPass(PassType))
-            PassType.init(self.allocator, self.diag)
-        else
-            PassType.init(self.allocator);
+        const args = .{
+            .allocator = self.allocator,
+            .diag = self.diag,
+        };
+        var pass = PassType.init(args);
         // Make sure we deinit too.
         defer pass.deinit();
         return pass.execute(self.program);
@@ -53,12 +54,12 @@ pub const PassManager = struct {
     pub fn get(
         self: Self,
         comptime PassType: type,
-        comptime Inner: type
     ) PassType.RetType {
-        var pass = if (comptime shouldPassDiagToPass(Inner))
-            Inner.init(self.allocator, self.diag)
-        else
-            Inner.init(self.allocator);
+        const args = .{
+            .allocator = self.allocator,
+            .diag = self.diag,
+        };
+        var pass = PassType.init(args);
         defer pass.deinit();
         var new_pass = PassType {};
         return new_pass.get(&pass, self.program);
@@ -67,13 +68,6 @@ pub const PassManager = struct {
     fn passRetTy(comptime PassType: type) type {
         // Is there a better way to do this????
         return @typeInfo(@TypeOf(PassType.execute)).Fn.return_type.?;
-    }
-
-    fn shouldPassDiagToPass(comptime PassType: type) bool {
-        // Right now we determine if we pass diag by seeing if the init
-        // function takes 2 arguments. In the future it may be worth making
-        // this a little nicer.
-        return @typeInfo(@TypeOf(PassType.init)).Fn.params.len == 2;
     }
 
     /// A pass can have a public `dependencies` array that lists the passes
