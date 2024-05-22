@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const Value = @import("value.zig").Value;
 
 pub const TypeTag = enum {
@@ -27,7 +29,7 @@ pub const Type = union(TypeTag) {
     err: void,
 
     // Initializes a pointer by allocating memory for the 'to' to live
-    pub fn initPtrAlloc(to: Type, allocator: std.mem.Allocator) !Type {
+    pub fn initPtrAlloc(to: Type, allocator: Allocator) !Type {
         const ty_ptr = try allocator.create(Type);
         ty_ptr.* = to;
         return .{
@@ -35,7 +37,7 @@ pub const Type = union(TypeTag) {
         };
     }
 
-    pub fn deinit(self: *Type, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *Type, allocator: Allocator) void {
         switch (self.*) {
             .pointer => |*to| {
                 @constCast(to.*).deinit(allocator);

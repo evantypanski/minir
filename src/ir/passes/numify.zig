@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const Function = @import("../nodes/decl.zig").Function;
 const VarDecl = @import("../nodes/statement.zig").VarDecl;
 const VarAccess = @import("../nodes/value.zig").VarAccess;
@@ -21,7 +23,7 @@ map: std.StringHashMap(isize),
 // Current number of variables in a function
 num_vars: usize,
 
-pub fn init(allocator: std.mem.Allocator) Self {
+pub fn init(allocator: Allocator) Self {
     return .{
         .map = std.StringHashMap(isize).init(allocator),
         .num_vars = 0,

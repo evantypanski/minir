@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -22,13 +24,13 @@ pub const TypecheckPass = struct {
     const VisitorTy = IrVisitor(*Self, TypecheckError!void);
     pub const dependencies = [_]type{ResolveCallsPass};
 
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
     vars: std.StringHashMap(Type),
     diag: Diagnostics,
     num_errors: usize,
     current_fn: ?*Decl,
 
-    pub fn init(allocator: std.mem.Allocator, diag: Diagnostics) Self {
+    pub fn init(allocator: Allocator, diag: Diagnostics) Self {
         return .{
             .allocator = allocator,
             .vars = std.StringHashMap(Type).init(allocator),

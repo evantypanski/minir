@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const Program = @import("nodes/program.zig").Program;
 const ProgramBuilder = @import("nodes/program.zig").ProgramBuilder;
 const Token = @import("token.zig").Token;
@@ -29,7 +31,7 @@ pub const Parser = struct {
     };
     const RuleArray = [@typeInfo(Token.Tag).Enum.fields.len] Rule;
 
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
     lexer: Lexer,
     current: Token,
     previous: Token,
@@ -38,7 +40,7 @@ pub const Parser = struct {
     rules: RuleArray,
 
     pub fn init(
-        allocator: std.mem.Allocator,
+        allocator: Allocator,
         lexer: Lexer,
         diag_engine: Diagnostics
     ) Self {
@@ -59,6 +61,7 @@ pub const Parser = struct {
         }
 
         var builder = ProgramBuilder.init(self.allocator);
+        errdefer builder.deinit();
         // A program is just a bunch of decls.
         // Theoretically we could keep going but for now just abort if parsing
         // has an issue. This will help keep errors down because our recovery
@@ -114,6 +117,7 @@ pub const Parser = struct {
         try self.consume(.identifier);
         var builder = FunctionBuilder(Stmt)
             .init(self.allocator, self.lexer.getTokString(self.previous));
+        errdefer builder.deinit();
         try self.consume(.lparen);
         while (self.match(.identifier)) {
             const name = self.lexer.getTokString(self.previous);
@@ -342,6 +346,7 @@ pub const Parser = struct {
         const start = self.previous.loc.start;
         try self.consume(.lparen);
         var arguments = std.ArrayList(Value).init(self.allocator);
+        errdefer arguments.clearAndFree();
         if (self.current.tag != .rparen) {
             while (!self.lexer.isAtEnd()) {
                 const arg = try self.parseExpr();
@@ -438,6 +443,7 @@ pub const Parser = struct {
             else |_|
                 return error.MemoryError;
         lhs_ptr.* = other;
+        errdefer self.allocator.destroy(lhs_ptr);
         const rhs_ptr = if (self.allocator.create(Value)) |ptr|
                 ptr
             else |_|

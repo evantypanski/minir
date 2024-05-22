@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const statement = @import("statement.zig");
 const VarDecl = statement.VarDecl;
 const BasicBlock = @import("basic_block.zig").BasicBlock;
@@ -37,7 +39,7 @@ pub const Builtin = struct {
     ret_ty: Type,
     kind: BuiltinKind,
 
-    pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *Self, allocator: Allocator) void {
         for (self.params) |*param| {
             @constCast(param).deinit(allocator);
         }
@@ -65,7 +67,7 @@ pub fn Function(comptime ElementType: type) type {
             };
         }
 
-        pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+        pub fn deinit(self: *Self, allocator: Allocator) void {
             for (self.elements) |*element| {
                 element.deinit(allocator);
             }
@@ -79,7 +81,7 @@ pub fn Function(comptime ElementType: type) type {
 
         // Dunno how else to do this. This will just free what this function
         // directly allocated, not owning its elements.
-        pub fn shallowDeinit(self: *Self, allocator: std.mem.Allocator) void {
+        pub fn shallowDeinit(self: *Self, allocator: Allocator) void {
             allocator.free(self.elements);
             allocator.free(self.params);
         }
@@ -90,18 +92,32 @@ pub fn FunctionBuilder(comptime ElementType: type) type {
     return struct {
         const Self = @This();
 
+        allocator: Allocator,
         name: []const u8,
         elements: std.ArrayList(ElementType),
         params: std.ArrayList(VarDecl),
         ret_ty: ?Type,
 
-        pub fn init(allocator: std.mem.Allocator, name: []const u8) Self {
+        pub fn init(allocator: Allocator, name: []const u8) Self {
             return .{
+                .allocator = allocator,
                 .name = name,
                 .elements = std.ArrayList(ElementType).init(allocator),
                 .params = std.ArrayList(VarDecl).init(allocator),
                 .ret_ty = null,
             };
+        }
+
+        /// Deinit the builder. A build after this will NOT be valid.
+        pub fn deinit(self: *Self) void {
+            for (self.elements.items) |*element| {
+                element.deinit(self.allocator);
+            }
+            self.elements.clearAndFree();
+            for (self.elements.items) |*element| {
+                element.deinit(self.allocator);
+            }
+            self.params.clearAndFree();
         }
 
         pub fn addElement(self: *Self, element: ElementType) !void {
@@ -159,7 +175,7 @@ pub const Decl = union(DeclKind) {
         };
     }
 
-    pub fn deinit(self: *Decl, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *Decl, allocator: Allocator) void {
         switch (self.*) {
             .function => |*func| func.deinit(allocator),
             .bb_function => |*func| func.deinit(allocator),

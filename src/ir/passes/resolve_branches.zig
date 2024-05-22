@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -19,11 +21,11 @@ pub const ResolveBranchesPass = struct {
     const Self = @This();
     const VisitorTy = IrVisitor(*Self, BranchesError!void);
 
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
     label_map: std.StringHashMap(usize),
     fn_element: usize,
 
-    pub fn init(allocator: std.mem.Allocator) Self {
+    pub fn init(allocator: Allocator) Self {
         return .{
             .allocator = allocator,
             .label_map = std.StringHashMap(usize).init(allocator),

@@ -1,11 +1,12 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
 const Builtin = @import("../nodes/decl.zig").Builtin;
 const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
-const BasicBlockBuilder = @import("../nodes/basic_block.zig").BasicBlockBuilder;
 const Stmt = @import("../nodes/statement.zig").Stmt;
 const Branch = @import("../nodes/statement.zig").Branch;
 const VarDecl = @import("../nodes/statement.zig").VarDecl;
@@ -37,7 +38,7 @@ pub const Lowerer = struct {
     const Self = @This();
     const VisitorTy = IrVisitor(*Self, LowerError!void);
 
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
     // Variables in scope.
     variables: [256] []const u8,
     num_locals: u8,
@@ -57,7 +58,7 @@ pub const Lowerer = struct {
     label_placeholder_map: std.StringHashMap(*std.ArrayList(usize)),
     label_map: std.StringHashMap(u16),
 
-    pub fn init(allocator: std.mem.Allocator) Self {
+    pub fn init(allocator: Allocator) Self {
         return .{
             .allocator = allocator,
             .variables = .{""} ** 256,
@@ -112,6 +113,7 @@ pub const Lowerer = struct {
     };
 
     pub fn execute(self: *Self, program: *Program) !Chunk {
+        errdefer self.builder.deinit();
         try LowerVisitor.visitProgram(LowerVisitor, self, program);
         return self.builder.build();
     }

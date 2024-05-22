@@ -4,6 +4,8 @@
 
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -17,12 +19,12 @@ const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
 pub const PassManager = struct {
     const Self = @This();
 
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
     program: *Program,
     diag: Diagnostics,
 
     pub fn init(
-        allocator: std.mem.Allocator,
+        allocator: Allocator,
         program: *Program,
         diag: Diagnostics
     ) Self {
@@ -42,7 +44,7 @@ pub const PassManager = struct {
             PassType.init(self.allocator, self.diag)
         else
             PassType.init(self.allocator);
-        // Make sure we deinit too
+        // Make sure we deinit too.
         defer pass.deinit();
         return pass.execute(self.program);
     }

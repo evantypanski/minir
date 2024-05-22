@@ -51,6 +51,7 @@ pub const BlockifyPass = struct {
                     fn_builder.addParam(param.*) catch return error.MemoryError;
                 }
                 var bb_builder = BasicBlockBuilder.init(arg.allocator);
+                errdefer bb_builder.deinit();
                 var empty_bb_builder = true;
                 for (func.*.elements) |*stmt| {
                     // Labeled statements start a new basic block

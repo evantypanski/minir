@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -17,11 +19,11 @@ pub const ResolveCallsPass = struct {
     const Self = @This();
     const VisitorTy = IrVisitor(*Self, ResolveError!void);
 
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
     diag: Diagnostics,
     resolved: std.StringHashMap(*Decl),
 
-    pub fn init(allocator: std.mem.Allocator, diag: Diagnostics) Self {
+    pub fn init(allocator: Allocator, diag: Diagnostics) Self {
         return .{
             .allocator = allocator,
             .diag = diag,

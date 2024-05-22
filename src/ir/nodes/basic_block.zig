@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const Stmt = @import("statement.zig").Stmt;
 
 pub const BasicBlock = struct {
@@ -11,7 +13,7 @@ pub const BasicBlock = struct {
         return self.label;
     }
 
-    pub fn deinit(self: *BasicBlock, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *BasicBlock, allocator: Allocator) void {
         for (self.statements) |*stmt| {
             stmt.deinit(allocator);
         }
@@ -22,16 +24,22 @@ pub const BasicBlock = struct {
 pub const BasicBlockBuilder = struct {
     const Self = @This();
 
+    allocator: Allocator,
     statements: std.ArrayList(Stmt),
     terminator: ?Stmt,
     label: ?[]const u8,
 
-    pub fn init(allocator: std.mem.Allocator) Self {
+    pub fn init(allocator: Allocator) Self {
         return .{
+            .allocator = allocator,
             .statements = std.ArrayList(Stmt).init(allocator),
             .terminator = null,
             .label = null,
         };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.statements.clearAndFree();
     }
 
     pub fn addStatement(self: *Self, stmt: Stmt) !void {

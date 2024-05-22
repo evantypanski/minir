@@ -1,7 +1,8 @@
 const std = @import("std");
 
 const fmt = std.fmt;
-const Writer = @import("std").fs.File.Writer;
+const Allocator = std.mem.Allocator;
+const Writer = std.fs.File.Writer;
 
 const Program = @import("nodes/program.zig").Program;
 const Stmt = @import("nodes/statement.zig").Stmt;
@@ -16,7 +17,7 @@ const Loc = @import("sourceloc.zig").Loc;
 pub const SourceManager = struct {
     const Self = @This();
 
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
     source: []const u8,
     filename: ?[]const u8,
     // Indexes for line endings (\n)
@@ -24,7 +25,7 @@ pub const SourceManager = struct {
     owns_source: bool,
 
     pub fn init(
-        allocator: std.mem.Allocator,
+        allocator: Allocator,
         source: []const u8,
         owns_source: bool
     ) !Self {
@@ -37,7 +38,7 @@ pub const SourceManager = struct {
         };
     }
 
-    pub fn initFilename(allocator: std.mem.Allocator, name: []const u8) !Self {
+    pub fn initFilename(allocator: Allocator, name: []const u8) !Self {
         const file = try std.fs.cwd().openFile(name, .{ .mode = .read_only });
         const source = try file.readToEndAlloc(allocator, 10000);
         return .{
@@ -57,10 +58,11 @@ pub const SourceManager = struct {
     }
 
     fn analyzeLineEnds(
-        allocator: std.mem.Allocator,
+        allocator: Allocator,
         source: []const u8
     ) ![]usize {
         var line_ends = std.ArrayList(usize).init(allocator);
+        errdefer line_ends.clearAndFree();
         var i: usize = 0;
         while (i < source.len) : (i += 1) {
             if (source[i] == '\n') {

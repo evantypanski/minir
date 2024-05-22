@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const OpCode = @import("opcodes.zig").OpCode;
 const Value = @import("value.zig").Value;
 const InvalidBytecodeError = @import("errors.zig").InvalidBytecodeError;
@@ -8,7 +10,7 @@ pub const Chunk = struct {
     bytes: []u8,
     values: []Value,
 
-    pub fn deinit(self: *const Chunk, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *const Chunk, allocator: Allocator) void {
         allocator.free(self.bytes);
         allocator.free(self.values);
     }
@@ -17,14 +19,22 @@ pub const Chunk = struct {
 pub const ChunkBuilder = struct {
     const Self = @This();
 
+    allocator: Allocator,
     bytes: std.ArrayList(u8),
     values: std.ArrayList(Value),
 
-    pub fn init(allocator: std.mem.Allocator) Self {
+    pub fn init(allocator: Allocator) Self {
         return .{
+            .allocator = allocator,
             .bytes = std.ArrayList(u8).init(allocator),
             .values = std.ArrayList(Value).init(allocator),
         };
+    }
+
+    /// Invalidates the builder and deinits its memory.
+    pub fn deinit(self: *Self) void {
+        self.values.clearAndFree();
+        self.bytes.clearAndFree();
     }
 
     // Wrapper for addByte that does the enum cast

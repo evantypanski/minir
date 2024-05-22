@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const basic_block = @import("basic_block.zig");
 const BasicBlock = basic_block.BasicBlock;
 const BasicBlockBuilder = basic_block.BasicBlockBuilder;
@@ -11,7 +13,7 @@ const Loc = @import("../sourceloc.zig").Loc;
 pub const Program = struct {
     decls: []Decl,
 
-    pub fn deinit(self: *Program, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *Program, allocator: Allocator) void {
         for (self.decls) |*decl| {
             decl.deinit(allocator);
         }
@@ -25,11 +27,16 @@ pub const ProgramBuilder = struct {
     decls: std.ArrayList(Decl),
     main_idx: ?usize,
 
-    pub fn init(allocator: std.mem.Allocator) Self {
+    pub fn init(allocator: Allocator) Self {
         return .{
             .decls = std.ArrayList(Decl).init(allocator),
             .main_idx = null,
         };
+    }
+
+    /// Deinit the builder. A build after this will NOT be valid.
+    pub fn deinit(self: *Self) void {
+        self.decls.clearAndFree();
     }
 
     pub fn addDecl(self: *Self, decl: Decl) !void {

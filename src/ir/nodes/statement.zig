@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const Value = @import("value.zig").Value;
 const Type = @import("type.zig").Type;
 const Loc = @import("../sourceloc.zig").Loc;
@@ -17,7 +19,7 @@ pub const VarDecl = struct {
     val: ?Value,
     ty: ?Type,
 
-    pub fn deinit(self: *VarDecl, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *VarDecl, allocator: Allocator) void {
         if (self.val) |*val| {
             val.deinit(allocator);
         }
@@ -84,7 +86,7 @@ pub const Stmt = struct {
         return self.label;
     }
 
-    pub fn deinit(self: *Stmt, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *Stmt, allocator: Allocator) void {
         switch (self.*.stmt_kind) {
             .ret => |*ret| {
                 if (ret.*) |*val| {

@@ -3,7 +3,6 @@
 //! using the Zig library features.
 
 const std = @import("std");
-const Allocator = std.mem.Allocator;
 
 const HeapError = @import("errors.zig").HeapError;
 

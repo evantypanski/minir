@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -18,9 +20,9 @@ pub const FoldConstantsPass = struct {
     const Self = @This();
     const VisitorTy = IrVisitor(*Self, FoldError!void);
 
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
 
-    pub fn init(allocator: std.mem.Allocator) Self {
+    pub fn init(allocator: Allocator) Self {
         return .{
             .allocator = allocator,
         };

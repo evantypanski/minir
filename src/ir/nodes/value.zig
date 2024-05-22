@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const NodeError = @import("../errors.zig").NodeError;
 const Token = @import("../token.zig").Token;
 const Loc = @import("../sourceloc.zig").Loc;
@@ -43,7 +45,7 @@ pub const UnaryOp = struct {
     kind: Kind,
     val: *Value,
 
-    pub fn deinit(self: *UnaryOp, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *UnaryOp, allocator: Allocator) void {
         self.val.*.deinit(allocator);
         allocator.destroy(self.val);
     }
@@ -87,7 +89,7 @@ pub const BinaryOp = struct {
         }
     };
 
-    pub fn deinit(self: *BinaryOp, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *BinaryOp, allocator: Allocator) void {
         self.lhs.deinit(allocator);
         allocator.destroy(self.lhs);
         self.rhs.deinit(allocator);
@@ -105,7 +107,7 @@ pub const FuncCall = struct {
     resolved: ?*const Decl,
     arguments: []Value,
 
-    pub fn deinit(self: *FuncCall, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *FuncCall, allocator: Allocator) void {
         self.function.*.deinit(allocator);
         allocator.destroy(self.function);
 
@@ -140,7 +142,7 @@ pub const ValueKind = union(ValueTag) {
     type_: Type,
     ptr: Pointer,
 
-    pub fn deinit(self: *ValueKind, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *ValueKind, allocator: Allocator) void {
         switch (self.*) {
             .unary => |*op| op.deinit(allocator),
             .binary => |*op| op.deinit(allocator),
@@ -276,7 +278,7 @@ pub const Value = struct {
         }
     }
 
-    pub fn deinit(self: *Value, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *Value, allocator: Allocator) void {
         self.*.val_kind.deinit(allocator);
     }
 };
