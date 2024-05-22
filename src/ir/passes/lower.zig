@@ -23,7 +23,6 @@ const ByteValue = @import("../../bytecode/value.zig").Value;
 const OpCode = @import("../../bytecode/opcodes.zig").OpCode;
 
 const LowerError = error{
-    MemoryError,
     BuilderError,
     VarNotInScope,
     InvalidLHS,
@@ -32,7 +31,7 @@ const LowerError = error{
     InvalidBuiltin,
     InvalidType,
     BadArity,
-};
+} || Allocator.Error;
 
 pub const Lowerer = struct {
     const Self = @This();
@@ -173,10 +172,10 @@ pub const Lowerer = struct {
         function: *Function(Stmt)
     ) LowerError!void {
         try self.addParams(function.*.params);
-        self.fn_map.put(
+        try self.fn_map.put(
             function.*.name,
             @intCast(self.builder.currentByte())
-        ) catch return error.MemoryError;
+        );
         try visitor.walkFunction(self, function);
     }
 
@@ -186,10 +185,10 @@ pub const Lowerer = struct {
         function: *Function(BasicBlock)
     ) LowerError!void {
         try self.addParams(function.*.params);
-        self.fn_map.put(
+        try self.fn_map.put(
             function.*.name,
             @intCast(self.builder.currentByte())
-        ) catch return error.MemoryError;
+        );
         try visitor.walkBBFunction(self, function);
     }
 
@@ -208,10 +207,10 @@ pub const Lowerer = struct {
         stmt: *Stmt
     ) LowerError!void {
         if (stmt.*.label) |label| {
-            self.label_map.put(
+            try self.label_map.put(
                 label,
                 @intCast(self.builder.currentByte())
-            ) catch return error.MemoryError;
+            );
         }
         try visitor.walkStatement(self, stmt);
     }
@@ -222,10 +221,10 @@ pub const Lowerer = struct {
         bb: *BasicBlock
     ) LowerError!void {
         if (bb.*.label) |label| {
-            self.label_map.put(
+            try self.label_map.put(
                 label,
                 @intCast(self.builder.currentByte())
-            ) catch return error.MemoryError;
+            );
         }
         try visitor.walkBasicBlock(self, bb);
     }
@@ -390,14 +389,12 @@ pub const Lowerer = struct {
             catch return error.BuilderError;
 
         const list = self.placeholder_map.get(call.*.name()) orelse blk: {
-            const list = self.allocator.create(std.ArrayList(usize))
-                catch return error.MemoryError;
+            const list = try self.allocator.create(std.ArrayList(usize));
             list.* = std.ArrayList(usize).init(self.allocator);
-            self.placeholder_map.put(call.*.name(), list)
-                catch return error.MemoryError;
+            try self.placeholder_map.put(call.*.name(), list);
             break :blk list;
         };
-        list.append(placeholder) catch return error.MemoryError;
+        try list.append(placeholder);
 
         // Pop each argument
         for (call.*.arguments) |_| {
@@ -470,14 +467,12 @@ pub const Lowerer = struct {
 
         const list = self.label_placeholder_map.get(branch.labelName())
             orelse blk: {
-                const list = self.allocator.create(std.ArrayList(usize))
-                    catch return error.MemoryError;
+                const list = try self.allocator.create(std.ArrayList(usize));
                 list.* = std.ArrayList(usize).init(self.allocator);
-                self.label_placeholder_map.put(branch.labelName(), list)
-                    catch return error.MemoryError;
+                try self.label_placeholder_map.put(branch.labelName(), list);
                 break :blk list;
         };
-        list.append(placeholder) catch return error.MemoryError;
+        try list.append(placeholder);
     }
 
     fn getOffsetForName(self: *Self, name: []const u8) LowerError!i8 {

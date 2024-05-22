@@ -1,3 +1,7 @@
+const std = @import("std");
+
+const Allocator = std.mem.Allocator;
+
 pub const InterpError = error{
     OperandError,
     InvalidInt,
@@ -38,7 +42,6 @@ pub const TokenParseError = error {
     Unexpected,
     ExpectedNumber,
     Expected,
-    MemoryError,
     NotANumber,
     NotABoolean,
 };
@@ -61,11 +64,10 @@ const TypecheckErrorInner = error{
     Unresolved,
 };
 
-pub const ResolveError = error{
-    MemoryError,
+pub const ResolveError = error {
     NameConflict,
     NoSuchFunction,
-};
+} || Allocator.Error;
 
 pub const HeapError = error{
     Bad,
@@ -73,7 +75,7 @@ pub const HeapError = error{
 
 pub const TypecheckError = TypecheckErrorInner || ResolveError;
 
-pub const ParseError = TokenParseError || NodeError || LexError;
+pub const ParseError = TokenParseError || NodeError || LexError || Allocator.Error;
 
 /// Gets the format string for a given error. Any unimplemented errors expect
 /// three format string arguments: the file name, the line number, and the

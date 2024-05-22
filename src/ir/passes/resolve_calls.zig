@@ -46,7 +46,7 @@ pub const ResolveCallsPass = struct {
                 return error.NameConflict;
             }
 
-            self.resolved.put(name, decl) catch return error.MemoryError;
+            try self.resolved.put(name, decl);
         }
 
         try ResolveVisitor.visitProgram(ResolveVisitor, self, program);

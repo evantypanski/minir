@@ -13,7 +13,6 @@ const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 
 const FoldError = error{
-    MemoryError,
 };
 
 pub const FoldConstantsPass = struct {

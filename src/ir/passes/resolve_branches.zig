@@ -13,9 +13,8 @@ const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 
 const BranchesError = error{
-    MemoryError,
     LabelNotFound,
-};
+} || Allocator.Error;
 
 pub const ResolveBranchesPass = struct {
     const Self = @This();
@@ -83,7 +82,7 @@ pub const ResolveBranchesPass = struct {
 
     fn addLabelIfPresent(self: *Self, labeled: anytype, ele: usize) BranchesError!void {
         if (labeled.getLabel()) |label| {
-            self.*.label_map.put(label, ele) catch return error.MemoryError;
+            try self.*.label_map.put(label, ele);
         }
     }
 

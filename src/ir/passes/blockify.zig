@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Allocator = std.mem.Allocator;
+
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -10,19 +12,19 @@ const Value = @import("../nodes/value.zig").Value;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 const Loc = @import("../sourceloc.zig").Loc;
+const NodeError = @import("../errors.zig").NodeError;
 
 const BlockifyError = error{
     AlreadyBlockified,
-    MemoryError,
-};
+} || Allocator.Error || NodeError;
 
 pub const BlockifyPass = struct {
     const Self = @This();
     const VisitorTy = IrVisitor(*Self, BlockifyError!void);
 
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
 
-    pub fn init(allocator: std.mem.Allocator) Self {
+    pub fn init(allocator: Allocator) Self {
         return .{
             .allocator = allocator,
         };
@@ -48,7 +50,7 @@ pub const BlockifyPass = struct {
                     .init(arg.allocator, func.name);
                 fn_builder.setReturnType(func.*.ret_ty);
                 for (func.*.params) |*param| {
-                    fn_builder.addParam(param.*) catch return error.MemoryError;
+                    try fn_builder.addParam(param.*);
                 }
                 var bb_builder = BasicBlockBuilder.init(arg.allocator);
                 errdefer bb_builder.deinit();
@@ -58,10 +60,8 @@ pub const BlockifyPass = struct {
                     if (stmt.label) |label| {
                         // Edge case: empty basic blocks shouldn't build
                         if (!empty_bb_builder) {
-                            const bb = bb_builder.build()
-                                catch return error.MemoryError;
-                            fn_builder.addElement(bb)
-                                catch return error.MemoryError;
+                            const bb = try bb_builder.build();
+                            try fn_builder.addElement(bb);
                             bb_builder = BasicBlockBuilder.init(arg.allocator);
                         }
                         bb_builder.setLabel(label);
@@ -72,23 +72,19 @@ pub const BlockifyPass = struct {
                     // case that labeled statement is a terminator.
                     if (stmt.isTerminator()) {
                         empty_bb_builder = true;
-                        bb_builder.setTerminator(stmt.*)
-                            catch return error.MemoryError;
-                        const bb = bb_builder.build()
-                            catch return error.MemoryError;
-                        fn_builder.addElement(bb)
-                            catch return error.MemoryError;
+                        try bb_builder.setTerminator(stmt.*);
+                        const bb = try bb_builder.build();
+                        try fn_builder.addElement(bb);
                         bb_builder = BasicBlockBuilder.init(arg.allocator);
                     } else {
                         empty_bb_builder = false;
-                        bb_builder.addStatement(stmt.*)
-                            catch return error.MemoryError;
+                        try bb_builder.addStatement(stmt.*);
                     }
                 }
                 // Maybe there's an implicit return, dunno if I wanna allow that
                 if (!empty_bb_builder) {
-                    const bb = bb_builder.build() catch return error.MemoryError;
-                    fn_builder.addElement(bb) catch return error.MemoryError;
+                    const bb = try bb_builder.build();
+                    try fn_builder.addElement(bb);
                 }
                 func.shallowDeinit(arg.allocator);
                 decl.* = .{ .bb_function = fn_builder.build() catch unreachable };

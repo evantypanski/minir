@@ -135,7 +135,7 @@ pub const Parser = struct {
                 .val = null,
                 .ty = opt_ty,
             };
-            builder.addParam(param) catch return error.MemoryError;
+            try builder.addParam(param);
 
             if (!self.match(.comma)) {
                 break;
@@ -155,17 +155,13 @@ pub const Parser = struct {
         try self.consume(.lbrace);
 
         while (self.current.tag != .rbrace and self.current.tag != .eof) {
-            if (builder.addElement(try self.parseStmt())) {}
-            else |_| { return error.MemoryError; }
+            try builder.addElement(try self.parseStmt());
         }
 
         // If we get here without right brace it's EOF
         try self.consume(.rbrace);
 
-        const decl = if (builder.build()) |decl|
-                decl
-            else |_|
-                error.MemoryError;
+        const decl = try builder.build();
         return decl;
     }
 
@@ -350,20 +346,16 @@ pub const Parser = struct {
         if (self.current.tag != .rparen) {
             while (!self.lexer.isAtEnd()) {
                 const arg = try self.parseExpr();
-                arguments.append(arg) catch return error.MemoryError;
+                try arguments.append(arg);
                 if (!self.match(.comma)) {
                     break;
                 }
             }
         }
         try self.consume(.rparen);
-        const arg_slice = arguments.toOwnedSlice()
-            catch return error.MemoryError;
+        const arg_slice = try arguments.toOwnedSlice();
         const loc = Loc.init(start, self.previous.loc.end);
-        const fn_ptr = if (self.allocator.create(Value)) |ptr|
-                ptr
-            else |_|
-                return error.MemoryError;
+        const fn_ptr = try self.allocator.create(Value);
         fn_ptr.* = other;
         return Value.initCall(fn_ptr, arg_slice, loc);
     }
@@ -374,10 +366,7 @@ pub const Parser = struct {
         const op_kind = try UnaryOp.Kind.fromTag(self.current.tag);
         self.advance();
         const val = try self.parsePrecedence(.unary);
-        const val_ptr = if (self.allocator.create(Value)) |ptr|
-                ptr
-            else |_|
-                return error.MemoryError;
+        const val_ptr = try self.allocator.create(Value);
         val_ptr.* = val;
 
         const loc = Loc.init(start, self.previous.loc.end);
@@ -438,16 +427,10 @@ pub const Parser = struct {
         const op_kind = try BinaryOp.Kind.fromTag(self.current.tag);
         self.advance();
         const rhs = try self.parsePrecedence(prec.inc());
-        const lhs_ptr = if (self.allocator.create(Value)) |ptr|
-                ptr
-            else |_|
-                return error.MemoryError;
+        const lhs_ptr = try self.allocator.create(Value);
         lhs_ptr.* = other;
         errdefer self.allocator.destroy(lhs_ptr);
-        const rhs_ptr = if (self.allocator.create(Value)) |ptr|
-                ptr
-            else |_|
-                return error.MemoryError;
+        const rhs_ptr = try self.allocator.create(Value);
 
         rhs_ptr.* = rhs;
 
@@ -464,8 +447,7 @@ pub const Parser = struct {
     fn parseType(self: *Self) ParseError!Type {
         if (self.match(.star)) {
             const ty = try self.parseType();
-            return Type.initPtrAlloc(ty, self.allocator)
-                    catch return error.MemoryError;
+            return Type.initPtrAlloc(ty, self.allocator);
         }
         if (self.current.kw == null) {
             return error.InvalidTypeName;
