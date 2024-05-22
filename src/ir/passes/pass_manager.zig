@@ -43,6 +43,12 @@ pub const PassManager = struct {
         };
         var pass = PassType.init(args);
         defer pass.deinit();
+
+        // Run dependencies, right now we just run them dumb
+        inline for (PassType.dependencies) |dependency| {
+            try self.get(dependency);
+        }
+
         var new_pass = PassType {};
         return new_pass.get(&pass, self.program);
     }

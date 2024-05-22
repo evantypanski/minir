@@ -19,7 +19,6 @@ const BlockifyPass = @import("../ir/passes/blockify.zig").BlockifyPass;
 const Lower = @import("../ir/passes/lower.zig").Lower;
 const Typecheck = @import("../ir/passes/typecheck.zig").Typecheck;
 const ResolveBranches = @import("../ir/passes/resolve_branches.zig").ResolveBranches;
-const ResolveCalls = @import("../ir/passes/resolve_calls.zig").ResolveCalls;
 const SourceManager = @import("../ir/source_manager.zig").SourceManager;
 const Diagnostics = @import("../ir/diagnostics_engine.zig").Diagnostics;
 const Interpreter = @import("../bytecode/interpret.zig").Interpreter;
@@ -63,8 +62,6 @@ pub fn drive_with_opts(self: Self, options: Options) !void {
     var pass_manager = PassManager.init(self.allocator, &program, diag_engine);
     try pass_manager.get(Numify);
     try pass_manager.get(ResolveBranches);
-    // TODO: Pass dependencies should remove this
-    try pass_manager.get(ResolveCalls);
     try pass_manager.get(Typecheck);
 
     switch (options) {

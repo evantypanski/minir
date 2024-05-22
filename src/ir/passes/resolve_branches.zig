@@ -14,7 +14,7 @@ const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 
 pub const ResolveBranches = Pass(
-    ResolveBranchesPass, ResolveBranchesPass.Error!void,
+    ResolveBranchesPass, ResolveBranchesPass.Error!void, &[_]type{},
     ResolveBranchesPass.init, ResolveBranchesPass.execute
 );
 

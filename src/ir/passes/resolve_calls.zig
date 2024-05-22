@@ -16,7 +16,7 @@ const Program = @import("../nodes/program.zig").Program;
 const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
 
 pub const ResolveCalls = Pass(
-    ResolveCallsPass, ResolveCallsPass.Error!void,
+    ResolveCallsPass, ResolveCallsPass.Error!void, &[_]type{},
     ResolveCallsPass.init, ResolveCallsPass.execute
 );
 

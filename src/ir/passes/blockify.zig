@@ -16,7 +16,7 @@ const Loc = @import("../sourceloc.zig").Loc;
 const NodeError = @import("../nodes/errors.zig").NodeError;
 
 pub const Blockify = Pass(
-    BlockifyPass, BlockifyPass.Error!void,
+    BlockifyPass, BlockifyPass.Error!void, &[_]type{},
     BlockifyPass.init, BlockifyPass.execute
 );
 

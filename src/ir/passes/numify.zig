@@ -12,7 +12,7 @@ const Stmt = @import("../nodes/statement.zig").Stmt;
 const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
 
 pub const Numify = Pass(
-    NumifyPass, NumifyPass.Error!void,
+    NumifyPass, NumifyPass.Error!void, &[_]type{},
     NumifyPass.init, NumifyPass.execute
 );
 

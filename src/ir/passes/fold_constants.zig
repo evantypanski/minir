@@ -14,7 +14,7 @@ const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 
 pub const FoldConstants = Pass(
-    FoldConstantsPass, FoldConstantsPass.Error!void,
+    FoldConstantsPass, FoldConstantsPass.Error!void, &[_]type{},
     FoldConstantsPass.init, FoldConstantsPass.execute
 );
 

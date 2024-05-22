@@ -17,9 +17,11 @@ const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
 const Loc = @import("../sourceloc.zig").Loc;
+const ResolveCalls = @import("resolve_calls.zig").ResolveCalls;
+const ResolveCallsPass = @import("resolve_calls.zig").ResolveCallsPass;
 
 pub const Typecheck = Pass(
-    TypecheckPass, TypecheckPass.Error!void,
+    TypecheckPass, TypecheckPass.Error!void, &[_]type{ResolveCalls},
     TypecheckPass.init, TypecheckPass.execute
 );
 
@@ -36,7 +38,7 @@ pub const TypecheckPass = struct {
         InvalidType,
         BadArity,
         Unresolved,
-    };
+    } || ResolveCallsPass.Error;
 
     const Self = @This();
     const VisitorTy = IrVisitor(*Self, Error!void);

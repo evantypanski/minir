@@ -25,7 +25,7 @@ const OpCode = @import("../../bytecode/opcodes.zig").OpCode;
 const InvalidBytecodeError = @import("../../bytecode/errors.zig").InvalidBytecodeError;
 
 pub const Lower = Pass(
-    Lowerer, Lowerer.Error!Chunk,
+    Lowerer, Lowerer.Error!Chunk, &[_]type{},
     Lowerer.init, Lowerer.execute
 );
 
