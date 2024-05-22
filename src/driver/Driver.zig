@@ -10,15 +10,16 @@ const Stmt = @import("../ir/nodes/statement.zig").Stmt;
 const Value = @import("../ir/nodes/value.zig").Value;
 const Formatter = @import("../ir/disassembler.zig").Disassembler;
 const TreewalkInterpreter = @import("../ir/interpret.zig").Interpreter;
-const Numify = @import("../ir/passes/numify.zig");
+const Numify = @import("../ir/passes/numify.zig").Numify;
 const visitor = @import("../ir/passes/visitor.zig");
 const Lexer = @import("../ir/lexer.zig").Lexer;
 const Parser = @import("../ir/parser.zig").Parser;
 const PassManager = @import("../ir/passes/pass_manager.zig").PassManager;
 const BlockifyPass = @import("../ir/passes/blockify.zig").BlockifyPass;
-const Lowerer = @import("../ir/passes/lower.zig").Lowerer;
-const TypecheckPass = @import("../ir/passes/typecheck.zig").TypecheckPass;
-const ResolveBranchesPass = @import("../ir/passes/resolve_branches.zig").ResolveBranchesPass;
+const Lower = @import("../ir/passes/lower.zig").Lower;
+const Typecheck = @import("../ir/passes/typecheck.zig").Typecheck;
+const ResolveBranches = @import("../ir/passes/resolve_branches.zig").ResolveBranches;
+const ResolveCalls = @import("../ir/passes/resolve_calls.zig").ResolveCalls;
 const SourceManager = @import("../ir/source_manager.zig").SourceManager;
 const Diagnostics = @import("../ir/diagnostics_engine.zig").Diagnostics;
 const Interpreter = @import("../bytecode/interpret.zig").Interpreter;
@@ -60,15 +61,17 @@ pub fn drive_with_opts(self: Self, options: Options) !void {
     defer program.deinit(self.allocator);
 
     var pass_manager = PassManager.init(self.allocator, &program, diag_engine);
-    try pass_manager.run(Numify);
-    try pass_manager.run(ResolveBranchesPass);
-    try pass_manager.run(TypecheckPass);
+    try pass_manager.get(Numify);
+    try pass_manager.get(ResolveBranches);
+    // TODO: Pass dependencies should remove this
+    try pass_manager.get(ResolveCalls);
+    try pass_manager.get(Typecheck);
 
     switch (options) {
         .interpret => |config| {
             switch (config.interpreter_type) {
                 .byte => {
-                    const chunk = try pass_manager.run(Lowerer);
+                    const chunk = try pass_manager.get(Lower);
                     // TODO: Maybe deinit should be in the interpreter, but it
                     // doesn't allocate so eh.
                     defer chunk.deinit(self.allocator);
@@ -97,7 +100,7 @@ pub fn drive_with_opts(self: Self, options: Options) !void {
             try formatter.disassemble();
         },
         .dump => {
-            const chunk = try pass_manager.run(Lowerer);
+            const chunk = try pass_manager.get(Lower);
 
             source_mgr.deinit();
             var disassembler = Disassembler.init(chunk, self.out);

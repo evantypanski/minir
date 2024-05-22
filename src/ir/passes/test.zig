@@ -11,7 +11,7 @@ const Parser = @import("../parser.zig").Parser;
 const PassManager = @import("../passes/pass_manager.zig").PassManager;
 const BlockifyPass = @import("../passes/blockify.zig").BlockifyPass;
 const Blockify = @import("../passes/blockify.zig").Blockify;
-const FoldConstantsPass = @import("../passes/fold_constants.zig").FoldConstantsPass;
+const FoldConstants = @import("../passes/fold_constants.zig").FoldConstants;
 
 fn parseProgramFromString(str: []const u8) !Program {
     var source_mgr = try SourceManager.init(std.testing.allocator, str, false);
@@ -74,7 +74,7 @@ test "Test simple blockify" {
     defer source_mgr.deinit();
     const diag = Diagnostics.init(source_mgr);
     var pass_manager = PassManager.init(std.testing.allocator, &start, diag);
-    try pass_manager.run(BlockifyPass);
+    try pass_manager.get(Blockify);
     defer start.deinit(std.testing.allocator);
 
     try expectDisassembled(start,
@@ -101,7 +101,7 @@ test "Test blockify with jump" {
     const diag = Diagnostics.init(source_mgr);
     var start = try parseProgram(source_mgr, diag);
     var pass_manager = PassManager.init(std.testing.allocator, &start, diag);
-    try pass_manager.run(BlockifyPass);
+    try pass_manager.get(Blockify);
     defer start.deinit(std.testing.allocator);
 
     try expectDisassembled(start,
@@ -112,30 +112,6 @@ test "Test blockify with jump" {
         \\  }
         \\  {
         \\    let j: int = 420
-        \\  }
-        \\}
-    );
-}
-
-test "Test blockify with lazy Pass" {
-    const begin_str =
-        \\func main() -> none {
-        \\  let i: int = 42
-        \\}
-        ;
-
-    var start = try parseProgramFromString(begin_str);
-    var source_mgr = try SourceManager.init(std.testing.allocator, begin_str, false);
-    defer source_mgr.deinit();
-    const diag = Diagnostics.init(source_mgr);
-    var pass_manager = PassManager.init(std.testing.allocator, &start, diag);
-    try pass_manager.get(Blockify);
-    defer start.deinit(std.testing.allocator);
-
-    try expectDisassembled(start,
-        \\func main() -> none {
-        \\  {
-        \\    let i: int = 42
         \\  }
         \\}
     );
@@ -153,7 +129,7 @@ test "Test simple constant folding" {
     const diag = Diagnostics.init(source_mgr);
     var start = try parseProgram(source_mgr, diag);
     var pass_manager = PassManager.init(std.testing.allocator, &start, diag);
-    try pass_manager.run(FoldConstantsPass);
+    try pass_manager.get(FoldConstants);
     defer start.deinit(std.testing.allocator);
 
     // Parentheses be damned

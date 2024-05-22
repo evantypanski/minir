@@ -2,6 +2,7 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
+const Pass = @import("pass.zig").Pass;
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -13,6 +14,11 @@ const FuncCall = @import("../nodes/value.zig").FuncCall;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
+
+pub const ResolveCalls = Pass(
+    ResolveCallsPass, ResolveCallsPass.Error!void,
+    ResolveCallsPass.init, ResolveCallsPass.execute
+);
 
 pub const ResolveCallsPass = struct {
     pub const Error = error {

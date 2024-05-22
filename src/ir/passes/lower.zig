@@ -2,6 +2,7 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
+const Pass = @import("pass.zig").Pass;
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -22,6 +23,11 @@ const BinaryOp = @import("../nodes/value.zig").BinaryOp;
 const ByteValue = @import("../../bytecode/value.zig").Value;
 const OpCode = @import("../../bytecode/opcodes.zig").OpCode;
 const InvalidBytecodeError = @import("../../bytecode/errors.zig").InvalidBytecodeError;
+
+pub const Lower = Pass(
+    Lowerer, Lowerer.Error!Chunk,
+    Lowerer.init, Lowerer.execute
+);
 
 pub const Lowerer = struct {
     pub const Error = error{
@@ -111,7 +117,7 @@ pub const Lowerer = struct {
         .visitBranch = visitBranch,
     };
 
-    pub fn execute(self: *Self, program: *Program) !Chunk {
+    pub fn execute(self: *Self, program: *Program) Error!Chunk {
         errdefer self.builder.deinit();
         try LowerVisitor.visitProgram(LowerVisitor, self, program);
         return self.builder.build();

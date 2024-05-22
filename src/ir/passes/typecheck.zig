@@ -2,6 +2,7 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
+const Pass = @import("pass.zig").Pass;
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -15,8 +16,12 @@ const Type = @import("../nodes/type.zig").Type;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
-const ResolveCallsPass = @import("resolve_calls.zig").ResolveCallsPass;
 const Loc = @import("../sourceloc.zig").Loc;
+
+pub const Typecheck = Pass(
+    TypecheckPass, TypecheckPass.Error!void,
+    TypecheckPass.init, TypecheckPass.execute
+);
 
 pub const TypecheckPass = struct {
     pub const Error = error {
@@ -31,11 +36,10 @@ pub const TypecheckPass = struct {
         InvalidType,
         BadArity,
         Unresolved,
-    } || ResolveCallsPass.Error;
+    };
 
     const Self = @This();
     const VisitorTy = IrVisitor(*Self, Error!void);
-    pub const dependencies = [_]type{ResolveCallsPass};
 
     allocator: Allocator,
     vars: std.StringHashMap(Type),

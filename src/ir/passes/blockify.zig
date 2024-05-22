@@ -15,6 +15,11 @@ const Program = @import("../nodes/program.zig").Program;
 const Loc = @import("../sourceloc.zig").Loc;
 const NodeError = @import("../nodes/errors.zig").NodeError;
 
+pub const Blockify = Pass(
+    BlockifyPass, BlockifyPass.Error!void,
+    BlockifyPass.init, BlockifyPass.execute
+);
+
 pub const BlockifyPass = struct {
     pub const Error = error {
         AlreadyBlockified,
@@ -97,8 +102,6 @@ pub const BlockifyPass = struct {
         }
     }
 };
-
-pub const Blockify = Pass(BlockifyPass, BlockifyPass.Error!void, BlockifyPass.init, BlockifyPass.execute);
 
 test "Changes all functions into BB functions" {
     const ProgramBuilder = @import("../nodes/program.zig").ProgramBuilder;

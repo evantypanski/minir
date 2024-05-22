@@ -3,6 +3,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Program = @import("../nodes/program.zig").Program;
 
+// TODO: Pass dependencies
 pub fn Pass(
     PassTy: type, RetTy: type,
     init_: *const fn (args: anytype) PassTy,
