@@ -7,9 +7,10 @@ const Chunk = @import("chunk.zig").Chunk;
 const Value = @import("value.zig").Value;
 const InvalidBytecodeError = @import("errors.zig").InvalidBytecodeError;
 
-pub const DisassembleError = InvalidBytecodeError || Writer.Error || fmt.format_float.FormatError;
-
 pub const Disassembler = struct {
+    pub const Error = InvalidBytecodeError || Writer.Error || fmt.format_float.FormatError;
+
+
     const Self = @This();
 
     chunk: Chunk,
@@ -26,7 +27,7 @@ pub const Disassembler = struct {
         };
     }
 
-    pub fn disassemble(self: *Self) DisassembleError!void {
+    pub fn disassemble(self: *Self) Error!void {
         while (self.idx < self.chunk.bytes.len) : (self.idx += 1) {
             const op: OpCode = @enumFromInt(self.chunk.bytes[self.idx]);
             self.disassembleOp(op) catch |e| {
@@ -37,7 +38,7 @@ pub const Disassembler = struct {
         }
     }
 
-    fn disassembleOp(self: *Self, op: OpCode) DisassembleError!void {
+    fn disassembleOp(self: *Self, op: OpCode) Error!void {
         try self.printAddress();
         switch (op) {
             .ret => try self.writer.writeAll("RET"),
@@ -119,7 +120,7 @@ pub const Disassembler = struct {
         try self.writer.writeAll("\n");
     }
 
-    fn disassembleValue(self: *Self, value: Value) DisassembleError!void {
+    fn disassembleValue(self: *Self, value: Value) Error!void {
         switch (value) {
             .undef => try self.writer.writeAll("undef"),
             .int => |i| try fmt.formatInt(i, 10, .lower, .{}, self.writer),
@@ -133,7 +134,7 @@ pub const Disassembler = struct {
         }
     }
 
-    fn disassembleOffset(self: *Self, offset: u8) DisassembleError!void {
+    fn disassembleOffset(self: *Self, offset: u8) Error!void {
         const signed_offset: i8 = @bitCast(offset);
         try self.writer.writeAll("var @fp");
 
@@ -148,7 +149,7 @@ pub const Disassembler = struct {
 
     // Gets the next byte and increments the index, returning an error if
     // we are off the end.
-    fn getByte(self: *Self) DisassembleError!u8 {
+    fn getByte(self: *Self) Error!u8 {
         if (self.idx + 1 >= self.chunk.bytes.len) {
             return error.UnexpectedEnd;
         }
@@ -158,7 +159,7 @@ pub const Disassembler = struct {
     }
 
     // Gets a value at the specified index, returning an error if it's invalid.
-    fn getValue(self: *Self, valueIdx: usize) DisassembleError!Value {
+    fn getValue(self: *Self, valueIdx: usize) Error!Value {
         if (valueIdx >= self.chunk.values.len) {
             return error.InvalidValueIndex;
         }
@@ -166,7 +167,7 @@ pub const Disassembler = struct {
         return self.chunk.values[valueIdx];
     }
 
-    fn printAddress(self: *Self) DisassembleError!void {
+    fn printAddress(self: *Self) Error!void {
         try fmt.formatInt(self.idx, 16, .upper, .{.fill = '0', .width = 8 }, self.writer);
         try self.writer.writeAll(": ");
     }

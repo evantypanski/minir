@@ -12,13 +12,13 @@ const Value = @import("../nodes/value.zig").Value;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 
-const BranchesError = error{
-    LabelNotFound,
-} || Allocator.Error;
-
 pub const ResolveBranchesPass = struct {
+    pub const Error = error {
+        LabelNotFound,
+    } || Allocator.Error;
+
     const Self = @This();
-    const VisitorTy = IrVisitor(*Self, BranchesError!void);
+    const VisitorTy = IrVisitor(*Self, Error!void);
 
     allocator: Allocator,
     label_map: std.StringHashMap(usize),
@@ -45,7 +45,7 @@ pub const ResolveBranchesPass = struct {
         .visitBranch = visitBranch,
     };
 
-    pub fn execute(self: *Self, program: *Program) BranchesError!void {
+    pub fn execute(self: *Self, program: *Program) Error!void {
         // Fill out the map
         try FindBranchesVisitor.visitProgram(FindBranchesVisitor, self, program);
     }
@@ -54,7 +54,7 @@ pub const ResolveBranchesPass = struct {
         visitor: VisitorTy,
         self: *Self,
         func: *Function(Stmt)
-    ) BranchesError!void {
+    ) Error!void {
         _ = visitor;
         var ele: usize = 0;
         for (func.elements) |bb| {
@@ -69,7 +69,7 @@ pub const ResolveBranchesPass = struct {
         visitor: VisitorTy,
         self: *Self,
         func: *Function(BasicBlock)
-    ) BranchesError!void {
+    ) Error!void {
         _ = visitor;
         var ele: usize = 0;
         for (func.elements) |bb| {
@@ -80,7 +80,7 @@ pub const ResolveBranchesPass = struct {
         self.*.label_map.clearRetainingCapacity();
     }
 
-    fn addLabelIfPresent(self: *Self, labeled: anytype, ele: usize) BranchesError!void {
+    fn addLabelIfPresent(self: *Self, labeled: anytype, ele: usize) Error!void {
         if (labeled.getLabel()) |label| {
             try self.*.label_map.put(label, ele);
         }
@@ -90,7 +90,7 @@ pub const ResolveBranchesPass = struct {
         visitor: VisitorTy,
         self: *Self,
         br: *Branch
-    ) BranchesError!void {
+    ) Error!void {
         _ = visitor;
         br.*.dest_index = (self.*.label_map.get(br.*.dest_label) orelse return error.LabelNotFound);
     }

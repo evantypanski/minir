@@ -10,9 +10,6 @@ const Type = @import("nodes/type.zig").Type;
 const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 const Decl = @import("nodes/decl.zig").Decl;
 const Function = @import("nodes/decl.zig").Function;
-const errors = @import("errors.zig");
-const ParseError = errors.ParseError;
-const TypecheckError = @import("errors.zig").TypecheckError;
 const Loc = @import("sourceloc.zig").Loc;
 const SourceManager = @import("source_manager.zig").SourceManager;
 
@@ -49,7 +46,7 @@ pub const Diagnostics = struct {
         // use an allocator but why would we pass an allocator in here? I'd
         // rather avoid that if possible. We can't do it in a new message
         // since `std.log` adds 'error:' before the message
-        const msg = if (comptime errors.getErrStr(the_err)) |str|
+        const msg = if (comptime getErrStr(the_err)) |str|
             "at {?s}:{}: " ++ str ++ "\n{s}"
         else
             "at {s}:{}:\n{s}";
@@ -80,5 +77,22 @@ pub const Diagnostics = struct {
             : (line_end += 1) {}
 
         return line_end;
+    }
+
+    /// Gets the format string for a given error. Any unimplemented errors expect
+    /// three format string arguments: the file name, the line number, and the
+    /// code snippet.
+    fn getErrStr(comptime found_error: anyerror) ?[]const u8 {
+        return switch (found_error) {
+            error.InvalidType => "{s} is an invalid type for '{s}'",
+            error.IncompatibleTypes => "type {s} of '{s}' is incompatible with type {s} of '{s}'",
+            error.Expected => "expected '{s}' token",
+            error.NotABranch => "'{s}' is not a branch keyword",
+            error.NotANumber => "'{s}' is not a valid number",
+            error.BadArity => "call to '{s}' expected {} argument(s); found {}",
+            error.Unresolved => "unresolved variable access to '{s}'",
+            error.KeywordInvalidIdentifier => "'{s}' is a keyword and cannot be used as an identifier",
+            else => null,
+        };
     }
 };

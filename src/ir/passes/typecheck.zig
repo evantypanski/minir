@@ -15,13 +15,26 @@ const Type = @import("../nodes/type.zig").Type;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
-const TypecheckError = @import("../errors.zig").TypecheckError;
 const ResolveCallsPass = @import("resolve_calls.zig").ResolveCallsPass;
 const Loc = @import("../sourceloc.zig").Loc;
 
 pub const TypecheckPass = struct {
+    pub const Error = error {
+        MapError,
+        ParamWithoutType,
+        TooManyErrors,
+        NakedVarDecl,
+        CannotEvaluateType,
+        Unimplemented,
+        IncompatibleTypes,
+        CannotResolve,
+        InvalidType,
+        BadArity,
+        Unresolved,
+    } || ResolveCallsPass.Error;
+
     const Self = @This();
-    const VisitorTy = IrVisitor(*Self, TypecheckError!void);
+    const VisitorTy = IrVisitor(*Self, Error!void);
     pub const dependencies = [_]type{ResolveCallsPass};
 
     allocator: Allocator,
@@ -53,7 +66,7 @@ pub const TypecheckPass = struct {
         .visitStatement = visitStatement,
     };
 
-    pub fn execute(self: *Self, program: *Program) TypecheckError!void {
+    pub fn execute(self: *Self, program: *Program) Error!void {
         try TypecheckVisitor.visitProgram(TypecheckVisitor, self, program);
         if (self.num_errors > 0) {
             self.diag.diagNumErrors(self.num_errors, "typechecking");
@@ -65,7 +78,7 @@ pub const TypecheckPass = struct {
         visitor: VisitorTy,
         self: *Self,
         decl: *Decl
-    ) TypecheckError!void {
+    ) Error!void {
         self.current_fn = decl;
         try visitor.walkDecl(self, decl);
     }
@@ -74,7 +87,7 @@ pub const TypecheckPass = struct {
         visitor: VisitorTy,
         self: *Self,
         function: *Function(Stmt)
-    ) TypecheckError!void {
+    ) Error!void {
         try self.handleFnStart(function.params);
         try visitor.walkFunction(self, function);
     }
@@ -83,12 +96,12 @@ pub const TypecheckPass = struct {
         visitor: VisitorTy,
         self: *Self,
         function: *Function(BasicBlock)
-    ) TypecheckError!void {
+    ) Error!void {
         try self.handleFnStart(function.params);
         try visitor.walkBBFunction(self, function);
     }
 
-    fn handleFnStart(self: *Self, params: []VarDecl) TypecheckError!void {
+    fn handleFnStart(self: *Self, params: []VarDecl) Error!void {
         self.vars.clearRetainingCapacity();
         for (params) |*param| {
             if (param.ty) |ty| {
@@ -106,7 +119,7 @@ pub const TypecheckPass = struct {
         visitor: VisitorTy,
         self: *Self,
         decl: *VarDecl
-    ) TypecheckError!void {
+    ) Error!void {
         if (decl.*.ty) |ty| {
             self.vars.put(decl.*.name, ty) catch return error.MapError;
         } else if (decl.*.val) |*val| {
@@ -122,7 +135,7 @@ pub const TypecheckPass = struct {
         visitor: VisitorTy,
         self: *Self,
         val: *Value
-    ) TypecheckError!void {
+    ) Error!void {
         // First just grab the type of this value since that may produce
         // diagnostics
         _ = self.valTy(val);
@@ -262,7 +275,7 @@ pub const TypecheckPass = struct {
         visitor: VisitorTy,
         self: *Self,
         stmt: *Stmt
-    ) TypecheckError!void {
+    ) Error!void {
         switch (stmt.*.stmt_kind) {
             .branch => |*br| {
                 if (br.*.expr) |*val| {

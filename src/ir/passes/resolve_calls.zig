@@ -13,11 +13,15 @@ const FuncCall = @import("../nodes/value.zig").FuncCall;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
-const ResolveError = @import("../errors.zig").ResolveError;
 
 pub const ResolveCallsPass = struct {
+    pub const Error = error {
+        NameConflict,
+        NoSuchFunction,
+    } || Allocator.Error;
+
     const Self = @This();
-    const VisitorTy = IrVisitor(*Self, ResolveError!void);
+    const VisitorTy = IrVisitor(*Self, Error!void);
 
     allocator: Allocator,
     diag: Diagnostics,
@@ -39,7 +43,7 @@ pub const ResolveCallsPass = struct {
         .visitFuncCall = visitFuncCall,
     };
 
-    pub fn execute(self: *Self, program: *Program) ResolveError!void {
+    pub fn execute(self: *Self, program: *Program) Error!void {
         for (program.decls) |*decl| {
             const name = decl.name();
             if (self.resolved.contains(name)) {
@@ -56,7 +60,7 @@ pub const ResolveCallsPass = struct {
         visitor: VisitorTy,
         self: *Self,
         call: *FuncCall
-    ) ResolveError!void {
+    ) Error!void {
         // Don't re-resolve if it's already been resolved.
         if (call.resolved != null) {
             return;

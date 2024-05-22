@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
-const NodeError = @import("../errors.zig").NodeError;
+const NodeError = @import("errors.zig").NodeError;
 const Token = @import("../token.zig").Token;
 const Loc = @import("../sourceloc.zig").Loc;
 const Decl = @import("decl.zig").Decl;

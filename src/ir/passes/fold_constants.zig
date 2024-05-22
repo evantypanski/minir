@@ -12,12 +12,11 @@ const Value = @import("../nodes/value.zig").Value;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 
-const FoldError = error{
-};
-
 pub const FoldConstantsPass = struct {
+    pub const Error = error {};
+
     const Self = @This();
-    const VisitorTy = IrVisitor(*Self, FoldError!void);
+    const VisitorTy = IrVisitor(*Self, Error!void);
 
     allocator: Allocator,
 
@@ -35,7 +34,7 @@ pub const FoldConstantsPass = struct {
         .visitValue = visitValue,
     };
 
-    pub fn execute(self: *Self, program: *Program) FoldError!void {
+    pub fn execute(self: *Self, program: *Program) Error!void {
         try FoldVisitor.visitProgram(FoldVisitor, self, program);
     }
 
@@ -43,7 +42,7 @@ pub const FoldConstantsPass = struct {
         visitor: VisitorTy,
         self: *Self,
         val: *Value
-    ) FoldError!void {
+    ) Error!void {
         switch (val.*.val_kind) {
             .binary => |*op| {
                 switch (op.*.kind) {

@@ -21,21 +21,21 @@ const VarAccess = @import("../nodes/value.zig").VarAccess;
 const BinaryOp = @import("../nodes/value.zig").BinaryOp;
 const ByteValue = @import("../../bytecode/value.zig").Value;
 const OpCode = @import("../../bytecode/opcodes.zig").OpCode;
-
-const LowerError = error{
-    BuilderError,
-    VarNotInScope,
-    InvalidLHS,
-    NoSuchFunction,
-    NoSuchLabel,
-    InvalidBuiltin,
-    InvalidType,
-    BadArity,
-} || Allocator.Error;
+const InvalidBytecodeError = @import("../../bytecode/errors.zig").InvalidBytecodeError;
 
 pub const Lowerer = struct {
+    pub const Error = error{
+        VarNotInScope,
+        InvalidLHS,
+        NoSuchFunction,
+        NoSuchLabel,
+        InvalidBuiltin,
+        InvalidType,
+        BadArity,
+    } || Allocator.Error || InvalidBytecodeError;
+
     const Self = @This();
-    const VisitorTy = IrVisitor(*Self, LowerError!void);
+    const VisitorTy = IrVisitor(*Self, Error!void);
 
     allocator: Allocator,
     // Variables in scope.
@@ -121,31 +121,30 @@ pub const Lowerer = struct {
         visitor: VisitorTy,
         self: *Self,
         program: *Program
-    ) LowerError!void {
+    ) Error!void {
         // Add an undef value, index 0 will be undefined for all variables
         const val = ByteValue.initUndef();
-        const idx = self.builder.addValue(val) catch return error.BuilderError;
+        const idx = try self.builder.addValue(val);
         std.debug.assert(idx == 0);
         try visitor.walkProgram(self, program);
         try self.resolveFunctionCalls();
         try self.resolveBranches();
     }
 
-    fn resolveFunctionCalls(self: *Self) LowerError!void {
+    fn resolveFunctionCalls(self: *Self) Error!void {
         var it = self.*.placeholder_map.iterator();
         var opt_entry = it.next();
         while (opt_entry) |entry| {
             const addr = self.*.fn_map.get(entry.key_ptr.*)
                 orelse return error.NoSuchFunction;
             for (entry.value_ptr.*.*.items) |placeholder| {
-                self.builder.setPlaceholderShort(placeholder, addr)
-                    catch return error.BuilderError;
+                try self.builder.setPlaceholderShort(placeholder, addr);
             }
             opt_entry = it.next();
         }
     }
 
-    fn resolveBranches(self: *Self) LowerError!void {
+    fn resolveBranches(self: *Self) Error!void {
         var it = self.*.label_placeholder_map.iterator();
         var opt_entry = it.next();
         while (opt_entry) |entry| {
@@ -157,10 +156,10 @@ pub const Lowerer = struct {
                 const signed_addr: i16 = @intCast(addr);
                 const signed_offset: i16 = @intCast(offset_from);
                 const relative = signed_addr - signed_offset;
-                self.builder.setPlaceholderShort(
+                try self.builder.setPlaceholderShort(
                     placeholder,
                     @bitCast(relative)
-                ) catch return error.BuilderError;
+                );
             }
             opt_entry = it.next();
         }
@@ -170,7 +169,7 @@ pub const Lowerer = struct {
         visitor: VisitorTy,
         self: *Self,
         function: *Function(Stmt)
-    ) LowerError!void {
+    ) Error!void {
         try self.addParams(function.*.params);
         try self.fn_map.put(
             function.*.name,
@@ -183,7 +182,7 @@ pub const Lowerer = struct {
         visitor: VisitorTy,
         self: *Self,
         function: *Function(BasicBlock)
-    ) LowerError!void {
+    ) Error!void {
         try self.addParams(function.*.params);
         try self.fn_map.put(
             function.*.name,
@@ -192,7 +191,7 @@ pub const Lowerer = struct {
         try visitor.walkBBFunction(self, function);
     }
 
-    fn addParams(self: *Self, params: []VarDecl) LowerError!void {
+    fn addParams(self: *Self, params: []VarDecl) Error!void {
         self.num_locals = 0;
         self.*.num_params = params.len;
         for (params) |param| {
@@ -205,7 +204,7 @@ pub const Lowerer = struct {
         visitor: VisitorTy,
         self: *Self,
         stmt: *Stmt
-    ) LowerError!void {
+    ) Error!void {
         if (stmt.*.label) |label| {
             try self.label_map.put(
                 label,
@@ -219,7 +218,7 @@ pub const Lowerer = struct {
         visitor: VisitorTy,
         self: *Self,
         bb: *BasicBlock
-    ) LowerError!void {
+    ) Error!void {
         if (bb.*.label) |label| {
             try self.label_map.put(
                 label,
@@ -233,15 +232,15 @@ pub const Lowerer = struct {
         visitor: VisitorTy,
         self: *Self,
         decl: *VarDecl
-    ) LowerError!void {
+    ) Error!void {
         self.variables[self.num_locals] = decl.*.name;
         self.num_locals += 1;
         if (decl.*.val) |*val| {
             try visitor.visitValue(visitor, self, val);
         } else {
-            self.builder.addOp(.constant) catch return error.BuilderError;
+            try self.builder.addOp(.constant);
             // 0 is undef
-            self.builder.addByte(0) catch return error.BuilderError;
+            try self.builder.addByte(0);
         }
     }
 
@@ -249,16 +248,16 @@ pub const Lowerer = struct {
         visitor: VisitorTy,
         self: *Self,
         val: *Value
-    ) LowerError!void {
+    ) Error!void {
         try visitor.visitValue(visitor, self, val);
-        self.builder.addOp(.pop) catch return error.BuilderError;
+        try self.builder.addOp(.pop);
     }
 
     pub fn visitRet(
         visitor: VisitorTy,
         self: *Self,
         opt_val: *?Value
-    ) LowerError!void {
+    ) Error!void {
         // If there's a return value, it goes on the slot before parameters.
         // Otherwise it's already set as undefined
         if (opt_val.*) |*val| {
@@ -267,23 +266,22 @@ pub const Lowerer = struct {
             try self.setVarOffset(-1 * num_params - 1);
         }
 
-        self.builder.addOp(.ret) catch return error.BuilderError;
+        try self.builder.addOp(.ret);
     }
 
     pub fn visitUnaryOp(
         visitor: VisitorTy,
         self: *Self,
         op: *UnaryOp
-    ) LowerError!void {
+    ) Error!void {
         try visitor.visitValue(visitor, self, op.*.val);
         switch (op.*.kind) {
-            .not => self.builder.addOp(.not) catch return error.BuilderError,
+            .not => try self.builder.addOp(.not),
             .deref => {
-                self.builder.addOp(.deref) catch return error.BuilderError;
-                self.builder.addByte(@sizeOf(ByteValue))
-                        catch return error.BuilderError;
+                try self.builder.addOp(.deref);
+                try self.builder.addByte(@sizeOf(ByteValue));
             },
-            .neg => self.builder.addOp(.neg) catch return error.BuilderError,
+            .neg => try self.builder.addOp(.neg),
         }
     }
 
@@ -291,7 +289,7 @@ pub const Lowerer = struct {
         visitor: VisitorTy,
         self: *Self,
         op: *BinaryOp
-    ) LowerError!void {
+    ) Error!void {
         // Assign is special
         if (op.*.kind == .assign) {
             try visitor.visitValue(visitor, self, op.*.rhs);
@@ -310,9 +308,8 @@ pub const Lowerer = struct {
                     try visitor.visitValue(visitor, self, uo.val);
                     // Skip tho deref so we can get the pointer val with
                     // heapset
-                    self.builder.addOp(.heapset) catch return error.BuilderError;
-                    self.builder.addByte(@sizeOf(ByteValue))
-                            catch return error.BuilderError;
+                    try self.builder.addOp(.heapset);
+                    try self.builder.addByte(@sizeOf(ByteValue));
                     // Then put derefed value at top of the stack, which is
                     // just the op's LHS
                     try visitor.visitValue(visitor, self, op.*.lhs);
@@ -342,22 +339,22 @@ pub const Lowerer = struct {
             .ge => OpCode.ge,
             else => return,
         };
-        self.builder.addOp(op_opcode) catch return error.BuilderError;
+        try self.builder.addOp(op_opcode);
     }
 
-    pub fn visitInt(visitor: VisitorTy, self: *Self, i: *i32) LowerError!void {
+    pub fn visitInt(visitor: VisitorTy, self: *Self, i: *i32) Error!void {
         _ = visitor;
         const val = ByteValue.initInt(i.*);
-        const idx = self.builder.addValue(val) catch return error.BuilderError;
-        self.builder.addOp(.constant) catch return error.BuilderError;
-        self.builder.addByte(idx) catch return error.BuilderError;
+        const idx = try self.builder.addValue(val);
+        try self.builder.addOp(.constant);
+        try self.builder.addByte(idx);
     }
 
     pub fn visitVarAccess(
         visitor: VisitorTy,
         self: *Self,
         access: *VarAccess
-    ) LowerError!void {
+    ) Error!void {
         _ = visitor;
         const offset = try self.getOffsetForName(access.*.name.?);
         try self.getVarOffset(offset);
@@ -367,7 +364,7 @@ pub const Lowerer = struct {
         visitor: VisitorTy,
         self: *Self,
         call: *FuncCall
-    ) LowerError!void {
+    ) Error!void {
         if (call.*.resolved) |resolved| {
             switch (resolved.*) {
                 .builtin => |*builtin| return try self.lowerBuiltin(visitor, call, builtin),
@@ -376,17 +373,16 @@ pub const Lowerer = struct {
         }
 
         // Return value goes here
-        self.builder.addOp(.constant) catch return error.BuilderError;
+        try self.builder.addOp(.constant);
         // 0 is undef
-        self.builder.addByte(0) catch return error.BuilderError;
+        try self.builder.addByte(0);
 
         for (call.*.arguments) |*arg| {
             try visitor.visitValue(visitor, self, arg);
         }
 
-        self.builder.addOp(.call) catch return error.BuilderError;
-        const placeholder = self.builder.addPlaceholderShort()
-            catch return error.BuilderError;
+        try self.builder.addOp(.call);
+        const placeholder = try self.builder.addPlaceholderShort();
 
         const list = self.placeholder_map.get(call.*.name()) orelse blk: {
             const list = try self.allocator.create(std.ArrayList(usize));
@@ -398,7 +394,7 @@ pub const Lowerer = struct {
 
         // Pop each argument
         for (call.*.arguments) |_| {
-            self.builder.addOp(.pop) catch return error.BuilderError;
+            try self.builder.addOp(.pop);
         }
     }
 
@@ -407,10 +403,10 @@ pub const Lowerer = struct {
         visitor: VisitorTy,
         call: *FuncCall,
         builtin: *const Builtin
-    ) LowerError!void {
+    ) Error!void {
         switch (builtin.*.kind) {
             .alloc => {
-                self.builder.addOp(.alloc) catch return error.BuilderError;
+                try self.builder.addOp(.alloc);
 
                 if (call.*.arguments.len != 1) {
                     return error.BadArity;
@@ -421,20 +417,19 @@ pub const Lowerer = struct {
                     // Our own little typecheck
                     return error.InvalidType;
                 }
-                self.builder.addByte(@intCast(tyVal.val_kind.type_.size()))
-                        catch return error.BuilderError;
+                try self.builder.addByte(@intCast(tyVal.val_kind.type_.size()));
             },
             .debug => {
                 // Push the "return value" so pop doesn't underflow
-                self.builder.addOp(.constant) catch return error.BuilderError;
-                self.builder.addByte(0) catch return error.BuilderError;
+                try self.builder.addOp(.constant);
+                try self.builder.addByte(0);
 
                 if (call.*.arguments.len != 1) {
                     return error.BadArity;
                 }
                 try visitor.visitValue(visitor, self, &call.*.arguments[0]);
 
-                self.builder.addOp(.debug) catch return error.BuilderError;
+                try self.builder.addOp(.debug);
             },
         }
     }
@@ -443,26 +438,25 @@ pub const Lowerer = struct {
         visitor: VisitorTy,
         self: *Self,
         branch: *Branch,
-    ) LowerError!void {
+    ) Error!void {
         var from_relative: usize = undefined;
         if (branch.expr) |*expr| {
             try visitor.visitValue(visitor, self, expr);
             from_relative = self.builder.currentByte();
-            self.builder.addOp(.jmpt) catch return error.BuilderError;
+            try self.builder.addOp(.jmpt);
         } else {
             from_relative = self.builder.currentByte();
-            self.builder.addOp(.jmp) catch return error.BuilderError;
+            try self.builder.addOp(.jmp);
         }
 
-        const placeholder = self.builder.addPlaceholderShort()
-            catch return error.BuilderError;
+        const placeholder = try self.builder.addPlaceholderShort();
 
         // Set the placeholder, for now, to the current byte. This will be
         // replaced with the relative address
-        self.builder.setPlaceholderShort(
+        try self.builder.setPlaceholderShort(
             placeholder,
             @intCast(from_relative)
-        ) catch return error.BuilderError;
+        );
 
 
         const list = self.label_placeholder_map.get(branch.labelName())
@@ -475,7 +469,7 @@ pub const Lowerer = struct {
         try list.append(placeholder);
     }
 
-    fn getOffsetForName(self: *Self, name: []const u8) LowerError!i8 {
+    fn getOffsetForName(self: *Self, name: []const u8) Error!i8 {
         var i: u8 = 0;
         while (i < self.num_locals) : (i += 1) {
             if (std.mem.eql(u8, self.variables[i], name)) {
@@ -489,17 +483,15 @@ pub const Lowerer = struct {
     }
 
     // Gets variable at offset and pushes it to the stack.
-    fn getVarOffset(self: *Self, offset: i8) LowerError!void {
-        self.builder.addOp(.get) catch return error.BuilderError;
-        self.builder.addByte(@bitCast(offset))
-            catch return error.BuilderError;
+    fn getVarOffset(self: *Self, offset: i8) Error!void {
+        try self.builder.addOp(.get);
+        try self.builder.addByte(@bitCast(offset));
     }
 
     // Sets variable at offset with variable at the top of the stack.
-    fn setVarOffset(self: *Self, offset: i8) LowerError!void {
-        self.builder.addOp(.set) catch return error.BuilderError;
-        self.builder.addByte(@bitCast(offset))
-            catch return error.BuilderError;
+    fn setVarOffset(self: *Self, offset: i8) Error!void {
+        try self.builder.addOp(.set);
+        try self.builder.addByte(@bitCast(offset));
     }
 };
 

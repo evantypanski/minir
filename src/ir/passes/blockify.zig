@@ -12,15 +12,15 @@ const Value = @import("../nodes/value.zig").Value;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 const Loc = @import("../sourceloc.zig").Loc;
-const NodeError = @import("../errors.zig").NodeError;
-
-const BlockifyError = error{
-    AlreadyBlockified,
-} || Allocator.Error || NodeError;
+const NodeError = @import("../nodes/errors.zig").NodeError;
 
 pub const BlockifyPass = struct {
+    pub const Error = error {
+        AlreadyBlockified,
+    } || Allocator.Error || NodeError;
+
     const Self = @This();
-    const VisitorTy = IrVisitor(*Self, BlockifyError!void);
+    const VisitorTy = IrVisitor(*Self, Error!void);
 
     allocator: Allocator,
 
@@ -38,11 +38,11 @@ pub const BlockifyPass = struct {
         .visitDecl = visitDecl,
     };
 
-    pub fn execute(self: *Self, program: *Program) BlockifyError!void {
+    pub fn execute(self: *Self, program: *Program) Error!void {
         try BlockifyVisitor.visitProgram(BlockifyVisitor, self, program);
     }
 
-    pub fn visitDecl(self: VisitorTy, arg: *Self, decl: *Decl) BlockifyError!void {
+    pub fn visitDecl(self: VisitorTy, arg: *Self, decl: *Decl) Error!void {
         _ = self;
         switch (decl.*) {
             .function => |*func| {

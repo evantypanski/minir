@@ -9,9 +9,6 @@ const OpCode = @import("opcodes.zig").OpCode;
 const errors = @import("errors.zig");
 // TODO: Move heap to "common" or something
 const Heap = @import("../ir/memory.zig").Heap;
-const HeapError = @import("../ir/errors.zig").HeapError;
-
-const InterpreterError = errors.RuntimeError || errors.InvalidBytecodeError || Writer.Error || fmt.format_float.FormatError || HeapError;
 
 pub const array_size = 256;
 
@@ -21,6 +18,8 @@ const Frame = struct {
 };
 
 pub const Interpreter = struct {
+    pub const Error = errors.RuntimeError || errors.InvalidBytecodeError || Writer.Error || fmt.format_float.FormatError || Heap.Error;
+
     const Self = @This();
 
     heap: Heap,
@@ -55,7 +54,7 @@ pub const Interpreter = struct {
         };
     }
 
-    pub fn interpret(self: *Self) InterpreterError!void {
+    pub fn interpret(self: *Self) Error!void {
         // No implicit returns, if we fall off the end then it's an error
         while (self.call_idx != 0) {
             if (self.pc >= self.chunk.bytes.len) {
@@ -88,7 +87,7 @@ pub const Interpreter = struct {
         }
     }
 
-    pub fn interpretOp(self: *Self, op: OpCode) InterpreterError!void {
+    pub fn interpretOp(self: *Self, op: OpCode) Error!void {
         switch (op) {
             .ret => self.pc = try self.popFrame(),
             .pop => _ = try self.popVal(),
@@ -202,12 +201,12 @@ pub const Interpreter = struct {
         }
     }
 
-    fn pushImmediate(self: *Self) InterpreterError!void {
+    fn pushImmediate(self: *Self) Error!void {
         const value = try self.getValue(try self.getByte());
         try self.pushValue(value);
     }
 
-    fn pushValue(self: *Self, value: Value) InterpreterError!void {
+    fn pushValue(self: *Self, value: Value) Error!void {
         if (self.sp >= array_size) {
             return error.StackOverflow;
         }
@@ -216,7 +215,7 @@ pub const Interpreter = struct {
         self.sp += 1;
     }
 
-    fn popVal(self: *Self) InterpreterError!Value {
+    fn popVal(self: *Self) Error!Value {
         if (self.sp == 0) {
             return error.StackUnderflow;
         }
@@ -225,7 +224,7 @@ pub const Interpreter = struct {
     }
 
     // Peeks the value and returns a pointer so you can modify it in place
-    fn peekVal(self: *Self) InterpreterError!*Value {
+    fn peekVal(self: *Self) Error!*Value {
         if (self.sp == 0) {
             return error.StackUnderflow;
         }
@@ -233,7 +232,7 @@ pub const Interpreter = struct {
         return &self.stack[self.sp - 1];
     }
 
-    fn pushFrame(self: *Self) InterpreterError!void {
+    fn pushFrame(self: *Self) Error!void {
         if (self.call_idx + 1 >= array_size) {
             return error.MaxFunctionDepth;
         }
@@ -244,7 +243,7 @@ pub const Interpreter = struct {
     }
 
     // Pops a call frame and returns the PC we should resume at.
-    fn popFrame(self: *Self) InterpreterError!usize {
+    fn popFrame(self: *Self) Error!usize {
         if (self.call_idx == 0) {
             return error.ReturnWithoutFunction;
         }
@@ -267,7 +266,7 @@ pub const Interpreter = struct {
 
     // Gets the next byte and increments the index, returning an error if
     // we are off the end.
-    fn getByte(self: *Self) InterpreterError!u8 {
+    fn getByte(self: *Self) Error!u8 {
         if (self.pc + 1 >= self.chunk.bytes.len) {
             return error.UnexpectedEnd;
         }
@@ -277,14 +276,14 @@ pub const Interpreter = struct {
     }
 
     // Gets the next byte as a signed byte
-    fn getSignedByte(self: *Self) InterpreterError!i8 {
+    fn getSignedByte(self: *Self) Error!i8 {
         const byte = try self.getByte();
         return @bitCast(byte);
     }
 
 
     // Gets the next two bytes as a signed short (i16)
-    fn getShort(self: *Self) InterpreterError!i16 {
+    fn getShort(self: *Self) Error!i16 {
         if (self.pc + 2 >= self.chunk.bytes.len) {
             return error.UnexpectedEnd;
         }
@@ -296,7 +295,7 @@ pub const Interpreter = struct {
     }
 
     // Gets the next two bytes as an unsigned short (u16)
-    fn getUnsignedShort(self: *Self) InterpreterError!u16 {
+    fn getUnsignedShort(self: *Self) Error!u16 {
         if (self.pc + 2 >= self.chunk.bytes.len) {
             return error.UnexpectedEnd;
         }
@@ -308,7 +307,7 @@ pub const Interpreter = struct {
     }
 
     // Gets a value at the specified index, returning an error if it's invalid.
-    fn getValue(self: *Self, valueIdx: usize) InterpreterError!Value {
+    fn getValue(self: *Self, valueIdx: usize) Error!Value {
         if (valueIdx >= self.chunk.values.len) {
             return error.InvalidValueIndex;
         }
@@ -317,7 +316,7 @@ pub const Interpreter = struct {
     }
 
     // Gets a pointer to the value at offset on stack
-    fn getVar(self: *Self, relativeOffset: isize) InterpreterError!*Value {
+    fn getVar(self: *Self, relativeOffset: isize) Error!*Value {
         if (self.peekFrame()) |frame| {
             const signed_frame_begin: isize = @intCast(frame.frame_stack_begin);
             const absolute = signed_frame_begin + relativeOffset;
@@ -330,7 +329,7 @@ pub const Interpreter = struct {
         return error.NoValidFrame;
     }
 
-    fn printValue(self: *Self, value: Value) InterpreterError!void {
+    fn printValue(self: *Self, value: Value) Error!void {
         switch (value) {
             .undef => try self.writer.writeAll("undefined"),
             .int => |i| try fmt.formatInt(i, 10, .lower, .{}, self.writer),
@@ -346,7 +345,7 @@ pub const Interpreter = struct {
         try self.writer.writeAll("\n");
     }
 
-    fn isFatal(e: InterpreterError) bool {
+    fn isFatal(e: Error) bool {
         // Most are fatal so just mark those as non-fatal, rest are fatal.
         return switch (e) {
             error.InvalidOperand, error.InvalidStackIndex,

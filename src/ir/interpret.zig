@@ -6,7 +6,6 @@ const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Writer = std.fs.File.Writer;
 
-const IrError = @import("errors.zig").IrError;
 const Loc = @import("sourceloc.zig").Loc;
 const Function = @import("nodes/decl.zig").Function;
 const Stmt = @import("nodes/statement.zig").Stmt;
@@ -20,6 +19,7 @@ const Builtin = @import("nodes/decl.zig").Builtin;
 const Type = @import("nodes/type.zig").Type;
 const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 const Heap = @import("memory.zig").Heap;
+const NodeError = @import("nodes/errors.zig").NodeError;
 
 const Frame = struct {
     frame_env_begin: usize,
@@ -27,6 +27,26 @@ const Frame = struct {
 };
 
 pub const Interpreter = struct {
+    pub const Error = error {
+        OperandError,
+        InvalidInt,
+        InvalidFloat,
+        InvalidBool,
+        CannotEvaluateUndefined,
+        VariableUndefined,
+        InvalidLHSAssign,
+        LabelNoIndex,
+        TypeError,
+        NoSuchFunction,
+        ExpectedNumifiedAccess,
+        CallError,
+        ExpectedReturn,
+        FrameError,
+        StackError,
+        InvalidValue,
+        WriterError,
+    } || Heap.Error || NodeError;
+
     const Self = @This();
 
     writer: Writer,
@@ -54,7 +74,7 @@ pub const Interpreter = struct {
         self.call_stack.clearAndFree();
     }
 
-    pub fn interpret(self: *Self) IrError!void {
+    pub fn interpret(self: *Self) Error!void {
         var main_fn: ?Decl = null;
         for (self.program.decls) |decl| {
             if (std.mem.eql(u8, decl.name(), "main")) {
@@ -72,7 +92,7 @@ pub const Interpreter = struct {
         _ = self.popFrame();
     }
 
-    pub fn interpretDecl(self: *Self, decl: Decl) IrError!void {
+    pub fn interpretDecl(self: *Self, decl: Decl) Error!void {
         switch (decl) {
             .function => |function| try self.interpretFn(function),
             .bb_function => |bb_function| try self.interpretBBFn(bb_function),
@@ -80,7 +100,7 @@ pub const Interpreter = struct {
         }
     }
 
-    pub fn interpretFn(self: *Self, function: Function(Stmt)) IrError!void {
+    pub fn interpretFn(self: *Self, function: Function(Stmt)) Error!void {
         self.current_ele = 0;
         while (self.current_ele) |idx| {
             // May go off edge
@@ -98,7 +118,7 @@ pub const Interpreter = struct {
         }
     }
 
-    pub fn interpretBBFn(self: *Self, function: Function(BasicBlock)) IrError!void {
+    pub fn interpretBBFn(self: *Self, function: Function(BasicBlock)) Error!void {
         self.current_ele = 0;
         while (self.current_ele) |bb_idx| {
             // May go off edge
@@ -121,7 +141,7 @@ pub const Interpreter = struct {
         }
     }
 
-    fn evalStmt(self: *Self, stmt: Stmt) IrError!void {
+    fn evalStmt(self: *Self, stmt: Stmt) Error!void {
         switch (stmt.stmt_kind) {
             .id => |vd| {
                 if (vd.val) |val| {
@@ -139,7 +159,7 @@ pub const Interpreter = struct {
         }
     }
 
-    fn evalTerminator(self: *Self, stmt: Stmt) IrError!void {
+    fn evalTerminator(self: *Self, stmt: Stmt) Error!void {
         switch (stmt.stmt_kind) {
             .id, .value => return error.ExpectedTerminator,
             .branch => |branch| {
@@ -175,13 +195,13 @@ pub const Interpreter = struct {
     }
 
     // Gets the current runtime value from an offset
-    fn getAccessValOffset(self: Self, offset: isize) IrError!Value {
+    fn getAccessValOffset(self: Self, offset: isize) Error!Value {
         return self.env.items[self.getAbsoluteOffset(offset)];
     }
 
     // Evaluates a given value as a boolean, or returns an error if it
     // cannot be coerced.
-    fn evalBool(self: *Self, value: Value) IrError!Value {
+    fn evalBool(self: *Self, value: Value) Error!Value {
         switch (value.val_kind) {
             .undef => return error.CannotEvaluateUndefined,
             .access => |va| {
@@ -216,7 +236,7 @@ pub const Interpreter = struct {
 
     // Evaluates a given value as a type value, or returns an error if it
     // cannot be coerced.
-    fn evalType(self: *Self, value: Value) IrError!Value {
+    fn evalType(self: *Self, value: Value) Error!Value {
         switch (value.val_kind) {
             .undef => return error.CannotEvaluateUndefined,
             .access => |va| {
@@ -239,7 +259,7 @@ pub const Interpreter = struct {
         }
     }
 
-    fn evalUnaryOp(self: *Self, op: UnaryOp) IrError!void {
+    fn evalUnaryOp(self: *Self, op: UnaryOp) Error!void {
         switch (op.kind) {
             .not => {
                 self.evalValue(op.val.*) catch return error.OperandError;
@@ -278,7 +298,7 @@ pub const Interpreter = struct {
 
     // Pops two values off the stack, performs the given operator on them,
     // then pushes the result onto the stack.
-    fn evalBinaryOp(self: *Self, op: BinaryOp) IrError!void {
+    fn evalBinaryOp(self: *Self, op: BinaryOp) Error!void {
         // Special ops that don't just pop both values off and do a thing
         switch (op.kind) {
             .assign => {
@@ -407,7 +427,7 @@ pub const Interpreter = struct {
         }
     }
 
-    fn evalValue(self: *Self, value: Value) IrError!void {
+    fn evalValue(self: *Self, value: Value) Error!void {
         switch (value.val_kind) {
             .undef => return error.CannotEvaluateUndefined,
             .access => |va| {
@@ -437,7 +457,7 @@ pub const Interpreter = struct {
         }
     }
 
-    fn evalCall(self: *Self, call: FuncCall) IrError!?Value {
+    fn evalCall(self: *Self, call: FuncCall) Error!?Value {
         for (call.arguments) |arg| {
             try self.evalValue(arg);
         }
@@ -459,7 +479,7 @@ pub const Interpreter = struct {
         return null;
     }
 
-    fn interpretBuiltin(self: *Self, builtin: Builtin) IrError!void {
+    fn interpretBuiltin(self: *Self, builtin: Builtin) Error!void {
         switch (builtin.kind) {
             .alloc => {
                 const val_ty = self.env.pop();
@@ -474,12 +494,12 @@ pub const Interpreter = struct {
 
     // Allocates a type on the stack and returns a Value with a pointer
     // to that spot
-    fn allocateType(self: *Self, ty: Type) IrError!Value {
+    fn allocateType(self: *Self, ty: Type) Error!Value {
         const to = try self.heap.alloc(ty.size());
         return Value.initPtr(to, ty, Loc.default());
     }
 
-    fn pushFrame(self: *Self) IrError!void {
+    fn pushFrame(self: *Self) Error!void {
         self.call_stack.append(.{
             .frame_env_begin = self.env.items.len,
             .return_ele_index = self.current_ele.?
@@ -490,11 +510,11 @@ pub const Interpreter = struct {
         return self.call_stack.pop();
     }
 
-    fn pushValue(self: *Self, value: Value) IrError!void {
+    fn pushValue(self: *Self, value: Value) Error!void {
         self.env.append(value) catch return error.StackError;
     }
 
-    fn printValue(self: *Self, value: Value) IrError!void {
+    fn printValue(self: *Self, value: Value) Error!void {
         switch (value.val_kind) {
             .undef => self.writer.writeAll("undefined")
                     catch return error.WriterError,

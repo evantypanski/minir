@@ -11,7 +11,6 @@ const Type = @import("nodes/type.zig").Type;
 const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
 const Decl = @import("nodes/decl.zig").Decl;
 const Function = @import("nodes/decl.zig").Function;
-const ParseError = @import("errors.zig").ParseError;
 const Loc = @import("sourceloc.zig").Loc;
 
 pub const SourceManager = struct {

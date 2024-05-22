@@ -4,8 +4,6 @@
 
 const std = @import("std");
 
-const HeapError = @import("errors.zig").HeapError;
-
 const HEAP_MAX: usize = 1000;
 
 pub const BlockMeta = struct {
@@ -23,6 +21,10 @@ pub const BlockMeta = struct {
 };
 
 pub const Heap = struct {
+    pub const Error = error{
+        Bad,
+    };
+
     const Self = @This();
     global_base: ?*align(1) BlockMeta,
     next_idx: usize,
@@ -58,7 +60,7 @@ pub const Heap = struct {
         const size_with_meta = size + @sizeOf(BlockMeta);
         // Since we aren't moving/combining allocations this is simple
         if (HEAP_MAX - self.next_idx < size_with_meta) {
-            return HeapError.Bad;
+            return Error.Bad;
         }
 
         const block_i = self.next_idx;
@@ -74,7 +76,7 @@ pub const Heap = struct {
 
     pub fn alloc(self: *Self, size: usize) !usize {
         if (size <= 0) {
-            return HeapError.Bad;
+            return Error.Bad;
         }
         var ptr: usize = undefined;
         var block: ?*align(1) BlockMeta = undefined;
@@ -83,7 +85,7 @@ pub const Heap = struct {
             ptr = try self.request_space(null, size);
             block = self.block_cast(ptr);
             if (block == null) {
-                return HeapError.Bad;
+                return Error.Bad;
             }
 
             self.global_base = block;
@@ -97,7 +99,7 @@ pub const Heap = struct {
                 ptr = try self.request_space(last, size);
                 block = self.block_cast(ptr);
                 if (block == null) {
-                    return HeapError.Bad;
+                    return Error.Bad;
                 }
             }
         }

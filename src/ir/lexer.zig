@@ -2,11 +2,14 @@ const std = @import("std");
 const ascii = std.ascii;
 
 const Token = @import("token.zig").Token;
-const LexError = @import("errors.zig").LexError;
 const SourceManager = @import("source_manager.zig").SourceManager;
 const Loc = @import("sourceloc.zig").Loc;
 
 pub const Lexer = struct {
+    pub const Error = error {
+        Unexpected,
+    };
+
     const Self = @This();
 
     source_mgr: SourceManager,
@@ -23,7 +26,7 @@ pub const Lexer = struct {
         };
     }
 
-    pub fn lex(self: *Self) LexError!Token {
+    pub fn lex(self: *Self) Error!Token {
         self.skipWhitespace();
         self.start = self.current;
 

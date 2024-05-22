@@ -14,19 +14,26 @@ const Branch = @import("nodes/statement.zig").Branch;
 const Decl = @import("nodes/decl.zig").Decl;
 const Function = @import("nodes/decl.zig").Function;
 const FunctionBuilder = @import("nodes/decl.zig").FunctionBuilder;
-const ParseError = @import("errors.zig").ParseError;
 const Type = @import("nodes/type.zig").Type;
 const Loc = @import("sourceloc.zig").Loc;
 const VarDecl = @import("nodes/statement.zig").VarDecl;
 const Diagnostics = @import("diagnostics_engine.zig").Diagnostics;
 const Precedence = @import("precedence.zig").Precedence;
+const NodeError = @import("nodes/errors.zig").NodeError;
 
 pub const Parser = struct {
+    pub const Error = error {
+        Unexpected,
+        ExpectedNumber,
+        Expected,
+        NotANumber,
+        NotABoolean,
+    } || Lexer.Error || NodeError || Allocator.Error;
     const Self = @This();
 
     const Rule = struct {
-        prefix: ?*const fn (self: *Self) ParseError!Value = null,
-        infix: ?*const fn (self: *Self, other: Value) ParseError!Value = null,
+        prefix: ?*const fn (self: *Self) Error!Value = null,
+        infix: ?*const fn (self: *Self, other: Value) Error!Value = null,
         prec: Precedence = Precedence.none,
     };
     const RuleArray = [@typeInfo(Token.Tag).Enum.fields.len] Rule;
@@ -86,7 +93,7 @@ pub const Parser = struct {
         }
     }
 
-    fn consume(self: *Self, tag: Token.Tag) ParseError!void {
+    fn consume(self: *Self, tag: Token.Tag) Error!void {
         if (self.current.tag == tag) {
             self.advance();
             return;
@@ -96,7 +103,7 @@ pub const Parser = struct {
         return error.Expected;
     }
 
-    fn consumeKw(self: *Self, kw: Token.Keyword) ParseError!void {
+    fn consumeKw(self: *Self, kw: Token.Keyword) Error!void {
         if (self.current.kw) |tok_kw| {
             if (tok_kw == kw) {
                 self.advance();
@@ -108,11 +115,11 @@ pub const Parser = struct {
         return error.Expected;
     }
 
-    fn parseDecl(self: *Self) ParseError!Decl {
+    fn parseDecl(self: *Self) Error!Decl {
         return Decl { .function = try self.parseFnDecl() };
     }
 
-    fn parseFnDecl(self: *Self) ParseError!Function(Stmt) {
+    fn parseFnDecl(self: *Self) Error!Function(Stmt) {
         try self.consumeKw(.func);
         try self.consume(.identifier);
         var builder = FunctionBuilder(Stmt)
@@ -165,7 +172,7 @@ pub const Parser = struct {
         return decl;
     }
 
-    fn parseStmt(self: *Self) ParseError!Stmt {
+    fn parseStmt(self: *Self) Error!Stmt {
         // Possibly match a semicolon in order to optionally delineate
         // statements
         defer _ = self.match(.semi);
@@ -184,12 +191,12 @@ pub const Parser = struct {
         }
     }
 
-    fn parseLabel(self: *Self) ParseError![]const u8 {
+    fn parseLabel(self: *Self) Error![]const u8 {
         try self.consume(.identifier);
         return self.lexer.getTokString(self.previous);
     }
 
-    fn parseLet(self: *Self, label: ?[]const u8) ParseError!Stmt {
+    fn parseLet(self: *Self, label: ?[]const u8) Error!Stmt {
         const start = self.previous.loc.start;
         try self.consume(.identifier);
         const var_name = self.lexer.getTokString(self.previous);
@@ -216,7 +223,7 @@ pub const Parser = struct {
         );
     }
 
-    fn parseRet(self: *Self, label: ?[]const u8) ParseError!Stmt {
+    fn parseRet(self: *Self, label: ?[]const u8) Error!Stmt {
         const start = self.previous.loc.start;
         // Return is apparently always at the end of a block, I guess. That
         // will probably change.
@@ -232,7 +239,7 @@ pub const Parser = struct {
         );
     }
 
-    fn parseBranch(self: *Self, label: ?[]const u8) ParseError!Stmt {
+    fn parseBranch(self: *Self, label: ?[]const u8) Error!Stmt {
         std.debug.assert(self.current.kw != null);
         const start = self.current.loc.start;
         const branch_kw = self.current.kw.?;
@@ -266,7 +273,7 @@ pub const Parser = struct {
         return error.NotABranch;
     }
 
-    fn parseExprStmt(self: *Self, label: ?[]const u8) ParseError!Stmt {
+    fn parseExprStmt(self: *Self, label: ?[]const u8) Error!Stmt {
         const start = self.current.loc.start;
         return Stmt.init(
             .{ .value = try self.parseExpr() },
@@ -275,11 +282,11 @@ pub const Parser = struct {
         );
     }
 
-    fn parseExpr(self: *Self) ParseError!Value {
+    fn parseExpr(self: *Self) Error!Value {
         return try self.parsePrecedence(.assign);
     }
 
-    fn parseGrouping(self: *Self) ParseError!Value {
+    fn parseGrouping(self: *Self) Error!Value {
         // lparen
         self.advance();
         var val = try self.parsePrecedence(.assign);
@@ -294,7 +301,7 @@ pub const Parser = struct {
         return self.rules[@intFromEnum(tok.tag)];
     }
 
-    fn parsePrecedence(self: *Self, prec: Precedence) ParseError!Value {
+    fn parsePrecedence(self: *Self, prec: Precedence) Error!Value {
         var lhs = if (self.getRule(self.current).prefix) |func|
             try func(self)
         else
@@ -311,7 +318,7 @@ pub const Parser = struct {
     }
 
     // Parses an identifier as a value
-    fn parseIdentifier(self: *Self) ParseError!Value {
+    fn parseIdentifier(self: *Self) Error!Value {
         // Some keywords have special handling
         if (self.current.kw) |kw| {
             const start = self.previous.loc.start;
@@ -338,7 +345,7 @@ pub const Parser = struct {
     }
 
     // Parses a function call, where the identifier is the previous token.
-    fn parseCall(self: *Self, other: Value) ParseError!Value {
+    fn parseCall(self: *Self, other: Value) Error!Value {
         const start = self.previous.loc.start;
         try self.consume(.lparen);
         var arguments = std.ArrayList(Value).init(self.allocator);
@@ -361,7 +368,7 @@ pub const Parser = struct {
     }
 
     // Parses a unary op
-    fn parseUnary(self: *Self) ParseError!Value {
+    fn parseUnary(self: *Self) Error!Value {
         const start = self.previous.loc.start;
         const op_kind = try UnaryOp.Kind.fromTag(self.current.tag);
         self.advance();
@@ -373,7 +380,7 @@ pub const Parser = struct {
         return Value.initUnary(op_kind, val_ptr, loc);
     }
 
-    fn parseBoolean(self: *Self) ParseError!Value {
+    fn parseBoolean(self: *Self) Error!Value {
         const start = self.previous.loc.start;
         const loc = Loc.init(start, self.previous.loc.end);
         return if (self.matchKw(.true_))
@@ -384,7 +391,7 @@ pub const Parser = struct {
             error.NotABoolean;
     }
 
-    fn parseNumber(self: *Self) ParseError!Value {
+    fn parseNumber(self: *Self) Error!Value {
         try self.consume(.num);
         const start = self.previous.loc.start;
         const loc = Loc.init(start, self.previous.loc.end);
@@ -422,7 +429,7 @@ pub const Parser = struct {
         }
     }
 
-    fn parseBinary(self: *Self, other: Value) ParseError!Value {
+    fn parseBinary(self: *Self, other: Value) Error!Value {
         const prec = self.precedenceOf(self.current.tag);
         const op_kind = try BinaryOp.Kind.fromTag(self.current.tag);
         self.advance();
@@ -437,14 +444,14 @@ pub const Parser = struct {
         return Value.initBinary(op_kind, lhs_ptr, rhs_ptr, other.loc.combine(rhs.loc));
     }
 
-    fn parseTypeValue(self: *Self) ParseError!Value {
+    fn parseTypeValue(self: *Self) Error!Value {
         const start = self.previous.loc.start;
         const ty = try self.parseType();
         return Value.initType(ty, Loc.init(start, self.previous.loc.end));
     }
 
     // Parses a type name
-    fn parseType(self: *Self) ParseError!Type {
+    fn parseType(self: *Self) Error!Type {
         if (self.match(.star)) {
             const ty = try self.parseType();
             return Type.initPtrAlloc(ty, self.allocator);

@@ -10,14 +10,14 @@ const Program = @import("../nodes/program.zig").Program;
 const Stmt = @import("../nodes/statement.zig").Stmt;
 const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
 
-const NumifyError = error{
+pub const Error = error {
     MapError,
     NoName,
     NoDecl,
 };
 
 const Self = @This();
-const VisitorTy = IrVisitor(*Self, NumifyError!void);
+const VisitorTy = IrVisitor(*Self, Error!void);
 
 map: std.StringHashMap(isize),
 // Current number of variables in a function
@@ -41,7 +41,7 @@ pub const NumifyVisitor = VisitorTy {
     .visitVarAccess = visitVarAccess,
 };
 
-pub fn execute(self: *Self, program: *Program) NumifyError!void {
+pub fn execute(self: *Self, program: *Program) Error!void {
     try NumifyVisitor.visitProgram(NumifyVisitor, self, program);
 }
 
@@ -49,7 +49,7 @@ pub fn visitFunction(
     visitor: VisitorTy,
     self: *Self,
     function: *Function(Stmt)
-) NumifyError!void {
+) Error!void {
     try self.handleFnStart(function.params);
     try visitor.walkFunction(self, function);
 }
@@ -58,12 +58,12 @@ pub fn visitBBFunction(
     visitor: VisitorTy,
     self: *Self,
     function: *Function(BasicBlock)
-) NumifyError!void {
+) Error!void {
     try self.handleFnStart(function.params);
     try visitor.walkBBFunction(self, function);
 }
 
-fn handleFnStart(self: *Self, params: []VarDecl) NumifyError!void {
+fn handleFnStart(self: *Self, params: []VarDecl) Error!void {
     self.map.clearRetainingCapacity();
     self.num_vars = 0;
     var i: usize = params.len;
@@ -75,7 +75,7 @@ fn handleFnStart(self: *Self, params: []VarDecl) NumifyError!void {
     }
 }
 
-pub fn visitVarDecl(_: VisitorTy, self: *Self, decl: *VarDecl) NumifyError!void {
+pub fn visitVarDecl(_: VisitorTy, self: *Self, decl: *VarDecl) Error!void {
     self.map.put(decl.name, @intCast(self.num_vars)) catch return error.MapError;
     self.num_vars += 1;
 }
@@ -84,7 +84,7 @@ fn visitVarAccess(
     _: VisitorTy,
     self: *Self,
     va: *VarAccess
-) NumifyError!void {
+) Error!void {
     if (va.name) |name| {
         const offset = self.map.get(name) orelse return error.NoDecl;
         va.offset = offset;
