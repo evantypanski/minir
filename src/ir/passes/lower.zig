@@ -11,7 +11,7 @@ const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
 const Stmt = @import("../nodes/statement.zig").Stmt;
 const Branch = @import("../nodes/statement.zig").Branch;
 const VarDecl = @import("../nodes/statement.zig").VarDecl;
-const IrVisitor = @import("visitor.zig").IrVisitor;
+const ConstIrVisitor = @import("const_visitor.zig").ConstIrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 const Chunk = @import("../../bytecode/chunk.zig").Chunk;
 const ChunkBuilder = @import("../../bytecode/chunk.zig").ChunkBuilder;
@@ -41,7 +41,7 @@ pub const Lowerer = struct {
     } || Allocator.Error || InvalidBytecodeError;
 
     const Self = @This();
-    const VisitorTy = IrVisitor(*Self, Error!void);
+    const VisitorTy = ConstIrVisitor(*Self, Error!void);
 
     allocator: Allocator,
     // Variables in scope.
@@ -117,7 +117,7 @@ pub const Lowerer = struct {
         .visitBranch = visitBranch,
     };
 
-    pub fn execute(self: *Self, program: *Program) Error!Chunk {
+    pub fn execute(self: *Self, program: *const Program) Error!Chunk {
         errdefer self.builder.deinit();
         try LowerVisitor.visitProgram(LowerVisitor, self, program);
         return self.builder.build();
@@ -126,7 +126,7 @@ pub const Lowerer = struct {
     pub fn visitProgram(
         visitor: VisitorTy,
         self: *Self,
-        program: *Program
+        program: *const Program
     ) Error!void {
         // Add an undef value, index 0 will be undefined for all variables
         const val = ByteValue.initUndef();
@@ -174,7 +174,7 @@ pub const Lowerer = struct {
     pub fn visitFunction(
         visitor: VisitorTy,
         self: *Self,
-        function: *Function(Stmt)
+        function: *const Function(Stmt)
     ) Error!void {
         try self.addParams(function.*.params);
         try self.fn_map.put(
@@ -187,7 +187,7 @@ pub const Lowerer = struct {
     pub fn visitBBFunction(
         visitor: VisitorTy,
         self: *Self,
-        function: *Function(BasicBlock)
+        function: *const Function(BasicBlock)
     ) Error!void {
         try self.addParams(function.*.params);
         try self.fn_map.put(
@@ -197,7 +197,7 @@ pub const Lowerer = struct {
         try visitor.walkBBFunction(self, function);
     }
 
-    fn addParams(self: *Self, params: []VarDecl) Error!void {
+    fn addParams(self: *Self, params: []const VarDecl) Error!void {
         self.num_locals = 0;
         self.*.num_params = params.len;
         for (params) |param| {
@@ -209,7 +209,7 @@ pub const Lowerer = struct {
     pub fn visitStatement(
         visitor: VisitorTy,
         self: *Self,
-        stmt: *Stmt
+        stmt: *const Stmt
     ) Error!void {
         if (stmt.*.label) |label| {
             try self.label_map.put(
@@ -223,7 +223,7 @@ pub const Lowerer = struct {
     pub fn visitBasicBlock(
         visitor: VisitorTy,
         self: *Self,
-        bb: *BasicBlock
+        bb: *const BasicBlock
     ) Error!void {
         if (bb.*.label) |label| {
             try self.label_map.put(
@@ -237,7 +237,7 @@ pub const Lowerer = struct {
     pub fn visitVarDecl(
         visitor: VisitorTy,
         self: *Self,
-        decl: *VarDecl
+        decl: *const VarDecl
     ) Error!void {
         self.variables[self.num_locals] = decl.*.name;
         self.num_locals += 1;
@@ -253,7 +253,7 @@ pub const Lowerer = struct {
     pub fn visitValueStmt(
         visitor: VisitorTy,
         self: *Self,
-        val: *Value
+        val: *const Value
     ) Error!void {
         try visitor.visitValue(visitor, self, val);
         try self.builder.addOp(.pop);
@@ -262,7 +262,7 @@ pub const Lowerer = struct {
     pub fn visitRet(
         visitor: VisitorTy,
         self: *Self,
-        opt_val: *?Value
+        opt_val: *const ?Value
     ) Error!void {
         // If there's a return value, it goes on the slot before parameters.
         // Otherwise it's already set as undefined
@@ -278,7 +278,7 @@ pub const Lowerer = struct {
     pub fn visitUnaryOp(
         visitor: VisitorTy,
         self: *Self,
-        op: *UnaryOp
+        op: *const UnaryOp
     ) Error!void {
         try visitor.visitValue(visitor, self, op.*.val);
         switch (op.*.kind) {
@@ -294,7 +294,7 @@ pub const Lowerer = struct {
     pub fn visitBinaryOp(
         visitor: VisitorTy,
         self: *Self,
-        op: *BinaryOp
+        op: *const BinaryOp
     ) Error!void {
         // Assign is special
         if (op.*.kind == .assign) {
@@ -348,7 +348,7 @@ pub const Lowerer = struct {
         try self.builder.addOp(op_opcode);
     }
 
-    pub fn visitInt(visitor: VisitorTy, self: *Self, i: *i32) Error!void {
+    pub fn visitInt(visitor: VisitorTy, self: *Self, i: *const i32) Error!void {
         _ = visitor;
         const val = ByteValue.initInt(i.*);
         const idx = try self.builder.addValue(val);
@@ -359,7 +359,7 @@ pub const Lowerer = struct {
     pub fn visitVarAccess(
         visitor: VisitorTy,
         self: *Self,
-        access: *VarAccess
+        access: *const VarAccess
     ) Error!void {
         _ = visitor;
         const offset = try self.getOffsetForName(access.*.name.?);
@@ -369,7 +369,7 @@ pub const Lowerer = struct {
     pub fn visitFuncCall(
         visitor: VisitorTy,
         self: *Self,
-        call: *FuncCall
+        call: *const FuncCall
     ) Error!void {
         if (call.*.resolved) |resolved| {
             switch (resolved.*) {
@@ -407,7 +407,7 @@ pub const Lowerer = struct {
     fn lowerBuiltin(
         self: *Self,
         visitor: VisitorTy,
-        call: *FuncCall,
+        call: *const FuncCall,
         builtin: *const Builtin
     ) Error!void {
         switch (builtin.*.kind) {
@@ -443,7 +443,7 @@ pub const Lowerer = struct {
     pub fn visitBranch(
         visitor: VisitorTy,
         self: *Self,
-        branch: *Branch,
+        branch: *const Branch,
     ) Error!void {
         var from_relative: usize = undefined;
         if (branch.expr) |*expr| {

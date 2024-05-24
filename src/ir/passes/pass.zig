@@ -9,9 +9,8 @@ pub const PassKind = enum {
     provider,
 };
 
-// TODO: Verifiers should take a const program, but visitor isn't capable yet
 fn VerifierRunTy(PassTy: type, Error: type) type {
-    return *const fn (self: *PassTy, program: *Program) Error!void;
+    return *const fn (self: *PassTy, program: *const Program) Error!void;
 }
 
 pub fn Verifier(
@@ -40,9 +39,8 @@ pub fn Modifier(
     );
 }
 
-// TODO: Providers should take a const program, but visitor isn't capable yet
 fn ProviderRunTy(PassTy: type, Error: type, RetTy: type) type {
-    return *const fn (self: *PassTy, program: *Program) Error!RetTy;
+    return *const fn (self: *PassTy, program: *const Program) Error!RetTy;
 }
 
 pub fn Provider(
