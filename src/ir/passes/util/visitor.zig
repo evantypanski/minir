@@ -1,21 +1,21 @@
 const std = @import("std");
 
-const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
-const statement = @import("../nodes/statement.zig");
+const BasicBlock = @import("../../nodes/basic_block.zig").BasicBlock;
+const statement = @import("../../nodes/statement.zig");
 const Stmt = statement.Stmt;
 const Branch = statement.Branch;
 const VarDecl = statement.VarDecl;
-const Decl = @import("../nodes/decl.zig").Decl;
-const Function = @import("../nodes/decl.zig").Function;
-const Builtin = @import("../nodes/decl.zig").Builtin;
-const Program = @import("../nodes/program.zig").Program;
-const Value = @import("../nodes/value.zig").Value;
-const VarAccess = @import("../nodes/value.zig").VarAccess;
-const UnaryOp = @import("../nodes/value.zig").UnaryOp;
-const BinaryOp = @import("../nodes/value.zig").BinaryOp;
-const FuncCall = @import("../nodes/value.zig").FuncCall;
-const Pointer = @import("../nodes/value.zig").Pointer;
-const Type = @import("../nodes/type.zig").Type;
+const Decl = @import("../../nodes/decl.zig").Decl;
+const Function = @import("../../nodes/decl.zig").Function;
+const Builtin = @import("../../nodes/decl.zig").Builtin;
+const Program = @import("../../nodes/program.zig").Program;
+const Value = @import("../../nodes/value.zig").Value;
+const VarAccess = @import("../../nodes/value.zig").VarAccess;
+const UnaryOp = @import("../../nodes/value.zig").UnaryOp;
+const BinaryOp = @import("../../nodes/value.zig").BinaryOp;
+const FuncCall = @import("../../nodes/value.zig").FuncCall;
+const Pointer = @import("../../nodes/value.zig").Pointer;
+const Type = @import("../../nodes/type.zig").Type;
 
 pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
     return struct {

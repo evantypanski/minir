@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
-const Verifier = @import("pass.zig").Verifier;
+const Verifier = @import("util/pass.zig").Verifier;
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -13,7 +13,7 @@ const VarDecl = @import("../nodes/statement.zig").VarDecl;
 const Value = @import("../nodes/value.zig").Value;
 const VarAccess = @import("../nodes/value.zig").VarAccess;
 const Type = @import("../nodes/type.zig").Type;
-const ConstIrVisitor = @import("const_visitor.zig").ConstIrVisitor;
+const ConstIrVisitor = @import("util/const_visitor.zig").ConstIrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
 const Loc = @import("../sourceloc.zig").Loc;

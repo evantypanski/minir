@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
-const Modifier = @import("pass.zig").Modifier;
+const Modifier = @import("util/pass.zig").Modifier;
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -10,7 +10,7 @@ const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
 const Stmt = @import("../nodes/statement.zig").Stmt;
 const Branch = @import("../nodes/statement.zig").Branch;
 const Value = @import("../nodes/value.zig").Value;
-const IrVisitor = @import("visitor.zig").IrVisitor;
+const IrVisitor = @import("util/visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 
 pub const ResolveBranches = Modifier(

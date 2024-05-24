@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
-const Provider = @import("pass.zig").Provider;
+const Provider = @import("util/pass.zig").Provider;
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -11,7 +11,7 @@ const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
 const Stmt = @import("../nodes/statement.zig").Stmt;
 const Branch = @import("../nodes/statement.zig").Branch;
 const VarDecl = @import("../nodes/statement.zig").VarDecl;
-const ConstIrVisitor = @import("const_visitor.zig").ConstIrVisitor;
+const ConstIrVisitor = @import("util/const_visitor.zig").ConstIrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 const Chunk = @import("../../bytecode/chunk.zig").Chunk;
 const ChunkBuilder = @import("../../bytecode/chunk.zig").ChunkBuilder;

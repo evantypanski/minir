@@ -6,15 +6,15 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
-const Function = @import("../nodes/decl.zig").Function;
-const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
-const Decl = @import("../nodes/decl.zig").Decl;
-const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
-const BasicBlockBuilder = @import("../nodes/basic_block.zig").BasicBlockBuilder;
-const Stmt = @import("../nodes/statement.zig").Stmt;
+const Function = @import("../../nodes/decl.zig").Function;
+const FunctionBuilder = @import("../../nodes/decl.zig").FunctionBuilder;
+const Decl = @import("../../nodes/decl.zig").Decl;
+const BasicBlock = @import("../../nodes/basic_block.zig").BasicBlock;
+const BasicBlockBuilder = @import("../../nodes/basic_block.zig").BasicBlockBuilder;
+const Stmt = @import("../../nodes/statement.zig").Stmt;
 const IrVisitor = @import("visitor.zig").IrVisitor;
-const Program = @import("../nodes/program.zig").Program;
-const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
+const Program = @import("../../nodes/program.zig").Program;
+const Diagnostics = @import("../../diagnostics_engine.zig").Diagnostics;
 
 pub const PassManager = struct {
     const Self = @This();

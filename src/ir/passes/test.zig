@@ -8,10 +8,9 @@ const Diagnostics = @import("../diagnostics_engine.zig").Diagnostics;
 const Disassembler = @import("../disassembler.zig").Disassembler;
 const Lexer = @import("../lexer.zig").Lexer;
 const Parser = @import("../parser.zig").Parser;
-const PassManager = @import("../passes/pass_manager.zig").PassManager;
-const BlockifyPass = @import("../passes/blockify.zig").BlockifyPass;
-const Blockify = @import("../passes/blockify.zig").Blockify;
-const FoldConstants = @import("../passes/fold_constants.zig").FoldConstants;
+const PassManager = @import("util/pass_manager.zig").PassManager;
+const Blockify = @import("blockify.zig").Blockify;
+const FoldConstants = @import("fold_constants.zig").FoldConstants;
 
 fn parseProgramFromString(str: []const u8) !Program {
     var source_mgr = try SourceManager.init(std.testing.allocator, str, false);

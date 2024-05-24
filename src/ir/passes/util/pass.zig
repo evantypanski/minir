@@ -1,7 +1,8 @@
 const std = @import("std");
 
 const Allocator = std.mem.Allocator;
-const Program = @import("../nodes/program.zig").Program;
+
+const Program = @import("../../nodes/program.zig").Program;
 
 pub const PassKind = enum {
     verifier,
