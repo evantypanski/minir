@@ -2,17 +2,18 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
-const Pass = @import("pass.zig").Pass;
+const Modifier = @import("pass.zig").Modifier;
 const Function = @import("../nodes/decl.zig").Function;
 const VarDecl = @import("../nodes/statement.zig").VarDecl;
 const VarAccess = @import("../nodes/value.zig").VarAccess;
 const IrVisitor = @import("visitor.zig").IrVisitor;
+const Lower = @import("lower.zig").Lower;
 const Program = @import("../nodes/program.zig").Program;
 const Stmt = @import("../nodes/statement.zig").Stmt;
 const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
 
-pub const Numify = Pass(
-    NumifyPass, NumifyPass.Error!void, &[_]type{},
+pub const Numify = Modifier(
+    NumifyPass, NumifyPass.Error, &[_]type{},
     NumifyPass.init, NumifyPass.execute
 );
 

@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
-const Pass = @import("pass.zig").Pass;
+const Modifier = @import("pass.zig").Modifier;
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -13,8 +13,8 @@ const Value = @import("../nodes/value.zig").Value;
 const IrVisitor = @import("visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 
-pub const FoldConstants = Pass(
-    FoldConstantsPass, FoldConstantsPass.Error!void, &[_]type{},
+pub const FoldConstants = Modifier(
+    FoldConstantsPass, FoldConstantsPass.Error, &[_]type{},
     FoldConstantsPass.init, FoldConstantsPass.execute
 );
 

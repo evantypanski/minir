@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
-const Pass = @import("pass.zig").Pass;
+const Provider = @import("pass.zig").Provider;
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -24,8 +24,8 @@ const ByteValue = @import("../../bytecode/value.zig").Value;
 const OpCode = @import("../../bytecode/opcodes.zig").OpCode;
 const InvalidBytecodeError = @import("../../bytecode/errors.zig").InvalidBytecodeError;
 
-pub const Lower = Pass(
-    Lowerer, Lowerer.Error!Chunk, &[_]type{},
+pub const Lower = Provider(
+    Lowerer, Lowerer.Error, Chunk, &[_]type{},
     Lowerer.init, Lowerer.execute
 );
 

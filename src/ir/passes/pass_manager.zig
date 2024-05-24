@@ -44,8 +44,17 @@ pub const PassManager = struct {
         var pass = PassType.init(args);
         defer pass.deinit();
 
-        // Run dependencies, right now we just run them dumb
+        // Run dependencies first
         inline for (PassType.dependencies) |dependency| {
+            // For now, providers can't be a dependency because we won't do
+            // anything with the returned value. If it's necessary in some
+            // contexts for it to be a dependency and provide a value in another,
+            // maybe the pass should just be split up.
+            if (dependency.pass_kind == .provider) {
+                @compileError("Providers cannot be a dependency: " ++
+                    @typeName(dependency)
+                );
+            }
             try self.get(dependency);
         }
 

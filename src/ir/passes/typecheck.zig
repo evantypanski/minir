@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
-const Pass = @import("pass.zig").Pass;
+const Verifier = @import("pass.zig").Verifier;
 const Function = @import("../nodes/decl.zig").Function;
 const FunctionBuilder = @import("../nodes/decl.zig").FunctionBuilder;
 const Decl = @import("../nodes/decl.zig").Decl;
@@ -20,8 +20,8 @@ const Loc = @import("../sourceloc.zig").Loc;
 const ResolveCalls = @import("resolve_calls.zig").ResolveCalls;
 const ResolveCallsPass = @import("resolve_calls.zig").ResolveCallsPass;
 
-pub const Typecheck = Pass(
-    TypecheckPass, TypecheckPass.Error!void, &[_]type{ResolveCalls},
+pub const Typecheck = Verifier(
+    TypecheckPass, TypecheckPass.Error, &[_]type{ResolveCalls},
     TypecheckPass.init, TypecheckPass.execute
 );
 
