@@ -38,6 +38,7 @@ test "output examples" {
     try run("recursive_fib.min");
     try run("unary_neg.min");
     try run("ptr_fn.min");
+    try run("bool.min");
 
     util.outDir.cleanup();
 }

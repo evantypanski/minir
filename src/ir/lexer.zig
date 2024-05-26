@@ -140,7 +140,7 @@ pub const Lexer = struct {
                                 else
                                     return null;
                         },
-                        'o' => return self.checkKeyword(self.start + 1, 5, "olean", .boolean),
+                        'o' => return self.checkKeyword(self.start + 2, 5, "olean", .boolean),
                         else => return null,
                     }
                 } else {

@@ -104,6 +104,7 @@ pub const Lowerer = struct {
         .visitStatement = visitStatement,
         .visitBasicBlock = visitBasicBlock,
         .visitInt = visitInt,
+        .visitBool = visitBool,
         .visitVarDecl = visitVarDecl,
         .visitValueStmt = visitValueStmt,
         .visitRet = visitRet,
@@ -351,6 +352,14 @@ pub const Lowerer = struct {
     pub fn visitInt(visitor: VisitorTy, self: *Self, i: *const i32) Error!void {
         _ = visitor;
         const val = ByteValue.initInt(i.*);
+        const idx = try self.builder.addValue(val);
+        try self.builder.addOp(.constant);
+        try self.builder.addByte(idx);
+    }
+
+    pub fn visitBool(visitor: VisitorTy, self: *Self, b: *const u1) Error!void {
+        _ = visitor;
+        const val = ByteValue.initBool(b.* == 1);
         const idx = try self.builder.addValue(val);
         try self.builder.addOp(.constant);
         try self.builder.addByte(idx);
