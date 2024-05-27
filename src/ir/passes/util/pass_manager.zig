@@ -42,7 +42,12 @@ pub const PassManager = struct {
             .diag = self.diag,
         };
         var pass = PassType.init(args);
-        defer pass.deinit();
+
+        // Special case: Let pass be void. If so, don't deinit. EVERYTHING else should have deinit
+        // This could probably be done better, maybe with a different pass type
+        if (@TypeOf(pass) != void) {
+            defer pass.deinit();
+        }
 
         // Run dependencies first
         inline for (PassType.dependencies) |dependency| {

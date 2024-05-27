@@ -15,6 +15,12 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
+    _ = b.addModule("minir", .{
+        .root_source_file = .{ .path = "src/lib.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
     const exe = b.addExecutable(.{
         .name = "minir",
         // In this case the main source file is merely a path, however, in more
