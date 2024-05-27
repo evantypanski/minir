@@ -59,7 +59,7 @@ pub fn getOutput(
         .interpret = config,
     };
 
-    try Driver.init(std.testing.allocator, out.writer()).drive_with_opts(cmd);
+    try Driver.init(std.testing.allocator, out.writer()).driveWithOpts(cmd, Driver.default_passes);
     try out.seekTo(0);
     return try out.readToEndAlloc(std.testing.allocator, 1000);
 }

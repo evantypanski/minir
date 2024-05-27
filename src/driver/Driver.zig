@@ -17,6 +17,7 @@ const PassManager = @import("../ir/passes/util/pass_manager.zig").PassManager;
 const Lower = @import("../ir/passes/lower.zig").Lower;
 const Typecheck = @import("../ir/passes/typecheck.zig").Typecheck;
 const ResolveBranches = @import("../ir/passes/resolve_branches.zig").ResolveBranches;
+const ResolveCalls = @import("../ir/passes/resolve_calls.zig").ResolveCalls;
 const SourceManager = @import("../ir/source_manager.zig").SourceManager;
 const Diagnostics = @import("../ir/diagnostics_engine.zig").Diagnostics;
 const Interpreter = @import("../bytecode/interpret.zig").Interpreter;
@@ -25,6 +26,7 @@ const CommandLine = @import("command_line.zig").CommandLine;
 const Options = @import("options.zig").Options;
 
 const Self = @This();
+pub const default_passes = &[_]type{Numify, ResolveBranches, ResolveCalls, Typecheck};
 
 allocator: Allocator,
 out: Writer,
@@ -36,14 +38,22 @@ pub fn init(allocator: Allocator, out: Writer) Self {
     };
 }
 
+/// Drives using the CLI arguments; the default entry-point
 pub fn drive(self: Self) !void {
     const cli = try CommandLine.init(self.allocator, self.out);
     const cli_result = try cli.parse();
     defer cli.deinit();
-    try self.drive_with_opts(cli_result);
+    // Run through extra passes version because it auto-adds default passes
+    try self.driveWithExtraPasses(cli_result, &[_]type{});
 }
 
-pub fn drive_with_opts(self: Self, options: Options) !void {
+/// Drives with the options and default passes with the extra passes coming after the default
+pub fn driveWithExtraPasses(self: Self, options: Options, extra_passes: []const type) !void {
+    try self.driveWithOpts(options, default_passes ++ extra_passes);
+}
+
+/// Drives with the given options
+pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
     if (options == .none) {
         return;
     }
@@ -58,9 +68,15 @@ pub fn drive_with_opts(self: Self, options: Options) !void {
     defer program.deinit(self.allocator);
 
     var pass_manager = PassManager.init(self.allocator, &program, diag_engine);
-    try pass_manager.get(Numify);
-    try pass_manager.get(ResolveBranches);
-    try pass_manager.get(Typecheck);
+    inline for (passes) |pass| {
+        // Passes that are run in this step cannot be providers since we cannot get the result
+        if (pass.pass_kind == .provider) {
+            @compileError("Providers cannot be a provided pass: " ++
+                @typeName(pass)
+            );
+        }
+        try pass_manager.get(pass);
+    }
 
     switch (options) {
         .interpret => |config| {
