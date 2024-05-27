@@ -28,6 +28,8 @@ pub const Parser = struct {
         Expected,
         NotANumber,
         NotABoolean,
+        KeywordInvalidIdentifier,
+        TooManyErrors,
     } || Lexer.Error || NodeError || Allocator.Error;
     const Self = @This();
 
@@ -43,6 +45,7 @@ pub const Parser = struct {
     current: Token,
     previous: Token,
     diag: Diagnostics,
+    num_errors: usize,
 
     rules: RuleArray,
 
@@ -57,6 +60,7 @@ pub const Parser = struct {
             .current = Token.init(.err, 0, 0),
             .previous = Token.init(.err, 0, 0),
             .diag = diag_engine,
+            .num_errors = 0,
             .rules = make_rules(),
         };
     }
@@ -75,6 +79,13 @@ pub const Parser = struct {
         // would be very bad right now.
         while (self.current.tag != .eof) {
             try builder.addDecl(try self.parseDecl());
+        }
+
+        // TODO: Make this a command line argument and let us try to run partial programs?
+        // This would also apply to typechecking and others which may continue.. maybe
+        if (self.num_errors > 0) {
+            self.diag.diagNumErrors(self.num_errors, "parsing");
+            return error.TooManyErrors;
         }
 
         return builder.build();
@@ -99,6 +110,7 @@ pub const Parser = struct {
             return;
         }
 
+        self.num_errors += 1;
         self.diag.err(error.Expected, .{ @tagName(tag) }, self.current.loc);
         return error.Expected;
     }
@@ -111,6 +123,7 @@ pub const Parser = struct {
             }
         }
 
+        self.num_errors += 1;
         self.diag.err(error.Expected, .{ @tagName(kw) }, self.current.loc);
         return error.Expected;
     }
@@ -131,11 +144,8 @@ pub const Parser = struct {
             const opt_ty = if (!self.match(.colon)) blk: {
                 self.diag.err(error.Expected, .{ @tagName(.colon) }, self.current.loc);
                 break :blk null;
-            } else if (self.parseType()) |ty|
-                ty
-            else |_| blk: {
-                break :blk null;
-            };
+            } else
+                try self.maybeParseType();
 
             const param = VarDecl {
                 .name = name,
@@ -151,18 +161,21 @@ pub const Parser = struct {
         try self.consume(.rparen);
         // Return
         try self.consume(.arrow);
-        const ty = if (self.parseType()) |ty|
-            ty
-        else |_| blk: {
-            break :blk .none;
-        };
+        const ty = try self.maybeParseType() orelse .none;
 
         builder.setReturnType(ty);
 
         try self.consume(.lbrace);
 
         while (self.current.tag != .rbrace and self.current.tag != .eof) {
-            try builder.addElement(try self.parseStmt());
+            // Ignore errors here for now. In the future going until another statement starts
+            // would be smart. If we were going to diagnose, we already did when we had all
+            // necessary info
+            const stmt = self.parseStmt() catch {
+                self.advance();
+                continue;
+            };
+            try builder.addElement(stmt);
         }
 
         // If we get here without right brace it's EOF
@@ -199,16 +212,20 @@ pub const Parser = struct {
     fn parseLet(self: *Self, label: ?[]const u8) Error!Stmt {
         const start = self.previous.loc.start;
         try self.consume(.identifier);
+
+        if (self.previous.kw) |_| {
+            self.num_errors += 1;
+            const snipped = self.diag.source_mgr.snip(self.previous.loc.start, self.previous.loc.end);
+            self.diag.err(error.KeywordInvalidIdentifier, .{ snipped }, self.previous.loc);
+            return error.KeywordInvalidIdentifier;
+        }
         const var_name = self.lexer.getTokString(self.previous);
         // The type will be set if explicit or null if not. Note that
         // it's not .none if not set.
-        const ty = if (self.match(.colon)) blk: {
-            if (self.parseType()) |ty|
-                break :blk ty
-            else |_| {
-                break :blk .none;
-            }
-        } else null;
+        const ty = if (self.match(.colon))
+            try self.maybeParseType() orelse .none
+        else
+            null;
         const val = if (self.match(.eq)) try self.parseExpr() else null;
         return Stmt.init(
             .{
@@ -265,6 +282,7 @@ pub const Parser = struct {
         const loc = self.previous.loc;
         // This shouldn't actually happen, should be able to gather than at
         // comptime eventually?
+        self.num_errors += 1;
         self.diag.err(
             error.NotABranch,
             .{ self.diag.source_mgr.snip(loc.start, loc.end) },
@@ -304,14 +322,18 @@ pub const Parser = struct {
     fn parsePrecedence(self: *Self, prec: Precedence) Error!Value {
         var lhs = if (self.getRule(self.current).prefix) |func|
             try func(self)
-        else
+        else {
+            self.num_errors += 1;
             return error.Unexpected;
+        };
 
         while (self.precedenceOf(self.current.tag).gte(prec)) {
             lhs = if (self.getRule(self.current).infix) |func|
                 try func(self, lhs)
-            else
+            else {
+                self.num_errors += 1;
                 return error.Unexpected;
+            };
         }
 
         return lhs;
@@ -330,7 +352,7 @@ pub const Parser = struct {
                 },
                 else => {
                     // Anything else we'll just try to parse as a type
-                    if (self.parseTypeValue() catch null) |ty_val| {
+                    if (try self.maybeParseTypeValue()) |ty_val| {
                         return ty_val;
                     }
                     // Intentionally fallthrough
@@ -407,6 +429,7 @@ pub const Parser = struct {
             if (std.fmt.parseFloat(f32, num_str)) |num| {
                 return Value.initFloat(num, loc);
             } else |_| {
+                self.num_errors += 1;
                 self.diag.err(
                     error.NotANumber,
                     .{ self.diag.source_mgr.snip(loc.start, loc.end) },
@@ -419,6 +442,7 @@ pub const Parser = struct {
             if (std.fmt.parseInt(i32, num_str, 10)) |num| {
                 return Value.initInt(num, loc);
             } else |_| {
+                self.num_errors += 1;
                 self.diag.err(
                     error.NotANumber,
                     .{ self.diag.source_mgr.snip(loc.start, loc.end) },
@@ -444,27 +468,41 @@ pub const Parser = struct {
         return Value.initBinary(op_kind, lhs_ptr, rhs_ptr, other.loc.combine(rhs.loc));
     }
 
-    fn parseTypeValue(self: *Self) Error!Value {
+    fn maybeParseTypeValue(self: *Self) Error!?Value {
         const start = self.previous.loc.start;
-        const ty = try self.parseType();
-        return Value.initType(ty, Loc.init(start, self.previous.loc.end));
+        const opt_ty = try self.maybeParseType();
+        return if (opt_ty) |ty|
+            Value.initType(ty, Loc.init(start, self.previous.loc.end))
+        else
+            null;
     }
 
     // Parses a type name
-    fn parseType(self: *Self) Error!Type {
+    fn maybeParseType(self: *Self) Error!?Type {
         if (self.match(.star)) {
-            const ty = try self.parseType();
-            return Type.initPtrAlloc(ty, self.allocator);
+            const ty = if (try self.maybeParseType()) |ty|
+                ty
+            else {
+                // If we're already trying to parse the type and hit the star, then we should
+                // know that this will be a type
+                self.num_errors += 1;
+                const snipped = self.diag.source_mgr.snip(self.current.loc.start, self.current.loc.end);
+                self.diag.err(error.InvalidTypeName, .{ snipped }, self.current.loc);
+                return error.InvalidTypeName;
+            };
+            return try Type.initPtrAlloc(ty, self.allocator);
         }
         if (self.current.kw == null) {
-            return error.InvalidTypeName;
+            return null;
         }
         const ret: Type = switch (self.current.kw.?) {
             .int => .int,
             .float => .float,
             .boolean => .boolean,
             .none => .none,
-            else => return error.InvalidTypeName,
+            else => {
+                return null;
+            },
         };
 
         self.advance();

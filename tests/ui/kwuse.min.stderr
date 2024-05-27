@@ -1,0 +1,32 @@
+error: at tests/ui/kwuse.min:2: 'func' is a keyword and cannot be used as an identifier
+  let func = 0
+error: at tests/ui/kwuse.min:3: 'let' is a keyword and cannot be used as an identifier
+  let let = 0
+error: at tests/ui/kwuse.min:4: 'ret' is a keyword and cannot be used as an identifier
+  let ret = 0
+error: at tests/ui/kwuse.min:5: 'br' is a keyword and cannot be used as an identifier
+  let br = 0
+error: at tests/ui/kwuse.min:6: 'brc' is a keyword and cannot be used as an identifier
+  let brc = 0
+error: at tests/ui/kwuse.min:8: 'none' is a keyword and cannot be used as an identifier
+  let none = 0
+error: at tests/ui/kwuse.min:9: 'int' is a keyword and cannot be used as an identifier
+  let int = 0
+error: at tests/ui/kwuse.min:10: 'float' is a keyword and cannot be used as an identifier
+  let float = 0
+error: at tests/ui/kwuse.min:11: 'boolean' is a keyword and cannot be used as an identifier
+  let boolean = 0
+error: at tests/ui/kwuse.min:13: 'debug' is a keyword and cannot be used as an identifier
+  let debug = 0
+error: at tests/ui/kwuse.min:14: 'alloc' is a keyword and cannot be used as an identifier
+  let alloc = 0
+error: at tests/ui/kwuse.min:16: 'true' is a keyword and cannot be used as an identifier
+  let true = 0
+error: at tests/ui/kwuse.min:17: 'false' is a keyword and cannot be used as an identifier
+  let false = 0
+error: at tests/ui/kwuse.min:18: 'undefined' is a keyword and cannot be used as an identifier
+  let undefined = 0
+
+
+Found 14 errors during parsing
+error: Fatal error occurred; aborting

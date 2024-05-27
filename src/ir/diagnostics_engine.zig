@@ -92,6 +92,7 @@ pub const Diagnostics = struct {
             error.BadArity => "call to '{s}' expected {} argument(s); found {}",
             error.Unresolved => "unresolved variable access to '{s}'",
             error.KeywordInvalidIdentifier => "'{s}' is a keyword and cannot be used as an identifier",
+            error.InvalidTypeName => "'{s}' is not a valid type name",
             else => null,
         };
     }

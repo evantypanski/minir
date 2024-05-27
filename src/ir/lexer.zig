@@ -115,7 +115,7 @@ pub const Lexer = struct {
                     switch (self.source_mgr.get(self.start + 1)) {
                         'u' => return self.checkKeyword(self.start + 2, 2, "nc", .func),
                         'a' => return self.checkKeyword(self.start + 2, 3, "lse", .false_),
-                        'l' => return self.checkKeyword(self.start + 2, 2, "oat", .float),
+                        'l' => return self.checkKeyword(self.start + 2, 3, "oat", .float),
                         else => return null,
                     }
                 } else {

@@ -1,0 +1,21 @@
+func main() -> none {
+  let func = 0
+  let let = 0
+  let ret = 0
+  let br = 0
+  let brc = 0
+
+  let none = 0
+  let int = 0
+  let float = 0
+  let boolean = 0
+
+  let debug = 0
+  let alloc = 0
+
+  let true = 0
+  let false = 0
+  let undefined = 0
+
+  ret
+}
