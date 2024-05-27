@@ -17,7 +17,7 @@ ParamList ::= (Param ("," Param)*)?
 Param ::= ID ":" Type
 
 Label ::= "@" ID
-Stmt ::= Label? (Let | Ret | Branch | ExprStmt)
+Stmt ::= Label? (Let | Ret | Branch | ExprStmt) ";"?
 Let ::= ID (LetWithTypePart | LetWithoutTypePart)
 LetWithTypePart ::= ":" Type ("=" Expr)?
 LetWithoutTypePart ::= "=" Expr
