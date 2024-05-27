@@ -29,6 +29,7 @@ pub const Parser = struct {
         NotANumber,
         NotABoolean,
         KeywordInvalidIdentifier,
+        InvalidTypeName,
         TooManyErrors,
     } || Lexer.Error || NodeError || Allocator.Error;
     const Self = @This();
@@ -78,7 +79,17 @@ pub const Parser = struct {
         // has an issue. This will help keep errors down because our recovery
         // would be very bad right now.
         while (self.current.tag != .eof) {
-            try builder.addDecl(try self.parseDecl());
+            // TODO: Recovery here should be a little better.
+            // 1) this assumes that the only possible top-level decls are functions (which is true
+            // for now)
+            // 2) this will fail to parse basic block functions, which currently are not handled,
+            // but worth keeping in mind that this will break.
+            const decl = self.parseDecl() catch {
+                self.skipUntil(.rbrace);
+                self.advance();
+                continue;
+            };
+            try builder.addDecl(decl);
         }
 
         // TODO: Make this a command line argument and let us try to run partial programs?
@@ -99,6 +110,7 @@ pub const Parser = struct {
                 self.current = tok;
                 return;
             } else |_| {
+                return;
                 // Error is already diagnosed
             }
         }
@@ -145,7 +157,7 @@ pub const Parser = struct {
                 self.diag.err(error.Expected, .{ @tagName(.colon) }, self.current.loc);
                 break :blk null;
             } else
-                try self.maybeParseType();
+                try self.parseType();
 
             const param = VarDecl {
                 .name = name,
@@ -161,8 +173,8 @@ pub const Parser = struct {
         try self.consume(.rparen);
         // Return
         try self.consume(.arrow);
-        const ty = try self.maybeParseType() orelse .none;
 
+        const ty = try self.parseType();
         builder.setReturnType(ty);
 
         try self.consume(.lbrace);
@@ -222,10 +234,7 @@ pub const Parser = struct {
         const var_name = self.lexer.getTokString(self.previous);
         // The type will be set if explicit or null if not. Note that
         // it's not .none if not set.
-        const ty = if (self.match(.colon))
-            try self.maybeParseType() orelse .none
-        else
-            null;
+        const ty = if (self.match(.colon)) try self.parseType() else null;
         const val = if (self.match(.eq)) try self.parseExpr() else null;
         return Stmt.init(
             .{
@@ -477,7 +486,21 @@ pub const Parser = struct {
             null;
     }
 
-    // Parses a type name
+    /// Parses a type but errors if not valid
+    fn parseType(self: *Self) Error!Type {
+        return if (try self.maybeParseType()) |ty|
+            ty
+        else blk: {
+            self.num_errors += 1;
+            const snipped = self.diag.source_mgr.snip(self.current.loc.start, self.current.loc.end);
+            self.diag.err(error.InvalidTypeName, .{ snipped }, self.current.loc);
+            // Advances since the maybeParseType will remain on the unknown token
+            self.advance();
+            break :blk error.InvalidTypeName;
+        };
+    }
+
+    /// Possibly parses a type, or null if it cannot be a type
     fn maybeParseType(self: *Self) Error!?Type {
         if (self.match(.star)) {
             const ty = if (try self.maybeParseType()) |ty|
@@ -531,6 +554,13 @@ pub const Parser = struct {
         }
 
         return false;
+    }
+
+    /// Skips until the provided tag, or EOF
+    fn skipUntil(self: *Self, tag: Token.Tag) void {
+        while (self.current.tag != tag and self.current.tag != .eof) {
+            self.advance();
+        }
     }
 
     fn make_rules() RuleArray {

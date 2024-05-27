@@ -1,0 +1,10 @@
+error: at tests/ui/invalidtypes.min:2: 'notatype' is not a valid type name
+  let i: notatype = 0
+error: at tests/ui/invalidtypes.min:6: 'notatype' is not a valid type name
+func f() -> notatype {
+error: at tests/ui/invalidtypes.min:10: 'notatype' is not a valid type name
+func f2(i: notatype) -> none {
+
+
+Found 3 errors during parsing
+error: Fatal error occurred; aborting

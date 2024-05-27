@@ -1,0 +1,12 @@
+func main() -> none {
+  let i: notatype = 0
+  ret
+}
+
+func f() -> notatype {
+  ret
+}
+
+func f2(i: notatype) -> none {
+  ret
+}

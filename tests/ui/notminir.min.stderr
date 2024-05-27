@@ -1,3 +1,6 @@
 error: at tests/ui/notminir.min:1: expected 'func' token
 this is not a minir file.
+
+
+Found 1 errors during parsing
 error: Fatal error occurred; aborting
