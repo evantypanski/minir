@@ -11,7 +11,7 @@ fn run(comptime name: []const u8) !void {
     const ui_dir_name = "tests/ui/";
 
     const argv = [_][]const u8{ minir, "interpret", ui_dir_name ++ name };
-    var proc = std.ChildProcess.init(&argv, std.testing.allocator);
+    var proc = std.process.Child.init(&argv, std.testing.allocator);
     proc.stdin_behavior = .Ignore;
     proc.stdout_behavior = .Pipe;
     proc.stderr_behavior = .Pipe;

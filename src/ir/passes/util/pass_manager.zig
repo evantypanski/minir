@@ -43,12 +43,6 @@ pub const PassManager = struct {
         };
         var pass = PassType.init(args);
 
-        // Special case: Let pass be void. If so, don't deinit. EVERYTHING else should have deinit
-        // This could probably be done better, maybe with a different pass type
-        if (@TypeOf(pass) != void) {
-            defer pass.deinit();
-        }
-
         // Run dependencies first
         inline for (PassType.dependencies) |dependency| {
             // For now, providers can't be a dependency because we won't do
@@ -64,6 +58,15 @@ pub const PassManager = struct {
         }
 
         var new_pass = PassType {};
-        return new_pass.get(&pass, self.program);
+
+        const result = new_pass.get(&pass, self.program);
+
+        // Special case: Let pass be void. If so, don't deinit. EVERYTHING else should have deinit
+        // This could probably be done better, maybe with a different pass type
+        if (@TypeOf(pass) != void) {
+            pass.deinit();
+        }
+
+        return result;
     }
 };

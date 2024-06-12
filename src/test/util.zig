@@ -53,7 +53,7 @@ pub fn getOutput(
 
     const config = InterpretConfig {
         .filename = test_file,
-        .interpreter_type = .byte
+        .interpreter_type = .byte,
     };
     const cmd = Options {
         .interpret = config,

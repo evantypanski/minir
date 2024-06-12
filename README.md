@@ -4,7 +4,7 @@ A "horizontally" scaled compiler intermediate representation (IR). Instead of de
 
 ## Building
 
-Make sure you have Zig 0.12 in your `PATH`. In this directory, use `zig build`. Easy.
+Make sure you have Zig 0.13 in your `PATH`. In this directory, use `zig build`. Easy.
 
 ## Usage
 
