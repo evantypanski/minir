@@ -470,13 +470,20 @@ pub const Interpreter = struct {
             self.current_ele = frame.return_ele_index;
         }
         try self.interpretDecl(func.*);
-        if (func.ty() != .none) {
-            try self.evalValue(self.env.pop());
-            const ret = self.env.pop();
-            return ret;
+
+        const ret = if (func.ty() != .none) self.env.pop() else null;
+
+        // Pop off arguments
+        // This is kind of hacky but builtins actually consume their arguments since they're made
+        // programatically in the interpreter. It might be ideal to remove that if in favor
+        // of builtins not doing this, but they're not numified so..
+        if (func.* != .builtin) {
+            for (call.arguments) |_| {
+                _ = self.env.pop();
+            }
         }
 
-        return null;
+        return ret;
     }
 
     fn interpretBuiltin(self: *Self, builtin: Builtin) Error!void {
@@ -532,7 +539,7 @@ pub const Interpreter = struct {
                         catch return error.WriterError;
                 fmt.formatBuf(s, .{}, self.writer) catch return error.WriterError;
             },
-            .bool => |b| self.writer.print("{}", .{b})
+            .bool => |b| self.writer.print("{}", .{b != 0})
                     catch return error.WriterError,
             .call => |call| {
                 self.writer.print("{s}(", .{call.name()})

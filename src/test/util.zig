@@ -4,6 +4,7 @@ const std = @import("std");
 const Dir = std.fs.Dir;
 const Driver = @import("../driver/Driver.zig");
 const InterpretConfig = @import("../driver/options.zig").InterpretConfig;
+const InterpreterType = @import("../driver/options.zig").InterpreterType;
 const Options = @import("../driver/options.zig").Options;
 
 pub var outDir: std.testing.TmpDir = undefined;
@@ -41,7 +42,7 @@ pub fn bless(dir: Dir, name: []const u8, content: []u8) !void {
 /// MUST set outDir in this before using this function.
 pub fn getOutput(
     test_file: []const u8,
-    comptime interpreter: enum { byte, treewalk }
+    comptime interpreter: InterpreterType
 ) ![]u8 {
     // outDir must be set if trying to get the output, otherwise the following
     // file creation will fail. It's done this way to better reuse the output
@@ -53,7 +54,7 @@ pub fn getOutput(
 
     const config = InterpretConfig {
         .filename = test_file,
-        .interpreter_type = .byte,
+        .interpreter_type = interpreter,
     };
     const cmd = Options {
         .interpret = config,

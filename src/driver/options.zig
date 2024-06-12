@@ -23,9 +23,14 @@ pub const Options = union(Config) {
     }
 };
 
+pub const InterpreterType = enum {
+    byte,
+    treewalk
+};
+
 pub const InterpretConfig = struct {
     filename: ?[]const u8,
-    interpreter_type: enum { byte, treewalk },
+    interpreter_type: InterpreterType,
 
     pub fn default() InterpretConfig {
         return .{
