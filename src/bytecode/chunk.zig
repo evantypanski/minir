@@ -6,13 +6,35 @@ const OpCode = @import("opcodes.zig").OpCode;
 const Value = @import("value.zig").Value;
 const InvalidBytecodeError = @import("errors.zig").InvalidBytecodeError;
 
+pub const ChunkHeader = struct {
+    // This will change!
+    bytes_start: usize,
+    const_start: usize,
+};
+
 pub const Chunk = struct {
+    allocator: Allocator,
     bytes: []u8,
     values: []Value,
 
-    pub fn deinit(self: *const Chunk, allocator: Allocator) void {
-        allocator.free(self.bytes);
-        allocator.free(self.values);
+    pub fn deinit(self: *const Chunk) void {
+        self.allocator.free(self.bytes);
+        self.allocator.free(self.values);
+    }
+
+    pub fn getHeader(self: Chunk) ChunkHeader {
+        return ChunkHeader {
+            .bytes_start = @sizeOf(ChunkHeader),
+            .const_start = @sizeOf(ChunkHeader) + self.bytes.len,
+        };
+    }
+
+    pub fn bytesAlloc(self: Chunk) ![]u8 {
+        return try std.fmt.allocPrint(self.allocator, "{s}{s}{s}", .{
+            std.mem.asBytes(&self.getHeader()),
+            self.bytes,
+            std.mem.asBytes(self.values),
+        });
     }
 };
 
@@ -93,6 +115,7 @@ pub const ChunkBuilder = struct {
 
     pub fn build(self: *Self) !Chunk {
         return .{
+            .allocator = self.allocator,
             .bytes = try self.bytes.toOwnedSlice(),
             .values = try self.values.toOwnedSlice(),
         };

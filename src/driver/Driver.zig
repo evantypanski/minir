@@ -85,7 +85,7 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
                     const chunk = try pass_manager.get(Lower);
                     // TODO: Maybe deinit should be in the interpreter, but it
                     // doesn't allocate so eh.
-                    defer chunk.deinit(self.allocator);
+                    defer chunk.deinit();
 
                     source_mgr.deinit();
 
@@ -110,12 +110,17 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
 
             try formatter.disassemble();
         },
-        .dump => {
+        .dump => |config| {
             const chunk = try pass_manager.get(Lower);
 
             source_mgr.deinit();
-            var disassembler = Disassembler.init(chunk, self.out);
-            try disassembler.disassemble();
+            switch (config.format) {
+                .binary => try self.out.writeAll(try chunk.bytesAlloc()),
+                .debug => {
+                    var disassembler = Disassembler.init(chunk, self.out);
+                    try disassembler.disassemble();
+                },
+            }
         },
         .none => {},
     }

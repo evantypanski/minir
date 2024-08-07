@@ -80,7 +80,8 @@ pub const CommandLine = struct {
             \\  minir dump [options] [filename]
             \\
             \\Options:
-            \\  None yet!
+            \\  --debug, -d     Dump in a human readable, debug format
+            \\  --binary, -b    Dump in a binary format (default)
             \\
             \\
         );
@@ -180,6 +181,10 @@ pub const CommandLine = struct {
                 if (arg[1] == 'h' or std.mem.eql(u8, arg, "--help")) {
                     try self.printDumpHelp();
                     return .none;
+                } if (arg[1] == 'd' or std.mem.eql(u8, arg, "--debug")) {
+                    config.format = .debug;
+                } if (arg[1] == 'b' or std.mem.eql(u8, arg, "--binary")) {
+                    config.format = .binary;
                 } else {
                     try unknownOption(arg);
                 }

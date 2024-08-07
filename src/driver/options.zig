@@ -50,12 +50,20 @@ pub const FmtConfig = struct {
     }
 };
 
+
 pub const DumpConfig = struct {
     filename: ?[]const u8,
+    format: DumpFormat,
+
+    const DumpFormat = enum {
+        binary,
+        debug,
+    };
 
     pub fn default() DumpConfig {
         return .{
             .filename = null,
+            .format = .binary,
         };
     }
 };
