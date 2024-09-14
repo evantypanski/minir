@@ -6,6 +6,11 @@ const OpCode = @import("opcodes.zig").OpCode;
 const Value = @import("value.zig").Value;
 const InvalidBytecodeError = @import("errors.zig").InvalidBytecodeError;
 
+pub const ChunkError = error {
+    NoHeader,
+    InvalidHeader,
+};
+
 pub const ChunkHeader = struct {
     // This will change!
     bytes_start: usize,
@@ -13,13 +18,12 @@ pub const ChunkHeader = struct {
 };
 
 pub const Chunk = struct {
-    allocator: Allocator,
     bytes: []u8,
     values: []Value,
 
-    pub fn deinit(self: *const Chunk) void {
-        self.allocator.free(self.bytes);
-        self.allocator.free(self.values);
+    pub fn deinit(self: *const Chunk, allocator: Allocator) void {
+        allocator.free(self.bytes);
+        allocator.free(self.values);
     }
 
     pub fn getHeader(self: Chunk) ChunkHeader {
@@ -29,12 +33,43 @@ pub const Chunk = struct {
         };
     }
 
-    pub fn bytesAlloc(self: Chunk) ![]u8 {
-        return try std.fmt.allocPrint(self.allocator, "{s}{s}{s}", .{
+    pub fn bytesAlloc(self: Chunk, allocator: Allocator) ![]u8 {
+        return try std.fmt.allocPrint(allocator, "{s}{s}{s}", .{
             std.mem.asBytes(&self.getHeader()),
             self.bytes,
-            std.mem.asBytes(self.values),
+            std.mem.sliceAsBytes(self.values),
         });
+    }
+
+    pub fn parse(bytes: []u8, allocator: Allocator) !Chunk {
+        if (bytes.len < @sizeOf(ChunkHeader)) {
+            return error.NoHeader;
+        }
+
+        const header = std.mem.bytesAsValue(ChunkHeader, bytes[0..@sizeOf(ChunkHeader)]);
+        if (header.const_start > bytes.len) {
+            return error.InvalidHeader;
+        }
+
+        const numConstants = (bytes.len - header.const_start) / @sizeOf(Value);
+
+        // Probably should just directly make the slice but oh well for now
+        var values = std.ArrayList(Value).init(allocator);
+        var pos = header.const_start;
+        for (0..numConstants) |_| {
+            try values.append(std.mem.bytesAsValue(Value, bytes[pos..pos + @sizeOf(Value)]).*);
+            pos += @sizeOf(Value);
+        }
+
+        defer values.clearAndFree();
+        const parsed_bytes = bytes[header.bytes_start..header.const_start];
+
+        return Chunk {
+            .bytes = try allocator.dupe(u8, parsed_bytes),
+            .values = try values.toOwnedSlice(),
+            // This hits unreachable code, but I didn't think it'd be valid:
+            // std.mem.bytesAsValue([]Value, bytes[header.const_start..]),
+        };
     }
 };
 
@@ -115,7 +150,6 @@ pub const ChunkBuilder = struct {
 
     pub fn build(self: *Self) !Chunk {
         return .{
-            .allocator = self.allocator,
             .bytes = try self.bytes.toOwnedSlice(),
             .values = try self.values.toOwnedSlice(),
         };

@@ -39,6 +39,7 @@ pub const SourceManager = struct {
 
     pub fn initFilename(allocator: Allocator, name: []const u8) !Self {
         const file = try std.fs.cwd().openFile(name, .{ .mode = .read_only });
+        // TODO: change this limit
         const source = try file.readToEndAlloc(allocator, 10000);
         return .{
             .allocator = allocator,

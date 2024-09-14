@@ -25,7 +25,8 @@ pub const Options = union(Config) {
 
 pub const InterpreterType = enum {
     byte,
-    treewalk
+    treewalk,
+    binary
 };
 
 pub const InterpretConfig = struct {

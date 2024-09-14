@@ -22,6 +22,7 @@ const SourceManager = @import("../ir/source_manager.zig").SourceManager;
 const Diagnostics = @import("../ir/diagnostics_engine.zig").Diagnostics;
 const Interpreter = @import("../bytecode/interpret.zig").Interpreter;
 const Disassembler = @import("../bytecode/disassembler.zig").Disassembler;
+const Chunk = @import("../bytecode/chunk.zig").Chunk;
 const CommandLine = @import("command_line.zig").CommandLine;
 const Options = @import("options.zig").Options;
 
@@ -60,6 +61,16 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
 
     const filename = options.filename() orelse return;
 
+    // TODO: Redo this function so that this isn't necessary. It's needed
+    // here because a binary interpreter type shouldn't treat the file
+    // as minir, instead it's just bytecode.
+    if (options == .interpret) {
+        if (options.interpret.interpreter_type == .binary) {
+            try self.interpretBinary(filename);
+            return;
+        }
+    }
+
     var source_mgr = try SourceManager.initFilename(self.allocator, filename);
     const diag_engine = Diagnostics.init(source_mgr);
     const lexer = Lexer.init(source_mgr);
@@ -85,7 +96,7 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
                     const chunk = try pass_manager.get(Lower);
                     // TODO: Maybe deinit should be in the interpreter, but it
                     // doesn't allocate so eh.
-                    defer chunk.deinit();
+                    defer chunk.deinit(self.allocator);
 
                     source_mgr.deinit();
 
@@ -100,6 +111,7 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
                     source_mgr.deinit();
                     treewalk_interp.deinit();
                 },
+                .binary => unreachable,
             }
         },
         .fmt => {
@@ -115,7 +127,7 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
 
             source_mgr.deinit();
             switch (config.format) {
-                .binary => try self.out.writeAll(try chunk.bytesAlloc()),
+                .binary => try self.out.writeAll(try chunk.bytesAlloc(self.allocator)),
                 .debug => {
                     var disassembler = Disassembler.init(chunk, self.out);
                     try disassembler.disassemble();
@@ -124,4 +136,16 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
         },
         .none => {},
     }
+}
+
+fn interpretBinary(self: Self, filename: []const u8) !void {
+    const file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
+    // TODO: change this limit
+    const source = try file.readToEndAlloc(self.allocator, 10000);
+
+    const chunk = try Chunk.parse(source, self.allocator);
+    defer chunk.deinit(self.allocator);
+
+    var interp = Interpreter.init(chunk, self.out);
+    try interp.interpret();
 }

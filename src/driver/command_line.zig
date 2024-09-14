@@ -57,6 +57,8 @@ pub const CommandLine = struct {
             \\Options:
             \\  --byte, -b      Use the bytecode interpreter (default)
             \\  --treewalk, -t  Use the treewalk interpreter
+            \\  --binary        When using the bytecode interpreter, treat the
+            \\                  file as a binary (bytecode) file
             \\
             \\
         );
@@ -116,6 +118,8 @@ pub const CommandLine = struct {
                     config.interpreter_type = .byte;
                 } else if (arg[1] == 't' or std.mem.eql(u8, arg, "--treewalk")) {
                     config.interpreter_type = .treewalk;
+                } else if (std.mem.eql(u8, arg, "--binary")) {
+                    config.interpreter_type = .binary;
                 } else if (arg[1] == 'h' or std.mem.eql(u8, arg, "--help")) {
                     try self.printInterpretHelp();
                     return .none;
