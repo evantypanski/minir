@@ -15,6 +15,10 @@ fn run(comptime name: []const u8) !void {
     const byte_result = try util.getOutput(test_file, .byte);
     defer std.testing.allocator.free(byte_result);
 
+    // Bytecode interpreter, but through printing the bytecode
+    const binary_result = try util.getOutput(test_file, .binary);
+    defer std.testing.allocator.free(binary_result);
+
     // Treewalk interpreter
     const treewalk_result = try util.getOutput(test_file, .treewalk);
     defer std.testing.allocator.free(treewalk_result);

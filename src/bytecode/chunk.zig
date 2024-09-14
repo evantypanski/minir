@@ -67,8 +67,6 @@ pub const Chunk = struct {
         return Chunk {
             .bytes = try allocator.dupe(u8, parsed_bytes),
             .values = try values.toOwnedSlice(),
-            // This hits unreachable code, but I didn't think it'd be valid:
-            // std.mem.bytesAsValue([]Value, bytes[header.const_start..]),
         };
     }
 };

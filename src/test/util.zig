@@ -4,6 +4,7 @@ const std = @import("std");
 const Dir = std.fs.Dir;
 const Driver = @import("../driver/Driver.zig");
 const InterpretConfig = @import("../driver/options.zig").InterpretConfig;
+const DumpConfig = @import("../driver/options.zig").DumpConfig;
 const InterpreterType = @import("../driver/options.zig").InterpreterType;
 const Options = @import("../driver/options.zig").Options;
 
@@ -44,6 +45,31 @@ pub fn getOutput(
     test_file: []const u8,
     comptime interpreter: InterpreterType
 ) ![]u8 {
+    const final_test_file = switch(interpreter) {
+        .byte, .treewalk => test_file,
+        .binary => blk: {
+            // We have to make the binary file
+            const output_bytecode_name = @tagName(interpreter) ++ ".byte";
+            const output_bytecode = try outDir.dir.createFile(
+                output_bytecode_name, .{ .read = true }
+            );
+
+            const config = DumpConfig {
+                .filename = test_file,
+                .format = .binary,
+            };
+
+            const cmd = Options {
+                .dump = config,
+            };
+            try Driver.init(std.testing.allocator, output_bytecode.writer())
+                    .driveWithOpts(cmd, Driver.default_passes);
+
+            output_bytecode.close();
+            break :blk try outDir.dir.realpathAlloc(std.testing.allocator, output_bytecode_name);
+        },
+    };
+
     // outDir must be set if trying to get the output, otherwise the following
     // file creation will fail. It's done this way to better reuse the output
     // dir easily. We could also just pass it in a few functions, but this is a
@@ -53,7 +79,7 @@ pub fn getOutput(
     );
 
     const config = InterpretConfig {
-        .filename = test_file,
+        .filename = final_test_file,
         .interpreter_type = interpreter,
     };
     const cmd = Options {
@@ -61,6 +87,12 @@ pub fn getOutput(
     };
 
     try Driver.init(std.testing.allocator, out.writer()).driveWithOpts(cmd, Driver.default_passes);
+
+    // Binary one allocs an input file name
+    if (interpreter == .binary) {
+        std.testing.allocator.free(final_test_file);
+    }
+
     try out.seekTo(0);
     return try out.readToEndAlloc(std.testing.allocator, 1000);
 }

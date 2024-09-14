@@ -124,10 +124,15 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
         },
         .dump => |config| {
             const chunk = try pass_manager.get(Lower);
+            defer chunk.deinit(self.allocator);
 
             source_mgr.deinit();
             switch (config.format) {
-                .binary => try self.out.writeAll(try chunk.bytesAlloc(self.allocator)),
+                .binary => {
+                    const bytes = try chunk.bytesAlloc(self.allocator);
+                    defer self.allocator.free(bytes);
+                    try self.out.writeAll(bytes);
+                },
                 .debug => {
                     var disassembler = Disassembler.init(chunk, self.out);
                     try disassembler.disassemble();
@@ -142,6 +147,7 @@ fn interpretBinary(self: Self, filename: []const u8) !void {
     const file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
     // TODO: change this limit
     const source = try file.readToEndAlloc(self.allocator, 10000);
+    defer self.allocator.free(source);
 
     const chunk = try Chunk.parse(source, self.allocator);
     defer chunk.deinit(self.allocator);
