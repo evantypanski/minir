@@ -145,8 +145,7 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
 
 fn interpretBinary(self: Self, filename: []const u8) !void {
     const file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
-    // TODO: change this limit
-    const source = try file.readToEndAlloc(self.allocator, 10000);
+    const source = try file.readToEndAlloc(self.allocator, std.math.maxInt(u32));
     defer self.allocator.free(source);
 
     const chunk = try Chunk.parse(source, self.allocator);

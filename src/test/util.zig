@@ -26,7 +26,7 @@ pub fn compareOutput(dir: Dir, expected_name: []const u8, actual: []u8) !bool {
 /// free it
 pub fn getFileContent(dir: Dir, name: []const u8) ![]u8 {
     const file = try dir.openFile(name, .{ .mode = .read_only });
-    const content = try file.readToEndAlloc(std.testing.allocator, 10000);
+    const content = try file.readToEndAlloc(std.testing.allocator, std.math.maxInt(u32));
     file.close();
     return content;
 }
@@ -94,6 +94,6 @@ pub fn getOutput(
     }
 
     try out.seekTo(0);
-    return try out.readToEndAlloc(std.testing.allocator, 1000);
+    return try out.readToEndAlloc(std.testing.allocator, std.math.maxInt(u32));
 }
 

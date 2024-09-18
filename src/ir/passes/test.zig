@@ -38,7 +38,7 @@ fn expectDisassembled(program: Program, expected: []const u8) !void {
     outFile.close();
 
     var outFileRead = try tmpdir.dir.openFile("out", .{.mode = .read_only});
-    const disassembled = try outFileRead.readToEndAlloc(std.testing.allocator, 10000);
+    const disassembled = try outFileRead.readToEndAlloc(std.testing.allocator, std.math.maxInt(u32));
     defer std.testing.allocator.free(disassembled);
 
     try std.testing.expectStringStartsWith(disassembled, expected);
