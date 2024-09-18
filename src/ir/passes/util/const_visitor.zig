@@ -89,19 +89,27 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         }
 
         pub fn walkFunction(self: Self, arg: ArgTy, function: *const Function(Stmt)) RetTy {
+            for (function.params) |*param| {
+                try self.visitVarDecl(self, arg, param);
+            }
             for (function.elements) |*stmt| {
                 try self.visitStatement(self, arg, stmt);
             }
         }
 
         pub fn walkBBFunction(self: Self, arg: ArgTy, function: *const Function(BasicBlock)) RetTy {
+            for (function.params) |*param| {
+                try self.visitVarDecl(self, arg, param);
+            }
             for (function.elements) |*bb| {
                 try self.visitBasicBlock(self, arg, bb);
             }
         }
 
-        pub fn walkBuiltin(_: Self, _: ArgTy, _: *const Builtin) RetTy {
-            // TODO: Shouldn't this and other decls also walk params?
+        pub fn walkBuiltin(self: Self, arg: ArgTy, builtin: *const Builtin) RetTy {
+            for (builtin.params) |*param| {
+                try self.visitVarDecl(self, arg, param);
+            }
         }
 
         pub fn walkBasicBlock(self: Self, arg: ArgTy, bb: *const BasicBlock) RetTy {

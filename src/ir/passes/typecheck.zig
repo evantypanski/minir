@@ -94,7 +94,7 @@ pub const TypecheckPass = struct {
         self: *Self,
         function: *const Function(Stmt)
     ) Error!void {
-        try self.handleFnStart(function.params);
+        self.vars.clearRetainingCapacity();
         try visitor.walkFunction(self, function);
     }
 
@@ -103,22 +103,8 @@ pub const TypecheckPass = struct {
         self: *Self,
         function: *const Function(BasicBlock)
     ) Error!void {
-        try self.handleFnStart(function.params);
-        try visitor.walkBBFunction(self, function);
-    }
-
-    fn handleFnStart(self: *Self, params: []VarDecl) Error!void {
         self.vars.clearRetainingCapacity();
-        for (params) |*param| {
-            if (param.ty) |ty| {
-                self.vars.put(param.name, ty) catch return error.MapError;
-            } else {
-                // This could be diagnosed with the diagnostics engine but
-                // it really shouldn't happen from the grammar. Maybe fix
-                // this.
-                return error.ParamWithoutType;
-            }
-        }
+        try visitor.walkBBFunction(self, function);
     }
 
     pub fn visitVarDecl(

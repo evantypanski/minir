@@ -92,8 +92,6 @@ pub const Parser = struct {
             try builder.addDecl(decl);
         }
 
-        // TODO: Make this a command line argument and let us try to run partial programs?
-        // This would also apply to typechecking and others which may continue.. maybe
         if (self.num_errors > 0) {
             self.diag.diagNumErrors(self.num_errors, "parsing");
             return error.TooManyErrors;

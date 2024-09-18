@@ -94,8 +94,6 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
             switch (config.interpreter_type) {
                 .byte => {
                     const chunk = try pass_manager.get(Lower);
-                    // TODO: Maybe deinit should be in the interpreter, but it
-                    // doesn't allocate so eh.
                     defer chunk.deinit(self.allocator);
 
                     source_mgr.deinit();

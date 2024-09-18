@@ -59,7 +59,9 @@ pub const NumifyPass = struct {
         function: *Function(Stmt)
     ) Error!void {
         try self.handleFnStart(function.params);
-        try visitor.walkFunction(self, function);
+        for (function.elements) |*stmt| {
+            try visitor.visitStatement(visitor, self, stmt);
+        }
     }
 
     pub fn visitBBFunction(
@@ -68,7 +70,9 @@ pub const NumifyPass = struct {
         function: *Function(BasicBlock)
     ) Error!void {
         try self.handleFnStart(function.params);
-        try visitor.walkBBFunction(self, function);
+        for (function.elements) |*bb| {
+            try visitor.visitBasicBlock(visitor, self, bb);
+        }
     }
 
     fn handleFnStart(self: *Self, params: []VarDecl) Error!void {

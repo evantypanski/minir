@@ -182,7 +182,9 @@ pub const Lowerer = struct {
             function.*.name,
             @intCast(self.builder.currentByte())
         );
-        try visitor.walkFunction(self, function);
+        for (function.elements) |*stmt| {
+            try visitor.visitStatement(visitor, self, stmt);
+        }
     }
 
     pub fn visitBBFunction(
@@ -195,7 +197,9 @@ pub const Lowerer = struct {
             function.*.name,
             @intCast(self.builder.currentByte())
         );
-        try visitor.walkBBFunction(self, function);
+        for (function.elements) |*bb| {
+            try visitor.visitBasicBlock(visitor, self, bb);
+        }
     }
 
     fn addParams(self: *Self, params: []const VarDecl) Error!void {

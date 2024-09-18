@@ -89,19 +89,26 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         }
 
         pub fn walkFunction(self: Self, arg: ArgTy, function: *Function(Stmt)) RetTy {
+            for (function.params) |*param| {
+                try self.visitVarDecl(self, arg, param);
+            }
             for (function.elements) |*stmt| {
                 try self.visitStatement(self, arg, stmt);
             }
         }
 
         pub fn walkBBFunction(self: Self, arg: ArgTy, function: *Function(BasicBlock)) RetTy {
+            for (function.params) |*param| {
+                try self.visitVarDecl(self, arg, param);
+            }
             for (function.elements) |*bb| {
                 try self.visitBasicBlock(self, arg, bb);
             }
         }
 
         pub fn walkBuiltin(_: Self, _: ArgTy, _: *Builtin) RetTy {
-            // TODO: Shouldn't this and other decls also walk params?
+            // Builtin parameters are constant, so they can't be walked
+            // by this visitor.
         }
 
         pub fn walkBasicBlock(self: Self, arg: ArgTy, bb: *BasicBlock) RetTy {

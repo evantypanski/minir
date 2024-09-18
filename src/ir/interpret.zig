@@ -259,7 +259,8 @@ pub const Interpreter = struct {
         }
     }
 
-    fn evalUnaryOp(self: *Self, op: UnaryOp) Error!void {
+    fn evalUnaryOp(self: *Self, value: Value) Error!void {
+        const op = value.val_kind.unary;
         switch (op.kind) {
             .not => {
                 self.evalValue(op.val.*) catch return error.OperandError;
@@ -281,14 +282,12 @@ pub const Interpreter = struct {
             .neg => {
                 self.evalValue(op.val.*) catch return error.OperandError;
                 const numVal = self.env.pop();
-                // TODO: Fix locs to include the op, but UnaryOp doesn't
-                // have a reference to its whole loc
                 switch (numVal.val_kind) {
                     .int => |i| try self.pushValue(
-                        Value.initInt(-1 * i, op.val.*.loc)
+                        Value.initInt(-1 * i, value.loc)
                     ),
                     .float => |f| try self.pushValue(
-                        Value.initFloat(-1 * f, op.val.*.loc)
+                        Value.initFloat(-1 * f, value.loc)
                     ),
                     else => return error.OperandError,
                 }
@@ -438,8 +437,8 @@ pub const Interpreter = struct {
                 }
             },
             .int, .float, .bool, .type_, .ptr => try self.pushValue(value),
-            .unary => |op| {
-                try self.evalUnaryOp(op);
+            .unary => {
+                try self.evalUnaryOp(value);
             },
             .binary => |op| {
                 try self.evalBinaryOp(op);
