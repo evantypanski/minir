@@ -73,7 +73,7 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
 
     var source_mgr = try SourceManager.initFilename(self.allocator, filename);
     const diag_engine = Diagnostics.init(source_mgr);
-    const lexer = Lexer.init(source_mgr);
+    const lexer = try Lexer.init(self.allocator, source_mgr);
     var parser = Parser.init(self.allocator, lexer, diag_engine);
     var program = try parser.parse();
     defer program.deinit(self.allocator);

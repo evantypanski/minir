@@ -20,7 +20,7 @@ fn parseProgramFromString(str: []const u8) !Program {
 }
 
 fn parseProgram(source_mgr: SourceManager, diag_engine: Diagnostics) !Program {
-    const lexer = Lexer.init(source_mgr);
+    const lexer = try Lexer.init(std.testing.allocator, source_mgr);
     var parser = Parser.init(std.testing.allocator, lexer, diag_engine);
     return try parser.parse();
 }
