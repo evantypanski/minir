@@ -62,4 +62,3 @@ Would be nice to have in like 80 years:
  - Microbenchmarks
  - Crazy good testing infrastructure
  - Custom passes by passing in a library (or executable or something)
- - A bytecode format that can actually go in a file
