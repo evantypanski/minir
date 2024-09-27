@@ -6,6 +6,7 @@ const Token = @import("token.zig").Token;
 const SourceManager = @import("source_manager.zig").SourceManager;
 const Loc = @import("sourceloc.zig").Loc;
 
+// TODO: Make the trie generic so it doesn't assume Token.Keyword is its tag
 const Trie = struct {
     const Self = @This();
 
@@ -19,6 +20,34 @@ const Trie = struct {
             .allocator = allocator,
             .root = root,
         };
+    }
+
+    /// Initializes the trie from an enum type. Keywords are created with
+    /// the various keys. If there is a trailing underscore, that is not
+    /// counted.
+    pub fn initFromTags(allocator: Allocator, enum_ty: type) !Self {
+        const tags = std.enums.values(enum_ty);
+        const root = try allocator.create(TrieNode);
+        root.* = TrieNode.init(null);
+        var result = Self {
+            .allocator = allocator,
+            .root = root,
+        };
+
+        for (tags) |tag| {
+            var name = std.enums.tagName(enum_ty, tag) orelse continue;
+
+            // Remove the trailing '_' if it exists
+            name = if (name[name.len - 1] == '_')
+                name[0..name.len-1]
+            else
+                name[0..name.len];
+
+            // Add to the trie
+            try result.add(name, tag);
+        }
+
+        return result;
     }
 
     pub fn deinit(self: Self) void {
@@ -113,17 +142,19 @@ pub const Lexer = struct {
     // Store the start in the lexer so we can grab an invalid token without
     // returning some fake error token
     start: usize,
+    keyword_trie: Trie,
 
     pub fn init(allocator: Allocator, source_mgr: SourceManager) !Self {
-        const trie = try Trie.init(allocator);
-        //try trie.add("hi", Token.Keyword.true_);
-        // TODO
-        trie.deinit();
         return .{
             .source_mgr = source_mgr,
             .current = 0,
             .start = 0,
+            .keyword_trie = try Trie.initFromTags(allocator, Token.Keyword),
         };
+    }
+
+    pub fn deinit(self: Self) void {
+        self.keyword_trie.deinit();
     }
 
     pub fn lex(self: *Self) Error!Token {
@@ -203,67 +234,9 @@ pub const Lexer = struct {
 
     /// Gets the tag associated with the current token. Efficiently matches
     /// keywords :)
-    ///
-    /// Grabbed this tiny trie impl from crafting interpreters.
-    /// TODO: The trie should be a separate struct and it's setup at the
-    /// beginning
     fn identifierKw(self: Self) ?Token.Keyword {
-        const token_len = self.current - self.start;
-        switch (self.source_mgr.get(self.start)) {
-            'a' => return self.checkKeyword(self.start + 1, 4, "lloc", .alloc),
-            'f' => if (token_len >= 2) {
-                    switch (self.source_mgr.get(self.start + 1)) {
-                        'u' => return self.checkKeyword(self.start + 2, 2, "nc", .func),
-                        'a' => return self.checkKeyword(self.start + 2, 3, "lse", .false_),
-                        'l' => return self.checkKeyword(self.start + 2, 3, "oat", .float),
-                        else => return null,
-                    }
-                } else {
-                    return null;
-                },
-            'd' => return self.checkKeyword(self.start + 1, 4, "ebug", .debug),
-            'i' => return self.checkKeyword(self.start + 1, 2, "nt", .int),
-            'l' => return self.checkKeyword(self.start + 1, 2, "et", .let),
-            'n' => return self.checkKeyword(self.start + 1, 3, "one", .none),
-            't' => return self.checkKeyword(self.start + 1, 3, "rue", .true_),
-            'u' => return self.checkKeyword(self.start + 1, 8, "ndefined", .undefined_),
-            'r' => return self.checkKeyword(self.start + 1, 2, "et", .ret),
-            'b' => if (token_len >= 2) {
-                    switch (self.source_mgr.get(self.start + 1)) {
-                        'r' => {
-                            if (token_len == 2)
-                                return .br
-                            else
-                                if (token_len == 3 and
-                                    self.source_mgr.get(self.start + 2) == 'c')
-                                    return .brc
-                                else
-                                    return null;
-                        },
-                        'o' => return self.checkKeyword(self.start + 2, 5, "olean", .boolean),
-                        else => return null,
-                    }
-                } else {
-                    return null;
-                },
-            else => return null,
-        }
+        return self.keyword_trie.get(self.source_mgr.snip(self.start, self.current));
     }
-
-    fn checkKeyword(self: Self, start: usize, len: usize,
-        rest: []const u8, kw: Token.Keyword) ?Token.Keyword {
-        if (self.current - start == len
-            and std.mem.eql(
-                u8,
-                self.source_mgr.snip(start, self.current),
-                rest)
-            ) {
-                return kw;
-        }
-
-        return null;
-    }
-
     pub fn lexIdentifier(self: *Self) Token {
 
         while (ascii.isAlphabetic(self.peek())
@@ -340,4 +313,13 @@ test "Trie can add and retrieve tags" {
     try std.testing.expectEqual(trie.get("none"), Token.Keyword.none);
     try std.testing.expectEqual(trie.get("my_custom_id"), Token.Keyword.func);
     try std.testing.expectEqual(trie.get("not_a_keyword"), null);
+}
+
+test "Trie from an enum" {
+    const trie = try Trie.initFromTags(std.testing.allocator, Token.Keyword);
+    defer trie.deinit();
+
+    try std.testing.expectEqual(trie.get("true"), Token.Keyword.true_);
+    try std.testing.expect(trie.get("true_") != Token.Keyword.true_);
+    try std.testing.expectEqual(trie.get("none"), Token.Keyword.none);
 }

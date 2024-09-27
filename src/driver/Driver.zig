@@ -76,6 +76,7 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
     const lexer = try Lexer.init(self.allocator, source_mgr);
     var parser = Parser.init(self.allocator, lexer, diag_engine);
     var program = try parser.parse();
+    lexer.deinit();
     defer program.deinit(self.allocator);
 
     var pass_manager = PassManager.init(self.allocator, &program, diag_engine);
