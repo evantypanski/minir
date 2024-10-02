@@ -6,6 +6,7 @@ const Token = @import("token.zig").Token;
 const SourceManager = @import("source_manager.zig").SourceManager;
 const Loc = @import("sourceloc.zig").Loc;
 const Trie = @import("util/trie.zig").Trie;
+const AsciiTrieNode = @import("util/trie.zig").AsciiTrieNode;
 
 pub const Lexer = struct {
     pub const Error = error {
@@ -20,14 +21,14 @@ pub const Lexer = struct {
     // Store the start in the lexer so we can grab an invalid token without
     // returning some fake error token
     start: usize,
-    keyword_trie: Trie(Token.Keyword),
+    keyword_trie: Trie(Token.Keyword, AsciiTrieNode(Token.Keyword)),
 
     pub fn init(allocator: Allocator, source_mgr: SourceManager) !Self {
         return .{
             .source_mgr = source_mgr,
             .current = 0,
             .start = 0,
-            .keyword_trie = try Trie(Token.Keyword).initFromTags(allocator),
+            .keyword_trie = try Trie(Token.Keyword, AsciiTrieNode(Token.Keyword)).initFromTags(allocator),
         };
     }
 

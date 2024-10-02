@@ -1,16 +1,16 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub fn Trie(comptime Tag: type) type {
+pub fn Trie(comptime Tag: type, comptime Node: type) type {
     return struct {
         const Self = @This();
 
         allocator: Allocator,
-        root: *TrieNode(Tag),
+        root: *Node,
 
         pub fn init(allocator: Allocator) !Self {
-            const root = try allocator.create(TrieNode(Tag));
-            root.* = TrieNode(Tag).init(null);
+            const root = try allocator.create(Node);
+            root.* = Node.init(null);
             return Self {
                 .allocator = allocator,
                 .root = root,
@@ -22,8 +22,8 @@ pub fn Trie(comptime Tag: type) type {
         /// counted.
         pub fn initFromTags(allocator: Allocator) !Self {
             const tags = std.enums.values(Tag);
-            const root = try allocator.create(TrieNode(Tag));
-            root.* = TrieNode(Tag).init(null);
+            const root = try allocator.create(Node);
+            root.* = Node.init(null);
             var result = Self {
                 .allocator = allocator,
                 .root = root,
@@ -50,19 +50,19 @@ pub fn Trie(comptime Tag: type) type {
         }
 
         pub fn add(self: Self, str: []const u8, tag: Tag) !void {
-            var current: ?*TrieNode(Tag) = self.root;
+            var current: ?*Node = self.root;
             for (str) |char| {
                 var child = try current.?.getChild(char);
                 if (child == null) {
-                    child = try self.allocator.create(TrieNode(Tag));
-                    child.?.* = TrieNode(Tag).init(null);
+                    child = try self.allocator.create(Node);
+                    child.?.* = Node.init(null);
                     // Set the child: Do this better, maybe in the node all at once
-                    current.?.children[try TrieNode(Tag).positionFor(char)] = child;
+                    try current.?.setChild(child, char);
                 }
                 current = child;
             }
 
-            current.?.*.tag = tag;
+            current.?.*.setTag(tag);
         }
 
         pub fn get(self: Self, str: []const u8) ?Tag {
@@ -76,55 +76,101 @@ pub fn Trie(comptime Tag: type) type {
                 current = child.?;
             }
 
-            return current.tag;
+            return current.getTag();
         }
     };
 }
 
-fn TrieNode(comptime Tag: type) type {
-    return struct {
-        const Self = @This();
+pub const TrieError = error {
+    InvalidIdentifier
+};
 
-        // 0-9 are digits 0-9, 10-35 are alphabet, 36 is '_'
-        // No upper-case ids in keywords yet
-        children: [37]?*TrieNode(Tag),
-        tag: ?Tag,
+fn TrieNode(comptime Tag: type, comptime BaseTy: type) type {
+    return struct {
+        pub const Self = @This();
+
+        inner: BaseTy,
 
         pub fn init(tag: ?Tag) Self {
-            return Self {
-                .children = [_]?*TrieNode(Tag) {null}**37,
-                .tag = tag,
+            return .{
+                .inner = BaseTy.init(tag),
             };
         }
 
         pub fn deinit(self: *Self, allocator: Allocator) void {
-            inline for (self.children) |opt_child| {
-                if (opt_child) |child| {
-                    child.deinit(allocator);
-                }
-            }
-            allocator.destroy(self);
+            return self.inner.deinit(allocator);
         }
 
-        pub fn getChild(self: Self, ch: u8) !?*TrieNode(Tag) {
-            const pos = try positionFor(ch);
-            return self.children[pos];
+        pub fn getChild(self: Self, ch: u8) TrieError!?*Self {
+            return self.inner.getChild(ch);
         }
 
-        pub fn positionFor(ch: u8) !usize {
-            if (ch == '_') return 36;
+        pub fn setChild(self: *Self, child: ?*Self, ch: u8) TrieError!void {
+            self.inner.children[try positionFor(ch)] = child;
+        }
 
-            if (ch >= '0' and ch <= '9') {
-                return ch - 48;
-            }
+        pub fn setTag(self: *Self, tag: Tag) void {
+            self.inner.tag = tag;
+        }
 
-            if (ch >= 'a' and ch <= 'z') {
-                return ch - 97 + 10;
-            }
+        pub fn getTag(self: *Self) ?Tag {
+            return self.inner.tag;
+        }
 
-            return error.InvalidIdentifier;
+        pub fn positionFor(ch: u8) TrieError!usize {
+            return BaseTy.positionFor(ch);
         }
     };
+}
+
+pub fn AsciiTrieNode(comptime Tag: type) type {
+    return TrieNode(
+        Tag,
+        struct {
+            pub const Self = @This();
+            pub const Outer = TrieNode(Tag, Self);
+
+            // 0-9 are digits 0-9, 10-35 are alphabet, 36 is '_'
+            // No upper-case ids in keywords yet
+            children: [37]?*Outer,
+            tag: ?Tag,
+
+            pub fn init(tag: ?Tag) Self {
+                return Self {
+                    .children = [_]?*Outer {null}**37,
+                    .tag = tag,
+                };
+            }
+
+            pub fn deinit(self: *Self, allocator: Allocator) void {
+                inline for (self.children) |opt_child| {
+                    if (opt_child) |child| {
+                        child.deinit(allocator);
+                    }
+                }
+                allocator.destroy(self);
+            }
+
+            pub fn getChild(self: Self, ch: u8) TrieError!?*Outer {
+                const pos = try positionFor(ch);
+                return self.children[pos];
+            }
+
+            pub fn positionFor(ch: u8) TrieError!usize {
+                if (ch == '_') return 36;
+
+                if (ch >= '0' and ch <= '9') {
+                    return ch - 48;
+                }
+
+                if (ch >= 'a' and ch <= 'z') {
+                    return ch - 97 + 10;
+                }
+
+                return error.InvalidIdentifier;
+            }
+        }
+    );
 }
 
 test "Trie can add and retrieve tags" {
@@ -136,7 +182,7 @@ test "Trie can add and retrieve tags" {
         five_,
     };
 
-    const trie = try Trie(MyEnum).init(std.testing.allocator);
+    const trie = try Trie(MyEnum, AsciiTrieNode(MyEnum)).init(std.testing.allocator);
     defer trie.deinit();
 
     try trie.add("one", MyEnum.one);
@@ -163,7 +209,7 @@ test "Trie from an enum" {
         f_o_u_r,
         five_,
     };
-    const trie = try Trie(MyEnum).initFromTags(std.testing.allocator);
+    const trie = try Trie(MyEnum, AsciiTrieNode(MyEnum)).initFromTags(std.testing.allocator);
     defer trie.deinit();
 
     try std.testing.expectEqual(trie.get("one"), MyEnum.one);
