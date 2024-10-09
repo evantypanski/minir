@@ -106,7 +106,7 @@ fn TrieNode(comptime Tag: type, comptime BaseTy: type) type {
         }
 
         pub fn setChild(self: *Self, child: ?*Self, ch: u8) TrieError!void {
-            self.inner.children[try positionFor(ch)] = child;
+            return self.inner.setChild(child, ch);
         }
 
         pub fn setTag(self: *Self, tag: Tag) void {
@@ -149,6 +149,10 @@ pub fn AsciiTrieNode(comptime Tag: type) type {
                     }
                 }
                 allocator.destroy(self);
+            }
+
+            pub fn setChild(self: *Self, child: ?*Outer, ch: u8) TrieError!void {
+                self.children[try positionFor(ch)] = child;
             }
 
             pub fn getChild(self: Self, ch: u8) TrieError!?*Outer {
