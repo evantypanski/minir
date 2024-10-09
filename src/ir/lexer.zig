@@ -21,14 +21,14 @@ pub const Lexer = struct {
     // Store the start in the lexer so we can grab an invalid token without
     // returning some fake error token
     start: usize,
-    keyword_trie: Trie(Token.Keyword, AsciiTrieNode(Token.Keyword)),
+    keyword_trie: Trie(AsciiTrieNode(Token.Keyword)),
 
     pub fn init(allocator: Allocator, source_mgr: SourceManager) !Self {
         return .{
             .source_mgr = source_mgr,
             .current = 0,
             .start = 0,
-            .keyword_trie = try Trie(Token.Keyword, AsciiTrieNode(Token.Keyword)).initFromTags(allocator),
+            .keyword_trie = try Trie(AsciiTrieNode(Token.Keyword)).initFromTags(allocator),
         };
     }
 

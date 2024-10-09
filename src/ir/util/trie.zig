@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub fn Trie(comptime Tag: type, comptime Node: type) type {
+pub fn Trie(comptime Node: type) type {
     return struct {
         const Self = @This();
 
@@ -21,7 +21,7 @@ pub fn Trie(comptime Tag: type, comptime Node: type) type {
         /// the various keys. If there is a trailing underscore, that is not
         /// counted.
         pub fn initFromTags(allocator: Allocator) !Self {
-            const tags = std.enums.values(Tag);
+            const tags = std.enums.values(Node.TagTy);
             const root = try allocator.create(Node);
             root.* = Node.init(null);
             var result = Self {
@@ -30,7 +30,7 @@ pub fn Trie(comptime Tag: type, comptime Node: type) type {
             };
 
             for (tags) |tag| {
-                var name = std.enums.tagName(Tag, tag) orelse continue;
+                var name = std.enums.tagName(Node.TagTy, tag) orelse continue;
 
                 // Remove the trailing '_' if it exists
                 name = if (name[name.len - 1] == '_')
@@ -49,7 +49,7 @@ pub fn Trie(comptime Tag: type, comptime Node: type) type {
             self.root.deinit(self.allocator);
         }
 
-        pub fn add(self: Self, str: []const u8, tag: Tag) !void {
+        pub fn add(self: Self, str: []const u8, tag: Node.TagTy) !void {
             var current: ?*Node = self.root;
             for (str) |char| {
                 var child = try current.?.getChild(char);
@@ -65,7 +65,7 @@ pub fn Trie(comptime Tag: type, comptime Node: type) type {
             current.?.*.setTag(tag);
         }
 
-        pub fn get(self: Self, str: []const u8) ?Tag {
+        pub fn get(self: Self, str: []const u8) ?Node.TagTy {
             var current = self.root;
             for (str) |char| {
                 const child = current.getChild(char) catch return null;
@@ -88,6 +88,7 @@ pub const TrieError = error {
 fn TrieNode(comptime Tag: type, comptime BaseTy: type) type {
     return struct {
         pub const Self = @This();
+        pub const TagTy = Tag;
 
         inner: BaseTy,
 
@@ -186,7 +187,7 @@ test "Trie can add and retrieve tags" {
         five_,
     };
 
-    const trie = try Trie(MyEnum, AsciiTrieNode(MyEnum)).init(std.testing.allocator);
+    const trie = try Trie(AsciiTrieNode(MyEnum)).init(std.testing.allocator);
     defer trie.deinit();
 
     try trie.add("one", MyEnum.one);
@@ -213,7 +214,7 @@ test "Trie from an enum" {
         f_o_u_r,
         five_,
     };
-    const trie = try Trie(MyEnum, AsciiTrieNode(MyEnum)).initFromTags(std.testing.allocator);
+    const trie = try Trie(AsciiTrieNode(MyEnum)).initFromTags(std.testing.allocator);
     defer trie.deinit();
 
     try std.testing.expectEqual(trie.get("one"), MyEnum.one);
