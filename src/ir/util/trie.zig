@@ -124,7 +124,8 @@ fn TrieNode(comptime Tag: type, comptime BaseTy: type) type {
     };
 }
 
-pub fn AsciiTrieNode(comptime Tag: type) type {
+/// A trie node which covers lowercase letters, digits, and underscores.
+pub fn LowercaseTrieNode(comptime Tag: type) type {
     return TrieNode(
         Tag,
         struct {
@@ -187,7 +188,7 @@ test "Trie can add and retrieve tags" {
         five_,
     };
 
-    const trie = try Trie(AsciiTrieNode(MyEnum)).init(std.testing.allocator);
+    const trie = try Trie(LowercaseTrieNode(MyEnum)).init(std.testing.allocator);
     defer trie.deinit();
 
     try trie.add("one", MyEnum.one);
@@ -214,7 +215,7 @@ test "Trie from an enum" {
         f_o_u_r,
         five_,
     };
-    const trie = try Trie(AsciiTrieNode(MyEnum)).initFromTags(std.testing.allocator);
+    const trie = try Trie(LowercaseTrieNode(MyEnum)).initFromTags(std.testing.allocator);
     defer trie.deinit();
 
     try std.testing.expectEqual(trie.get("one"), MyEnum.one);
