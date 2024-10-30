@@ -59,6 +59,7 @@ pub const DumpConfig = struct {
     const DumpFormat = enum {
         binary,
         debug,
+        json,
     };
 
     pub fn default() DumpConfig {

@@ -1,20 +1,20 @@
 const std = @import("std");
 const fmt = std.fmt;
-const Writer = @import("std").fs.File.Writer;
+const Writer = std.fs.File.Writer;
 
-const Program = @import("nodes/program.zig").Program;
-const Stmt = @import("nodes/statement.zig").Stmt;
-const VarDecl = @import("nodes/statement.zig").VarDecl;
-const Value = @import("nodes/value.zig").Value;
-const UnaryOp = @import("nodes/value.zig").UnaryOp;
-const BinaryOp = @import("nodes/value.zig").BinaryOp;
-const Pointer = @import("nodes/value.zig").Pointer;
-const Type = @import("nodes/type.zig").Type;
-const BasicBlock = @import("nodes/basic_block.zig").BasicBlock;
-const Decl = @import("nodes/decl.zig").Decl;
-const Function = @import("nodes/decl.zig").Function;
-const Builtin = @import("nodes/decl.zig").Builtin;
-const Precedence = @import("precedence.zig").Precedence;
+const Program = @import("../nodes/program.zig").Program;
+const Stmt = @import("../nodes/statement.zig").Stmt;
+const VarDecl = @import("../nodes/statement.zig").VarDecl;
+const Value = @import("../nodes/value.zig").Value;
+const UnaryOp = @import("../nodes/value.zig").UnaryOp;
+const BinaryOp = @import("../nodes/value.zig").BinaryOp;
+const Pointer = @import("../nodes/value.zig").Pointer;
+const Type = @import("../nodes/type.zig").Type;
+const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
+const Decl = @import("../nodes/decl.zig").Decl;
+const Function = @import("../nodes/decl.zig").Function;
+const Builtin = @import("../nodes/decl.zig").Builtin;
+const Precedence = @import("../precedence.zig").Precedence;
 
 const DisassemblerError = Writer.Error || fmt.format_float.FormatError;
 

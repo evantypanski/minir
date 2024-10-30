@@ -84,6 +84,7 @@ pub const CommandLine = struct {
             \\Options:
             \\  --debug, -d     Dump in a human readable, debug format
             \\  --binary, -b    Dump in a binary format (default)
+            \\  --json          Dump in JSON
             \\
             \\
         );
@@ -189,6 +190,8 @@ pub const CommandLine = struct {
                     config.format = .debug;
                 } if (arg[1] == 'b' or std.mem.eql(u8, arg, "--binary")) {
                     config.format = .binary;
+                } if (std.mem.eql(u8, arg, "--json")) {
+                    config.format = .json;
                 } else {
                     try unknownOption(arg);
                 }

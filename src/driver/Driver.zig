@@ -8,7 +8,8 @@ const BasicBlockBuilder = @import("../ir/nodes/basic_block.zig").BasicBlockBuild
 const ProgramBuilder = @import("../ir/nodes/program.zig").ProgramBuilder;
 const Stmt = @import("../ir/nodes/statement.zig").Stmt;
 const Value = @import("../ir/nodes/value.zig").Value;
-const Formatter = @import("../ir/disassembler.zig").Disassembler;
+const Formatter = @import("../ir/dump/disassembler.zig").Disassembler;
+const JSONifier = @import("../ir/dump/json.zig").JSONifier;
 const TreewalkInterpreter = @import("../ir/interpret.zig").Interpreter;
 const Numify = @import("../ir/passes/numify.zig").Numify;
 const Lexer = @import("../ir/lexer.zig").Lexer;
@@ -122,6 +123,18 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
             try formatter.disassemble();
         },
         .dump => |config| {
+            // Do dumps for formats on minir (not bytecode)
+            switch (config.format) {
+                .json => {
+                    var jsonifier = JSONifier {
+                        .writer = self.out,
+                        .program = program,
+                    };
+                    try jsonifier.disassemble();
+                    return;
+                },
+                else => {},
+            }
             const chunk = try pass_manager.get(Lower);
             defer chunk.deinit(self.allocator);
 
@@ -136,6 +149,7 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
                     var disassembler = Disassembler.init(chunk, self.out);
                     try disassembler.disassemble();
                 },
+                else => unreachable,
             }
         },
         .none => {},
