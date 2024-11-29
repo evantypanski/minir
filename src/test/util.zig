@@ -6,6 +6,7 @@ const Driver = @import("../driver/Driver.zig");
 const InterpretConfig = @import("../driver/options.zig").InterpretConfig;
 const DumpConfig = @import("../driver/options.zig").DumpConfig;
 const InterpreterType = @import("../driver/options.zig").InterpreterType;
+const DumpFormat = @import("../driver/options.zig").DumpFormat;
 const Options = @import("../driver/options.zig").Options;
 
 pub var outDir: std.testing.TmpDir = undefined;
@@ -97,3 +98,27 @@ pub fn getOutput(
     return try out.readToEndAlloc(std.testing.allocator, std.math.maxInt(u32));
 }
 
+/// Gets the dump from running minir with a given format
+///
+/// MUST set outDir in this before using this function.
+pub fn getDumpOutput(
+    test_file: []const u8,
+    comptime format: DumpFormat
+) ![]u8 {
+    const out = try outDir.dir.createFile(
+        @tagName(format) ++ ".out", .{ .read = true }
+    );
+
+    const config = DumpConfig {
+        .filename = test_file,
+        .format = format,
+    };
+    const cmd = Options {
+        .dump = config,
+    };
+
+    try Driver.init(std.testing.allocator, out.writer()).driveWithOpts(cmd, Driver.default_passes);
+
+    try out.seekTo(0);
+    return try out.readToEndAlloc(std.testing.allocator, std.math.maxInt(u32));
+}

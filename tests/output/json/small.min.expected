@@ -1,0 +1,1 @@
+{"decls":[{"function":{"name":"main","elements":[{"stmt_kind":{"id":{"name":"i","val":{"val_kind":{"int":0},"loc":{"start":32,"end":33}},"ty":null}},"label":null,"loc":{"start":24,"end":33}},{"stmt_kind":{"ret":null},"label":null,"loc":{"start":36,"end":39}}],"params":[],"ret_ty":{"none":{}}}}]}

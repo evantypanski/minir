@@ -51,16 +51,15 @@ pub const FmtConfig = struct {
     }
 };
 
+pub const DumpFormat = enum {
+    binary,
+    debug,
+    json,
+};
 
 pub const DumpConfig = struct {
     filename: ?[]const u8,
     format: DumpFormat,
-
-    const DumpFormat = enum {
-        binary,
-        debug,
-        json,
-    };
 
     pub fn default() DumpConfig {
         return .{

@@ -31,6 +31,18 @@ fn run(comptime name: []const u8) !void {
     _ = try util.compareOutput(tests_dir, expected_name, byte_result);
 }
 
+fn json(comptime name: []const u8) !void {
+    const tests_dir = try std.fs.cwd().openDir("tests/output", .{});
+    const test_file = try tests_dir.realpathAlloc(std.testing.allocator, name);
+    defer std.testing.allocator.free(test_file);
+
+    const json_result = try util.getDumpOutput(test_file, .json);
+    defer std.testing.allocator.free(json_result);
+
+    const expected_name = name ++ ".expected";
+    _ = try util.compareOutput(tests_dir, expected_name, json_result);
+}
+
 test "output examples" {
     util.outDir = std.testing.tmpDir(.{});
 
@@ -43,6 +55,14 @@ test "output examples" {
     try run("unary_neg.min");
     try run("ptr_fn.min");
     try run("bool.min");
+
+    util.outDir.cleanup();
+}
+
+test "output dump examples" {
+    util.outDir = std.testing.tmpDir(.{});
+
+    try json("json/small.min");
 
     util.outDir.cleanup();
 }

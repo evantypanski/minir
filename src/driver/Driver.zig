@@ -131,6 +131,7 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
                         .program = program,
                     };
                     try jsonifier.disassemble();
+                    source_mgr.deinit();
                     return;
                 },
                 else => {},
