@@ -186,11 +186,11 @@ pub const CommandLine = struct {
                 if (arg[1] == 'h' or std.mem.eql(u8, arg, "--help")) {
                     try self.printDumpHelp();
                     return .none;
-                } if (arg[1] == 'd' or std.mem.eql(u8, arg, "--debug")) {
+                } else if (arg[1] == 'd' or std.mem.eql(u8, arg, "--debug")) {
                     config.format = .debug;
-                } if (arg[1] == 'b' or std.mem.eql(u8, arg, "--binary")) {
+                } else if (arg[1] == 'b' or std.mem.eql(u8, arg, "--binary")) {
                     config.format = .binary;
-                } if (std.mem.eql(u8, arg, "--json")) {
+                } else if (std.mem.eql(u8, arg, "--json")) {
                     config.format = .json;
                 } else {
                     try unknownOption(arg);
