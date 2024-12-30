@@ -1,28 +1,28 @@
 func main() -> none {
   let i = 100;
   debug(i);
-  add_one_sanity_check(i)
+  add_one_sanity_check(i);
   debug(i);
   let ptr = alloc(int);
-  *ptr = 5
+  *ptr = 5;
   debug(*ptr);
-  add_one(ptr)
+  add_one(ptr);
   debug(*ptr);
-  add_one(identity(ptr))
+  add_one(identity(ptr));
   debug(*ptr);
-  ret
+  ret;
 }
 
 func add_one_sanity_check(i: int) -> none {
-  i = i + 1
-  ret
+  i = i + 1;
+  ret;
 }
 
 func add_one(i: *int) -> none {
-  *i = *i + 1
-  ret
+  *i = *i + 1;
+  ret;
 }
 
 func identity(i: *int) -> *int {
-  ret i
+  ret i;
 }

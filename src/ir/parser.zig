@@ -196,22 +196,23 @@ pub const Parser = struct {
     }
 
     fn parseStmt(self: *Self) Error!Stmt {
-        // Possibly match a semicolon in order to optionally delineate
-        // statements
-        defer _ = self.match(.semi);
         const label = if (self.match(.at))
                 try self.parseLabel()
             else
                 null;
-        if (self.matchKw(.let)) {
-            return self.parseLet(label);
-        } else if (self.matchKw(.ret)) {
-            return self.parseRet(label);
-        } else if (self.current.isBranch()) {
-            return self.parseBranch(label);
-        } else {
-            return self.parseExprStmt(label);
-        }
+
+        const parsed_stmt = if (self.matchKw(.let))
+            try self.parseLet(label)
+        else if (self.matchKw(.ret))
+            try self.parseRet(label)
+        else if (self.current.isBranch())
+            try self.parseBranch(label)
+        else
+            try self.parseExprStmt(label);
+
+        try self.consume(.semi);
+
+        return parsed_stmt;
     }
 
     fn parseLabel(self: *Self) Error![]const u8 {
@@ -249,9 +250,8 @@ pub const Parser = struct {
 
     fn parseRet(self: *Self, label: ?[]const u8) Error!Stmt {
         const start = self.previous.loc.start;
-        // Return is apparently always at the end of a block, I guess. That
-        // will probably change.
-        const val = if (self.current.tag == .rbrace)
+        // If we're at the end of the statement, don't parse the value
+        const val = if (self.current.tag == .semi)
             null
         else
             try self.parseExpr();

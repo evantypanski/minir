@@ -3,5 +3,5 @@ func main() -> none {
   debug(*a);
   *a = 5;
   debug(*a);
-  ret
+  ret;
 }

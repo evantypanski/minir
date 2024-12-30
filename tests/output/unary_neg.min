@@ -1,7 +1,7 @@
 func main() -> none {
-  debug(-1)
-  debug(-1 + 2)
-  debug(-5 + 4)
-  debug(-1 + -1)
-  ret
+  debug(-1);
+  debug(-1 + 2);
+  debug(-5 + 4);
+  debug(-1 + -1);
+  ret;
 }

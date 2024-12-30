@@ -142,6 +142,8 @@ pub const Disassembler = struct {
                 try self.disassembleValue(val);
             }
         }
+
+        try self.writer.writeAll(";");
     }
 
     pub fn disassembleValue(self: Disassembler, value: Value) DisassemblerError!void {

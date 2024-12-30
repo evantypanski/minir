@@ -1,16 +1,16 @@
 func main() -> none {
-  debug(fib(10))
-  ret
+  debug(fib(10));
+  ret;
 }
 
 func fib(n: int) -> int {
-  brc zero n == 0
-  brc one n == 1
-  br else
+  brc zero n == 0;
+  brc one n == 1;
+  br else;
 @zero
-  ret 0
+  ret 0;
 @one
-  ret 1
+  ret 1;
 @else
-  ret fib(n-1) + fib(n-2)
+  ret fib(n-1) + fib(n-2);
 }

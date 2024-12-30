@@ -48,7 +48,7 @@ fn expectDisassembled(program: Program, expected: []const u8) !void {
 test "Test no passes" {
     const begin_str =
         \\func main() -> none {
-        \\  let i: int = 42
+        \\  let i: int = 42;
         \\}
         ;
 
@@ -57,7 +57,7 @@ test "Test no passes" {
 
     try expectDisassembled(start,
         \\func main() -> none {
-        \\  let i: int = 42
+        \\  let i: int = 42;
         \\}
     );
 }
@@ -65,7 +65,7 @@ test "Test no passes" {
 test "Test simple blockify" {
     const begin_str =
         \\func main() -> none {
-        \\  let i: int = 42
+        \\  let i: int = 42;
         \\}
         ;
 
@@ -80,7 +80,7 @@ test "Test simple blockify" {
     try expectDisassembled(start,
         \\func main() -> none {
         \\  {
-        \\    let i: int = 42
+        \\    let i: int = 42;
         \\  }
         \\}
     );
@@ -90,9 +90,9 @@ test "Test blockify with jump" {
     const begin_str =
         \\func main() -> none {
         \\  @label
-        \\  let i: int = 42
-        \\  br label
-        \\  let j: int = 420
+        \\  let i: int = 42;
+        \\  br label;
+        \\  let j: int = 420;
         \\}
         ;
 
@@ -107,11 +107,11 @@ test "Test blockify with jump" {
     try expectDisassembled(start,
         \\func main() -> none {
         \\  @label {
-        \\    let i: int = 42
-        \\    br label
+        \\    let i: int = 42;
+        \\    br label;
         \\  }
         \\  {
-        \\    let j: int = 420
+        \\    let j: int = 420;
         \\  }
         \\}
     );
@@ -120,7 +120,7 @@ test "Test blockify with jump" {
 test "Test simple constant folding" {
     const begin_str =
         \\func main() -> none {
-        \\  let i: int = 40 + 2
+        \\  let i: int = 40 + 2;
         \\}
         ;
 
@@ -135,7 +135,7 @@ test "Test simple constant folding" {
     // Parentheses be damned
     try expectDisassembled(start,
         \\func main() -> none {
-        \\  let i: int = 42
+        \\  let i: int = 42;
         \\}
     );
 }

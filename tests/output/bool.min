@@ -1,12 +1,12 @@
 func main() -> none {
   let b = false;
 @loop
-  debug(b)
-  b = !b
-  brc loop isTrue(b)
-  ret
+  debug(b);
+  b = !b;
+  brc loop isTrue(b);
+  ret;
 }
 
 func isTrue(b: boolean) -> boolean {
-  ret b
+  ret b;
 }

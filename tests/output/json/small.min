@@ -1,4 +1,4 @@
 func main() -> none {
-  let i = 0
-  ret
+  let i = 0;
+  ret;
 }

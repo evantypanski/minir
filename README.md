@@ -16,21 +16,21 @@ Here's a slightly convoluted program that prints from `42` to `59`:
 
 ```
 func main() -> none {
-  let i: int = 42
+  let i: int = 42;
 @loop
-  test(i)
-  i = addone(i)
-  brc loop !(i == 60)
-  ret
+  test(i);
+  i = addone(i);
+  brc loop !(i == 60);
+  ret;
 }
 
 func addone(i: int) -> int {
-  ret i + 1
+  ret i + 1;
 }
 
 func test(k: int) -> none {
-  debug(k)
-  ret
+  debug(k);
+  ret;
 }
 ```
 

@@ -1,5 +1,5 @@
 func main() -> none {
   let i = 100;
   debug(i);
-  ret
+  ret;
 }
