@@ -58,7 +58,7 @@ pub fn getOutput(test_file: []const u8, comptime interpreter: InterpreterType) !
             const cmd = Options{
                 .dump = config,
             };
-            try Driver.init(std.testing.allocator, output_bytecode.writer())
+            try Driver.init(std.testing.allocator, output_bytecode.writer().any())
                 .driveWithOpts(cmd, Driver.default_passes);
 
             output_bytecode.close();
@@ -80,7 +80,7 @@ pub fn getOutput(test_file: []const u8, comptime interpreter: InterpreterType) !
         .interpret = config,
     };
 
-    try Driver.init(std.testing.allocator, out.writer()).driveWithOpts(cmd, Driver.default_passes);
+    try Driver.init(std.testing.allocator, out.writer().any()).driveWithOpts(cmd, Driver.default_passes);
 
     // Binary one allocs an input file name
     if (interpreter == .binary) {
@@ -105,7 +105,7 @@ pub fn getDumpOutput(test_file: []const u8, comptime format: DumpFormat) ![]u8 {
         .dump = config,
     };
 
-    try Driver.init(std.testing.allocator, out.writer()).driveWithOpts(cmd, Driver.default_passes);
+    try Driver.init(std.testing.allocator, out.writer().any()).driveWithOpts(cmd, Driver.default_passes);
 
     try out.seekTo(0);
     return try out.readToEndAlloc(std.testing.allocator, std.math.maxInt(u32));

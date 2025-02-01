@@ -1,7 +1,7 @@
 const std = @import("std");
 const fmt = std.fmt;
 const ArrayList = std.ArrayList;
-const Writer = std.fs.File.Writer;
+const AnyWriter = std.io.AnyWriter;
 
 const Chunk = @import("chunk.zig").Chunk;
 const Value = @import("value.zig").Value;
@@ -18,12 +18,12 @@ const Frame = struct {
 };
 
 pub const Interpreter = struct {
-    pub const Error = errors.RuntimeError || errors.InvalidBytecodeError || Writer.Error || fmt.format_float.FormatError || Heap.Error;
+    pub const Error = errors.RuntimeError || errors.InvalidBytecodeError || AnyWriter.Error || fmt.format_float.FormatError || Heap.Error;
 
     const Self = @This();
 
     heap: Heap,
-    writer: Writer,
+    writer: AnyWriter,
     chunk: Chunk,
 
     // We have a max function call depth
@@ -38,7 +38,7 @@ pub const Interpreter = struct {
     // Index into the chunk's instructions.
     pc: usize,
 
-    pub fn init(chunk: Chunk, writer: Writer) Self {
+    pub fn init(chunk: Chunk, writer: AnyWriter) Self {
         return .{
             .heap = try Heap.init(),
             .writer = writer,
@@ -377,7 +377,7 @@ test "binary ops" {
     var dir = std.testing.tmpDir(.{});
     var file = try dir.dir.createFile("binaryops", .{ .read = true });
 
-    var interpreter = Interpreter.init(chunk, file.writer());
+    var interpreter = Interpreter.init(chunk, file.writer().any());
     try interpreter.interpret();
 
     var buffer = [_]u8{0} ** 10;

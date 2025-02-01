@@ -32,7 +32,7 @@ fn expectDisassembled(program: Program, expected: []const u8) !void {
     var outFile = try tmpdir.dir.createFile("out", .{});
 
     const disassembler = Disassembler{
-        .writer = outFile.writer(),
+        .writer = outFile.writer().any(),
         .program = program,
     };
     try disassembler.disassemble();

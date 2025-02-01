@@ -8,7 +8,7 @@ pub fn main() !void {
     const gpa = general_purpose_allocator.allocator();
     const stdout = std.io.getStdOut().writer();
 
-    Driver.init(gpa, stdout).drive() catch {
+    Driver.init(gpa, stdout.any()).drive() catch {
         std.log.err("Fatal error occurred; aborting", .{});
     };
 }

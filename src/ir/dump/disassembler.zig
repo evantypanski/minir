@@ -1,6 +1,6 @@
 const std = @import("std");
 const fmt = std.fmt;
-const Writer = std.fs.File.Writer;
+const AnyWriter = std.io.AnyWriter;
 
 const Program = @import("../nodes/program.zig").Program;
 const Stmt = @import("../nodes/statement.zig").Stmt;
@@ -16,10 +16,10 @@ const Function = @import("../nodes/decl.zig").Function;
 const Builtin = @import("../nodes/decl.zig").Builtin;
 const Precedence = @import("../precedence.zig").Precedence;
 
-const DisassemblerError = Writer.Error || fmt.format_float.FormatError;
+const DisassemblerError = AnyWriter.Error || fmt.format_float.FormatError;
 
 pub const Disassembler = struct {
-    writer: Writer,
+    writer: AnyWriter,
     program: Program,
     var indent: usize = 0;
 

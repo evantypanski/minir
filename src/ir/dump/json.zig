@@ -1,12 +1,12 @@
 const std = @import("std");
-const Writer = std.fs.File.Writer;
+const AnyWriter = std.io.AnyWriter;
 
 const Program = @import("../nodes/program.zig").Program;
 
-const JSONError = Writer.Error;
+const JSONError = AnyWriter.Error;
 
 pub const JSONifier = struct {
-    writer: Writer,
+    writer: AnyWriter,
     program: Program,
 
     pub fn disassemble(self: JSONifier) JSONError!void {

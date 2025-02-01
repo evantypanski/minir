@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
-const Writer = std.fs.File.Writer;
+const AnyWriter = std.io.AnyWriter;
 
 const FunctionBuilder = @import("../ir/nodes/decl.zig").FunctionBuilder;
 const BasicBlockBuilder = @import("../ir/nodes/basic_block.zig").BasicBlockBuilder;
@@ -31,9 +31,9 @@ const Self = @This();
 pub const default_passes = &[_]type{ Numify, ResolveBranches, ResolveCalls, Typecheck };
 
 allocator: Allocator,
-out: Writer,
+out: AnyWriter,
 
-pub fn init(allocator: Allocator, out: Writer) Self {
+pub fn init(allocator: Allocator, out: AnyWriter) Self {
     return .{
         .allocator = allocator,
         .out = out,

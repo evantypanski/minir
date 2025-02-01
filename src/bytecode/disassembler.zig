@@ -1,6 +1,6 @@
 const std = @import("std");
 const fmt = std.fmt;
-const Writer = std.fs.File.Writer;
+const AnyWriter = std.io.AnyWriter;
 
 const OpCode = @import("opcodes.zig").OpCode;
 const Chunk = @import("chunk.zig").Chunk;
@@ -8,17 +8,17 @@ const Value = @import("value.zig").Value;
 const InvalidBytecodeError = @import("errors.zig").InvalidBytecodeError;
 
 pub const Disassembler = struct {
-    pub const Error = InvalidBytecodeError || Writer.Error || fmt.format_float.FormatError;
+    pub const Error = InvalidBytecodeError || AnyWriter.Error || fmt.format_float.FormatError;
 
     const Self = @This();
 
     chunk: Chunk,
-    writer: Writer,
+    writer: AnyWriter,
 
     // Index into the chunk's instructions
     idx: usize,
 
-    pub fn init(chunk: Chunk, writer: Writer) Self {
+    pub fn init(chunk: Chunk, writer: AnyWriter) Self {
         return .{
             .chunk = chunk,
             .writer = writer,

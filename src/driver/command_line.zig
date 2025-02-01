@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const Writer = std.fs.File.Writer;
+const AnyWriter = std.io.AnyWriter;
 const Options = @import("options.zig").Options;
 const Config = @import("options.zig").Config;
 const InterpretConfig = @import("options.zig").InterpretConfig;
@@ -15,12 +15,12 @@ pub const CommandLine = struct {
     const Self = @This();
 
     allocator: std.mem.Allocator,
-    writer: Writer,
+    writer: AnyWriter,
     // Command line owns the command line arguments and will deinit them
     // with deinit()
     args: [][:0]u8,
 
-    pub fn init(allocator: std.mem.Allocator, writer: Writer) !Self {
+    pub fn init(allocator: std.mem.Allocator, writer: AnyWriter) !Self {
         return .{
             .allocator = allocator,
             .writer = writer,

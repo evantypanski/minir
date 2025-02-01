@@ -4,7 +4,7 @@ const std = @import("std");
 const fmt = std.fmt;
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
-const Writer = std.fs.File.Writer;
+const AnyWriter = std.io.AnyWriter;
 
 const Loc = @import("sourceloc.zig").Loc;
 const Function = @import("nodes/decl.zig").Function;
@@ -49,7 +49,7 @@ pub const Interpreter = struct {
 
     const Self = @This();
 
-    writer: Writer,
+    writer: AnyWriter,
     program: Program,
     // The current basic block's index getting executed.
     // Will start and end as null.
@@ -58,7 +58,7 @@ pub const Interpreter = struct {
     call_stack: ArrayList(Frame),
     heap: Heap,
 
-    pub fn init(allocator: Allocator, writer: Writer, program: Program) !Self {
+    pub fn init(allocator: Allocator, writer: AnyWriter, program: Program) !Self {
         return .{
             .writer = writer,
             .program = program,
