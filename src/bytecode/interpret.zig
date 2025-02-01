@@ -42,10 +42,7 @@ pub const Interpreter = struct {
         return .{
             .heap = try Heap.init(),
             .writer = writer,
-            .call_stack = [_] Frame { .{
-                    .frame_stack_begin = 0,
-                    .return_pc = 0
-                }} ** array_size,
+            .call_stack = [_]Frame{.{ .frame_stack_begin = 0, .return_pc = 0 }} ** array_size,
             .call_idx = 1,
             .chunk = chunk,
             .stack = [_]Value{.undef} ** array_size,
@@ -197,7 +194,7 @@ pub const Interpreter = struct {
                 const bytes = self.heap.getBytes(to, size);
                 const val = std.mem.bytesAsValue(Value, bytes[0..size]);
                 val.* = try self.popVal();
-            }
+            },
         }
     }
 
@@ -281,7 +278,6 @@ pub const Interpreter = struct {
         return @bitCast(byte);
     }
 
-
     // Gets the next two bytes as a signed short (i16)
     fn getShort(self: *Self) Error!i16 {
         if (self.pc + 2 >= self.chunk.bytes.len) {
@@ -348,8 +344,7 @@ pub const Interpreter = struct {
     fn isFatal(e: Error) bool {
         // Most are fatal so just mark those as non-fatal, rest are fatal.
         return switch (e) {
-            error.InvalidOperand, error.InvalidStackIndex,
-                error.InvalidValueIndex => false,
+            error.InvalidOperand, error.InvalidStackIndex, error.InvalidValueIndex => false,
             else => true,
         };
     }
@@ -385,7 +380,7 @@ test "binary ops" {
     var interpreter = Interpreter.init(chunk, file.writer());
     try interpreter.interpret();
 
-    var buffer = [_]u8 { 0 } ** 10;
+    var buffer = [_]u8{0} ** 10;
     const bytes_read = try file.preadAll(&buffer, 0);
 
     try std.testing.expectEqual(bytes_read, 5);

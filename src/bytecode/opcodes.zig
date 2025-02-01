@@ -49,22 +49,20 @@ pub const OpCode = enum(u8) {
     heapset,
 
     pub fn numImmediates(self: Self) usize {
-         return switch (self) {
-             .jmp, .jmpt, .call => 2,
-             .constant, .set, .get, .alloc, .deref, .heapset => 1,
-             .ret, .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
-             .pop, .and_, .or_, .neg, .not => 0,
-         };
+        return switch (self) {
+            .jmp, .jmpt, .call => 2,
+            .constant, .set, .get, .alloc, .deref, .heapset => 1,
+            .ret, .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le, .pop, .and_, .or_, .neg, .not => 0,
+        };
     }
 
     pub fn stackEffect(self: Self) isize {
-         return switch (self) {
-             .constant, .get, .alloc => 1,
-             .ret, .call, .jmp, .deref, .neg, .not => 0,
-             .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le,
-             .set, .jmpt, .pop, .and_, .or_ => -1,
-             .heapset => -2,
-         };
+        return switch (self) {
+            .constant, .get, .alloc => 1,
+            .ret, .call, .jmp, .deref, .neg, .not => 0,
+            .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le, .set, .jmpt, .pop, .and_, .or_ => -1,
+            .heapset => -2,
+        };
     }
 
     // If this updates the PC to an absolute value so the PC should not

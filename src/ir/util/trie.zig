@@ -11,7 +11,7 @@ pub fn Trie(comptime Node: type) type {
         pub fn init(allocator: Allocator) !Self {
             const root = try allocator.create(Node);
             root.* = Node.init(null);
-            return Self {
+            return Self{
                 .allocator = allocator,
                 .root = root,
             };
@@ -24,7 +24,7 @@ pub fn Trie(comptime Node: type) type {
             const tags = std.enums.values(Node.TagTy);
             const root = try allocator.create(Node);
             root.* = Node.init(null);
-            var result = Self {
+            var result = Self{
                 .allocator = allocator,
                 .root = root,
             };
@@ -34,7 +34,7 @@ pub fn Trie(comptime Node: type) type {
 
                 // Remove the trailing '_' if it exists
                 name = if (name[name.len - 1] == '_')
-                    name[0..name.len-1]
+                    name[0 .. name.len - 1]
                 else
                     name[0..name.len];
 
@@ -81,9 +81,7 @@ pub fn Trie(comptime Node: type) type {
     };
 }
 
-pub const TrieError = error {
-    InvalidIdentifier
-};
+pub const TrieError = error{InvalidIdentifier};
 
 fn TrieNode(comptime Tag: type, comptime BaseTy: type) type {
     return struct {
@@ -126,57 +124,54 @@ fn TrieNode(comptime Tag: type, comptime BaseTy: type) type {
 
 /// A trie node which covers lowercase letters, digits, and underscores.
 pub fn LowercaseTrieNode(comptime Tag: type) type {
-    return TrieNode(
-        Tag,
-        struct {
-            pub const Self = @This();
-            pub const Outer = TrieNode(Tag, Self);
+    return TrieNode(Tag, struct {
+        pub const Self = @This();
+        pub const Outer = TrieNode(Tag, Self);
 
-            // 0-9 are digits 0-9, 10-35 are alphabet, 36 is '_'
-            // No upper-case ids in keywords yet
-            children: [37]?*Outer,
-            tag: ?Tag,
+        // 0-9 are digits 0-9, 10-35 are alphabet, 36 is '_'
+        // No upper-case ids in keywords yet
+        children: [37]?*Outer,
+        tag: ?Tag,
 
-            pub fn init(tag: ?Tag) Self {
-                return Self {
-                    .children = [_]?*Outer {null}**37,
-                    .tag = tag,
-                };
-            }
-
-            pub fn deinit(self: *Self, allocator: Allocator) void {
-                inline for (self.children) |opt_child| {
-                    if (opt_child) |child| {
-                        child.deinit(allocator);
-                    }
-                }
-                allocator.destroy(self);
-            }
-
-            pub fn setChild(self: *Self, child: ?*Outer, ch: u8) TrieError!void {
-                self.children[try positionFor(ch)] = child;
-            }
-
-            pub fn getChild(self: Self, ch: u8) TrieError!?*Outer {
-                const pos = try positionFor(ch);
-                return self.children[pos];
-            }
-
-            pub fn positionFor(ch: u8) TrieError!usize {
-                if (ch == '_') return 36;
-
-                if (ch >= '0' and ch <= '9') {
-                    return ch - 48;
-                }
-
-                if (ch >= 'a' and ch <= 'z') {
-                    return ch - 97 + 10;
-                }
-
-                return error.InvalidIdentifier;
-            }
+        pub fn init(tag: ?Tag) Self {
+            return Self{
+                .children = [_]?*Outer{null} ** 37,
+                .tag = tag,
+            };
         }
-    );
+
+        pub fn deinit(self: *Self, allocator: Allocator) void {
+            inline for (self.children) |opt_child| {
+                if (opt_child) |child| {
+                    child.deinit(allocator);
+                }
+            }
+            allocator.destroy(self);
+        }
+
+        pub fn setChild(self: *Self, child: ?*Outer, ch: u8) TrieError!void {
+            self.children[try positionFor(ch)] = child;
+        }
+
+        pub fn getChild(self: Self, ch: u8) TrieError!?*Outer {
+            const pos = try positionFor(ch);
+            return self.children[pos];
+        }
+
+        pub fn positionFor(ch: u8) TrieError!usize {
+            if (ch == '_') return 36;
+
+            if (ch >= '0' and ch <= '9') {
+                return ch - 48;
+            }
+
+            if (ch >= 'a' and ch <= 'z') {
+                return ch - 97 + 10;
+            }
+
+            return error.InvalidIdentifier;
+        }
+    });
 }
 
 test "Trie can add and retrieve tags" {

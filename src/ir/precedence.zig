@@ -25,4 +25,3 @@ pub const Precedence = enum(u8) {
         return @enumFromInt(@intFromEnum(self) + 1);
     }
 };
-

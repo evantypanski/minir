@@ -14,22 +14,7 @@ pub const BuiltinKind = enum {
 };
 
 pub const builtins = blk: {
-    break :blk StaticStringMap(*const Decl).initComptime(.{
-        .{
-            "alloc", &Decl{ .builtin = .{
-                .params = &.{ VarDecl{ .name = "ty", .val = null, .ty = Type.type_ }},
-                .ret_ty = Type { .pointer = &.{.runtime = {} } },
-                .kind = .alloc
-            }}
-        },
-        .{
-            "debug", &Decl{ .builtin = .{
-                .params = &.{ VarDecl{ .name = "val", .val = null, .ty = Type.runtime }},
-                .ret_ty = .none,
-                .kind = .debug
-            }}
-        }
-    });
+    break :blk StaticStringMap(*const Decl).initComptime(.{ .{ "alloc", &Decl{ .builtin = .{ .params = &.{VarDecl{ .name = "ty", .val = null, .ty = Type.type_ }}, .ret_ty = Type{ .pointer = &.{ .runtime = {} } }, .kind = .alloc } } }, .{ "debug", &Decl{ .builtin = .{ .params = &.{VarDecl{ .name = "val", .val = null, .ty = Type.runtime }}, .ret_ty = .none, .kind = .debug } } } });
 };
 
 pub const Builtin = struct {
@@ -57,8 +42,7 @@ pub fn Function(comptime ElementType: type) type {
         params: []VarDecl,
         ret_ty: Type,
 
-        pub fn init(name: []const u8, elements: []ElementType,
-                    params: []VarDecl, ret_ty: Type) Self {
+        pub fn init(name: []const u8, elements: []ElementType, params: []VarDecl, ret_ty: Type) Self {
             return .{
                 .name = name,
                 .elements = elements,
@@ -134,8 +118,7 @@ pub fn FunctionBuilder(comptime ElementType: type) type {
 
         pub fn build(self: *Self) !Function(ElementType) {
             return Function(ElementType)
-                .init(self.name, try self.elements.toOwnedSlice(),
-                      try self.params.toOwnedSlice(), self.ret_ty orelse .none);
+                .init(self.name, try self.elements.toOwnedSlice(), try self.params.toOwnedSlice(), self.ret_ty orelse .none);
         }
     };
 }

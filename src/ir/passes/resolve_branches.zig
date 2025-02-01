@@ -13,13 +13,10 @@ const Value = @import("../nodes/value.zig").Value;
 const IrVisitor = @import("util/visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 
-pub const ResolveBranches = Modifier(
-    ResolveBranchesPass, ResolveBranchesPass.Error, &[_]type{},
-    ResolveBranchesPass.init, ResolveBranchesPass.execute
-);
+pub const ResolveBranches = Modifier(ResolveBranchesPass, ResolveBranchesPass.Error, &[_]type{}, ResolveBranchesPass.init, ResolveBranchesPass.execute);
 
 pub const ResolveBranchesPass = struct {
-    pub const Error = error {
+    pub const Error = error{
         LabelNotFound,
     } || Allocator.Error;
 
@@ -42,12 +39,12 @@ pub const ResolveBranchesPass = struct {
         self.label_map.clearAndFree();
     }
 
-    pub const FindBranchesVisitor = VisitorTy {
+    pub const FindBranchesVisitor = VisitorTy{
         .visitFunction = visitFunction,
         .visitBBFunction = visitBBFunction,
     };
 
-    pub const PopulateBranchesVisitor = VisitorTy {
+    pub const PopulateBranchesVisitor = VisitorTy{
         .visitBranch = visitBranch,
     };
 
@@ -56,11 +53,7 @@ pub const ResolveBranchesPass = struct {
         try FindBranchesVisitor.visitProgram(FindBranchesVisitor, self, program);
     }
 
-    pub fn visitFunction(
-        visitor: VisitorTy,
-        self: *Self,
-        func: *Function(Stmt)
-    ) Error!void {
+    pub fn visitFunction(visitor: VisitorTy, self: *Self, func: *Function(Stmt)) Error!void {
         _ = visitor;
         var ele: usize = 0;
         for (func.elements) |bb| {
@@ -71,11 +64,7 @@ pub const ResolveBranchesPass = struct {
         self.*.label_map.clearRetainingCapacity();
     }
 
-    pub fn visitBBFunction(
-        visitor: VisitorTy,
-        self: *Self,
-        func: *Function(BasicBlock)
-    ) Error!void {
+    pub fn visitBBFunction(visitor: VisitorTy, self: *Self, func: *Function(BasicBlock)) Error!void {
         _ = visitor;
         var ele: usize = 0;
         for (func.elements) |bb| {
@@ -92,11 +81,7 @@ pub const ResolveBranchesPass = struct {
         }
     }
 
-    pub fn visitBranch(
-        visitor: VisitorTy,
-        self: *Self,
-        br: *Branch
-    ) Error!void {
+    pub fn visitBranch(visitor: VisitorTy, self: *Self, br: *Branch) Error!void {
         _ = visitor;
         br.*.dest_index = (self.*.label_map.get(br.*.dest_label) orelse return error.LabelNotFound);
     }

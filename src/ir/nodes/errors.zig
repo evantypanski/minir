@@ -1,6 +1,6 @@
 //! Common errors for all nodes, since there is no overarching Node yet.
 
-pub const NodeError = error {
+pub const NodeError = error{
     NotAnInt,
     NotAFloat,
     NotAPtr,
@@ -13,4 +13,3 @@ pub const NodeError = error {
     InvalidTypeName,
     NotABranch,
 };
-

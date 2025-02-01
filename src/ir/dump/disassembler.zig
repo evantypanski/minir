@@ -37,10 +37,7 @@ pub const Disassembler = struct {
         }
     }
 
-    pub fn disassembleFunction(
-        self: Disassembler,
-        function: Function(Stmt)
-    ) DisassemblerError!void {
+    pub fn disassembleFunction(self: Disassembler, function: Function(Stmt)) DisassemblerError!void {
         try self.writer.print("func {s}(", .{function.name});
         try self.printParams(function.params);
         try self.writer.writeAll(") -> ");
@@ -93,10 +90,7 @@ pub const Disassembler = struct {
         try self.newline();
     }
 
-    pub fn disassembleBuiltin(
-        self: Disassembler,
-        builtin: Builtin
-    ) DisassemblerError!void {
+    pub fn disassembleBuiltin(self: Disassembler, builtin: Builtin) DisassemblerError!void {
         try self.writer.print("func {s}(", .{@tagName(builtin.kind)});
         try self.printParams(builtin.params);
         try self.writer.writeAll(") -> ");
@@ -140,7 +134,7 @@ pub const Disassembler = struct {
             },
             .value => |val| {
                 try self.disassembleValue(val);
-            }
+            },
         }
 
         try self.writer.writeAll(";");
@@ -193,8 +187,7 @@ pub const Disassembler = struct {
         }
     }
 
-    pub fn disassembleUnary(self: Disassembler, unary: UnaryOp)
-                DisassemblerError!void {
+    pub fn disassembleUnary(self: Disassembler, unary: UnaryOp) DisassemblerError!void {
         const op = switch (unary.kind) {
             .not => "!",
             .deref => "*",
@@ -205,8 +198,7 @@ pub const Disassembler = struct {
         try self.disassembleValue(unary.val.*);
     }
 
-    pub fn disassembleBinary(self: Disassembler, binary: BinaryOp)
-                DisassemblerError!void {
+    pub fn disassembleBinary(self: Disassembler, binary: BinaryOp) DisassemblerError!void {
         if (shouldPrintParens(binary.lhs, binary.kind)) {
             try self.writer.writeAll("(");
         }

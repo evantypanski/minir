@@ -27,7 +27,7 @@ const Frame = struct {
 };
 
 pub const Interpreter = struct {
-    pub const Error = error {
+    pub const Error = error{
         OperandError,
         InvalidInt,
         InvalidFloat,
@@ -283,12 +283,8 @@ pub const Interpreter = struct {
                 self.evalValue(op.val.*) catch return error.OperandError;
                 const numVal = self.env.pop();
                 switch (numVal.val_kind) {
-                    .int => |i| try self.pushValue(
-                        Value.initInt(-1 * i, value.loc)
-                    ),
-                    .float => |f| try self.pushValue(
-                        Value.initFloat(-1 * f, value.loc)
-                    ),
+                    .int => |i| try self.pushValue(Value.initInt(-1 * i, value.loc)),
+                    .float => |f| try self.pushValue(Value.initFloat(-1 * f, value.loc)),
                     else => return error.OperandError,
                 }
             },
@@ -375,52 +371,34 @@ pub const Interpreter = struct {
 
         switch (op.kind) {
             .eq => {
-                try self.pushValue(
-                    Value.initBool(try lhs.asInt() == try rhs.asInt(), newloc)
-                );
+                try self.pushValue(Value.initBool(try lhs.asInt() == try rhs.asInt(), newloc));
             },
             .add => {
-                try self.pushValue(
-                    Value.initInt(try lhs.asInt() + try rhs.asInt(), newloc)
-                );
+                try self.pushValue(Value.initInt(try lhs.asInt() + try rhs.asInt(), newloc));
             },
             .sub => {
-                try self.pushValue(
-                    Value.initInt(try lhs.asInt() - try rhs.asInt(), newloc)
-                );
+                try self.pushValue(Value.initInt(try lhs.asInt() - try rhs.asInt(), newloc));
             },
             .mul => {
-                try self.pushValue(
-                    Value.initInt(try lhs.asInt() * try rhs.asInt(), newloc)
-                );
+                try self.pushValue(Value.initInt(try lhs.asInt() * try rhs.asInt(), newloc));
             },
             .div => {
-                try self.pushValue(
-                    Value.initInt(
-                        @divTrunc(try lhs.asInt(), try rhs.asInt()),
-                        newloc,
-                    )
-                );
+                try self.pushValue(Value.initInt(
+                    @divTrunc(try lhs.asInt(), try rhs.asInt()),
+                    newloc,
+                ));
             },
             .lt => {
-                try self.pushValue(
-                    Value.initBool(try lhs.asInt() < try rhs.asInt(), newloc)
-                );
+                try self.pushValue(Value.initBool(try lhs.asInt() < try rhs.asInt(), newloc));
             },
             .le => {
-                try self.pushValue(
-                    Value.initBool(try lhs.asInt() <= try rhs.asInt(), newloc)
-                );
+                try self.pushValue(Value.initBool(try lhs.asInt() <= try rhs.asInt(), newloc));
             },
             .gt => {
-                try self.pushValue(
-                    Value.initBool(try lhs.asInt() > try rhs.asInt(), newloc)
-                );
+                try self.pushValue(Value.initBool(try lhs.asInt() > try rhs.asInt(), newloc));
             },
             .ge => {
-                try self.pushValue(
-                    Value.initBool(try lhs.asInt() >= try rhs.asInt(), newloc)
-                );
+                try self.pushValue(Value.initBool(try lhs.asInt() >= try rhs.asInt(), newloc));
             },
             else => unreachable,
         }
@@ -506,10 +484,7 @@ pub const Interpreter = struct {
     }
 
     fn pushFrame(self: *Self) Error!void {
-        self.call_stack.append(.{
-            .frame_env_begin = self.env.items.len,
-            .return_ele_index = self.current_ele.?
-        }) catch return error.FrameError;
+        self.call_stack.append(.{ .frame_env_begin = self.env.items.len, .return_ele_index = self.current_ele.? }) catch return error.FrameError;
     }
 
     fn popFrame(self: *Self) Frame {
@@ -522,36 +497,27 @@ pub const Interpreter = struct {
 
     fn printValue(self: *Self, value: Value) Error!void {
         switch (value.val_kind) {
-            .undef => self.writer.writeAll("undefined")
-                    catch return error.WriterError,
+            .undef => self.writer.writeAll("undefined") catch return error.WriterError,
             .access => |va| {
                 if (va.name) |name| {
-                    self.writer.writeAll(name)
-                            catch return error.WriterError;
+                    self.writer.writeAll(name) catch return error.WriterError;
                 }
             },
-            .int => |i| fmt.formatInt(i, 10, .lower, .{}, self.writer)
-                    catch return error.WriterError,
+            .int => |i| fmt.formatInt(i, 10, .lower, .{}, self.writer) catch return error.WriterError,
             .float => |f| {
                 var buf: [fmt.format_float.bufferSize(.decimal, f32)]u8 = undefined;
-                const s = fmt.format_float.formatFloat(&buf, f, .{})
-                        catch return error.WriterError;
+                const s = fmt.format_float.formatFloat(&buf, f, .{}) catch return error.WriterError;
                 fmt.formatBuf(s, .{}, self.writer) catch return error.WriterError;
             },
-            .bool => |b| self.writer.print("{}", .{b != 0})
-                    catch return error.WriterError,
+            .bool => |b| self.writer.print("{}", .{b != 0}) catch return error.WriterError,
             .call => |call| {
-                self.writer.print("{s}(", .{call.name()})
-                        catch return error.WriterError;
-                self.writer.writeAll(")")
-                        catch return error.WriterError;
+                self.writer.print("{s}(", .{call.name()}) catch return error.WriterError;
+                self.writer.writeAll(")") catch return error.WriterError;
             },
-            .ptr => |ptr| self.writer.print("@{d}", .{ptr.to})
-                    catch return error.WriterError,
+            .ptr => |ptr| self.writer.print("@{d}", .{ptr.to}) catch return error.WriterError,
             else => return error.InvalidValue,
         }
 
         self.writer.writeAll("\n") catch return error.WriterError;
     }
 };
-

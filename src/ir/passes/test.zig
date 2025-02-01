@@ -31,14 +31,14 @@ fn expectDisassembled(program: Program, expected: []const u8) !void {
     defer tmpdir.cleanup();
     var outFile = try tmpdir.dir.createFile("out", .{});
 
-    const disassembler = Disassembler {
+    const disassembler = Disassembler{
         .writer = outFile.writer(),
         .program = program,
     };
     try disassembler.disassemble();
     outFile.close();
 
-    var outFileRead = try tmpdir.dir.openFile("out", .{.mode = .read_only});
+    var outFileRead = try tmpdir.dir.openFile("out", .{ .mode = .read_only });
     const disassembled = try outFileRead.readToEndAlloc(std.testing.allocator, std.math.maxInt(u32));
     defer std.testing.allocator.free(disassembled);
 
@@ -50,7 +50,7 @@ test "Test no passes" {
         \\func main() -> none {
         \\  let i: int = 42;
         \\}
-        ;
+    ;
 
     var start = try parseProgramFromString(begin_str);
     defer start.deinit(std.testing.allocator);
@@ -67,7 +67,7 @@ test "Test simple blockify" {
         \\func main() -> none {
         \\  let i: int = 42;
         \\}
-        ;
+    ;
 
     var start = try parseProgramFromString(begin_str);
     var source_mgr = try SourceManager.init(std.testing.allocator, begin_str, false);
@@ -94,7 +94,7 @@ test "Test blockify with jump" {
         \\  br label;
         \\  let j: int = 420;
         \\}
-        ;
+    ;
 
     var source_mgr = try SourceManager.init(std.testing.allocator, begin_str, false);
     defer source_mgr.deinit();
@@ -122,7 +122,7 @@ test "Test simple constant folding" {
         \\func main() -> none {
         \\  let i: int = 40 + 2;
         \\}
-        ;
+    ;
 
     var source_mgr = try SourceManager.init(std.testing.allocator, begin_str, false);
     defer source_mgr.deinit();

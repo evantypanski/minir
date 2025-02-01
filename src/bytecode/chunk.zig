@@ -6,7 +6,7 @@ const OpCode = @import("opcodes.zig").OpCode;
 const Value = @import("value.zig").Value;
 const InvalidBytecodeError = @import("errors.zig").InvalidBytecodeError;
 
-pub const ChunkError = error {
+pub const ChunkError = error{
     NoHeader,
     InvalidHeader,
 };
@@ -27,7 +27,7 @@ pub const Chunk = struct {
     }
 
     pub fn getHeader(self: Chunk) ChunkHeader {
-        return ChunkHeader {
+        return ChunkHeader{
             .bytes_start = @sizeOf(ChunkHeader),
             .const_start = @sizeOf(ChunkHeader) + self.bytes.len,
         };
@@ -57,14 +57,14 @@ pub const Chunk = struct {
         var values = std.ArrayList(Value).init(allocator);
         var pos = header.const_start;
         for (0..numConstants) |_| {
-            try values.append(std.mem.bytesAsValue(Value, bytes[pos..pos + @sizeOf(Value)]).*);
+            try values.append(std.mem.bytesAsValue(Value, bytes[pos .. pos + @sizeOf(Value)]).*);
             pos += @sizeOf(Value);
         }
 
         defer values.clearAndFree();
         const parsed_bytes = bytes[header.bytes_start..header.const_start];
 
-        return Chunk {
+        return Chunk{
             .bytes = try allocator.dupe(u8, parsed_bytes),
             .values = try values.toOwnedSlice(),
         };
@@ -116,8 +116,7 @@ pub const ChunkBuilder = struct {
         return placeholder;
     }
 
-    pub fn setPlaceholderShort(self: *Self, placeholder: usize, short: u16)
-            !void {
+    pub fn setPlaceholderShort(self: *Self, placeholder: usize, short: u16) !void {
         self.bytes.items[placeholder] =
             @intCast(short >> 8);
         self.bytes.items[placeholder + 1] =

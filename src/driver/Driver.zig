@@ -28,7 +28,7 @@ const CommandLine = @import("command_line.zig").CommandLine;
 const Options = @import("options.zig").Options;
 
 const Self = @This();
-pub const default_passes = &[_]type{Numify, ResolveBranches, ResolveCalls, Typecheck};
+pub const default_passes = &[_]type{ Numify, ResolveBranches, ResolveCalls, Typecheck };
 
 allocator: Allocator,
 out: Writer,
@@ -85,8 +85,7 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
         // Passes that are run in this step cannot be providers since we cannot get the result
         if (pass.pass_kind == .provider) {
             @compileError("Providers cannot be a provided pass: " ++
-                @typeName(pass)
-            );
+                @typeName(pass));
         }
         try pass_manager.get(pass);
     }
@@ -104,9 +103,7 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
                     try interp.interpret();
                 },
                 .treewalk => {
-                    var treewalk_interp = try TreewalkInterpreter.init(
-                        self.allocator, self.out, program
-                    );
+                    var treewalk_interp = try TreewalkInterpreter.init(self.allocator, self.out, program);
                     try treewalk_interp.interpret();
                     source_mgr.deinit();
                     treewalk_interp.deinit();
@@ -115,7 +112,7 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
             }
         },
         .fmt => {
-            const formatter = Formatter {
+            const formatter = Formatter{
                 .writer = self.out,
                 .program = program,
             };
@@ -126,7 +123,7 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
             // Do dumps for formats on minir (not bytecode)
             switch (config.format) {
                 .json => {
-                    var jsonifier = JSONifier {
+                    var jsonifier = JSONifier{
                         .writer = self.out,
                         .program = program,
                     };

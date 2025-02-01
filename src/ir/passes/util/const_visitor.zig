@@ -47,32 +47,32 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const Self = @This();
 
         // Containers
-        const VisitProgramFn = *const fn(self: Self, arg: ArgTy, program: *const Program) RetTy;
-        const VisitDeclFn = *const fn(self: Self, arg: ArgTy, decl: *const Decl) RetTy;
-        const VisitFunctionFn = *const fn(self: Self, arg: ArgTy, function: *const Function(Stmt)) RetTy;
-        const VisitBBFunctionFn = *const fn(self: Self, arg: ArgTy, bb_function: *const Function(BasicBlock)) RetTy;
-        const VisitBuiltinFn = *const fn(self: Self, arg: ArgTy, builtin: *const Builtin) RetTy;
-        const VisitBasicBlockFn = *const fn(self: Self, arg: ArgTy, bb: *const BasicBlock) RetTy;
+        const VisitProgramFn = *const fn (self: Self, arg: ArgTy, program: *const Program) RetTy;
+        const VisitDeclFn = *const fn (self: Self, arg: ArgTy, decl: *const Decl) RetTy;
+        const VisitFunctionFn = *const fn (self: Self, arg: ArgTy, function: *const Function(Stmt)) RetTy;
+        const VisitBBFunctionFn = *const fn (self: Self, arg: ArgTy, bb_function: *const Function(BasicBlock)) RetTy;
+        const VisitBuiltinFn = *const fn (self: Self, arg: ArgTy, builtin: *const Builtin) RetTy;
+        const VisitBasicBlockFn = *const fn (self: Self, arg: ArgTy, bb: *const BasicBlock) RetTy;
 
         // Statements
-        const VisitStatementFn = *const fn(self: Self, arg: ArgTy, stmt: *const Stmt) RetTy;
-        const VisitVarDeclFn = *const fn(self: Self, arg: ArgTy, decl: *const VarDecl) RetTy;
-        const VisitBranchFn = *const fn(self: Self, arg: ArgTy, branch: *const Branch) RetTy;
-        const VisitValueStmtFn = *const fn(self: Self, arg: ArgTy, val: *const Value) RetTy;
-        const VisitRetFn = *const fn(self: Self, arg: ArgTy, opt_val: *const ?Value) RetTy;
+        const VisitStatementFn = *const fn (self: Self, arg: ArgTy, stmt: *const Stmt) RetTy;
+        const VisitVarDeclFn = *const fn (self: Self, arg: ArgTy, decl: *const VarDecl) RetTy;
+        const VisitBranchFn = *const fn (self: Self, arg: ArgTy, branch: *const Branch) RetTy;
+        const VisitValueStmtFn = *const fn (self: Self, arg: ArgTy, val: *const Value) RetTy;
+        const VisitRetFn = *const fn (self: Self, arg: ArgTy, opt_val: *const ?Value) RetTy;
 
         // Values
-        const VisitValueFn = *const fn(self: Self, arg: ArgTy, val: *const Value) RetTy;
-        const VisitUndefFn = *const fn(self: Self, arg: ArgTy) RetTy;
-        const VisitVarAccessFn = *const fn(self: Self, arg: ArgTy, va: *const VarAccess) RetTy;
-        const VisitIntFn = *const fn(self: Self, arg: ArgTy, i: *const i32) RetTy;
-        const VisitFloatFn = *const fn(self: Self, arg: ArgTy, f: *const f32) RetTy;
-        const VisitBoolFn = *const fn(self: Self, arg: ArgTy, b: *const u1) RetTy;
-        const VisitUnaryOpFn = *const fn(self: Self, arg: ArgTy, uo: *const UnaryOp) RetTy;
-        const VisitBinaryOpFn = *const fn(self: Self, arg: ArgTy, bo: *const BinaryOp) RetTy;
-        const VisitFuncCallFn = *const fn(self: Self, arg: ArgTy, call: *const FuncCall) RetTy;
-        const VisitTypeValFn = *const fn(self: Self, arg: ArgTy, ty: *const Type) RetTy;
-        const VisitPtrFn = *const fn(self: Self, arg: ArgTy, ptr: *const Pointer) RetTy;
+        const VisitValueFn = *const fn (self: Self, arg: ArgTy, val: *const Value) RetTy;
+        const VisitUndefFn = *const fn (self: Self, arg: ArgTy) RetTy;
+        const VisitVarAccessFn = *const fn (self: Self, arg: ArgTy, va: *const VarAccess) RetTy;
+        const VisitIntFn = *const fn (self: Self, arg: ArgTy, i: *const i32) RetTy;
+        const VisitFloatFn = *const fn (self: Self, arg: ArgTy, f: *const f32) RetTy;
+        const VisitBoolFn = *const fn (self: Self, arg: ArgTy, b: *const u1) RetTy;
+        const VisitUnaryOpFn = *const fn (self: Self, arg: ArgTy, uo: *const UnaryOp) RetTy;
+        const VisitBinaryOpFn = *const fn (self: Self, arg: ArgTy, bo: *const BinaryOp) RetTy;
+        const VisitFuncCallFn = *const fn (self: Self, arg: ArgTy, call: *const FuncCall) RetTy;
+        const VisitTypeValFn = *const fn (self: Self, arg: ArgTy, ty: *const Type) RetTy;
+        const VisitPtrFn = *const fn (self: Self, arg: ArgTy, ptr: *const Pointer) RetTy;
 
         pub fn walkProgram(self: Self, arg: ArgTy, program: *const Program) RetTy {
             for (program.decls) |*function| {
@@ -202,8 +202,7 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             try self.walkStatement(arg, stmt);
         }
 
-        pub fn defaultVisitUndef(_: Self, _: ArgTy) RetTy {
-        }
+        pub fn defaultVisitUndef(_: Self, _: ArgTy) RetTy {}
 
         pub fn defaultVisitVarDecl(self: Self, arg: ArgTy, decl: *const VarDecl) RetTy {
             try self.walkVarDecl(arg, decl);
@@ -219,14 +218,11 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             }
         }
 
-        pub fn defaultVisitInt(_: Self, _: ArgTy, _: *const i32) RetTy {
-        }
+        pub fn defaultVisitInt(_: Self, _: ArgTy, _: *const i32) RetTy {}
 
-        pub fn defaultVisitFloat(_: Self, _: ArgTy, _: *const f32) RetTy {
-        }
+        pub fn defaultVisitFloat(_: Self, _: ArgTy, _: *const f32) RetTy {}
 
-        pub fn defaultVisitBool(_: Self, _: ArgTy, _: *const u1) RetTy {
-        }
+        pub fn defaultVisitBool(_: Self, _: ArgTy, _: *const u1) RetTy {}
 
         pub fn defaultVisitBranch(self: Self, arg: ArgTy, branch: *const Branch) RetTy {
             try self.walkBranch(arg, branch);
@@ -236,8 +232,7 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             try self.walkValue(arg, val);
         }
 
-        pub fn defaultVisitVarAccess(_: Self, _: ArgTy, _: *const VarAccess) RetTy {
-        }
+        pub fn defaultVisitVarAccess(_: Self, _: ArgTy, _: *const VarAccess) RetTy {}
 
         pub fn defaultVisitUnaryOp(self: Self, arg: ArgTy, uo: *const UnaryOp) RetTy {
             try self.walkUnaryOp(arg, uo);
@@ -251,10 +246,8 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
             try self.walkFuncCall(arg, call);
         }
 
-        pub fn defaultVisitTypeVal(_: Self, _: ArgTy, _: *const Type) RetTy {
-        }
+        pub fn defaultVisitTypeVal(_: Self, _: ArgTy, _: *const Type) RetTy {}
 
-        pub fn defaultVisitPtr(_: Self, _: ArgTy, _: *const Pointer) RetTy {
-        }
+        pub fn defaultVisitPtr(_: Self, _: ArgTy, _: *const Pointer) RetTy {}
     };
 }

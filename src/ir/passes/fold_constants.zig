@@ -13,13 +13,10 @@ const Value = @import("../nodes/value.zig").Value;
 const IrVisitor = @import("util/visitor.zig").IrVisitor;
 const Program = @import("../nodes/program.zig").Program;
 
-pub const FoldConstants = Modifier(
-    FoldConstantsPass, FoldConstantsPass.Error, &[_]type{},
-    FoldConstantsPass.init, FoldConstantsPass.execute
-);
+pub const FoldConstants = Modifier(FoldConstantsPass, FoldConstantsPass.Error, &[_]type{}, FoldConstantsPass.init, FoldConstantsPass.execute);
 
 pub const FoldConstantsPass = struct {
-    pub const Error = error {};
+    pub const Error = error{};
 
     const Self = @This();
     const VisitorTy = IrVisitor(*Self, Error!void);
@@ -36,7 +33,7 @@ pub const FoldConstantsPass = struct {
         _ = self;
     }
 
-    pub const FoldVisitor = VisitorTy {
+    pub const FoldVisitor = VisitorTy{
         .visitValue = visitValue,
     };
 
@@ -44,26 +41,18 @@ pub const FoldConstantsPass = struct {
         try FoldVisitor.visitProgram(FoldVisitor, self, program);
     }
 
-    pub fn visitValue(
-        visitor: VisitorTy,
-        self: *Self,
-        val: *Value
-    ) Error!void {
+    pub fn visitValue(visitor: VisitorTy, self: *Self, val: *Value) Error!void {
         switch (val.*.val_kind) {
             .binary => |*op| {
                 switch (op.*.kind) {
                     .add => {
                         const lhs = switch (op.*.lhs.*.val_kind) {
                             .int => |lhs| lhs,
-                            else => return try visitor.visitBinaryOp(
-                                        visitor, self, op
-                                    ),
+                            else => return try visitor.visitBinaryOp(visitor, self, op),
                         };
                         const rhs = switch (op.*.rhs.*.val_kind) {
                             .int => |rhs| rhs,
-                            else => return try visitor.visitBinaryOp(
-                                        visitor, self, op
-                                    ),
+                            else => return try visitor.visitBinaryOp(visitor, self, op),
                         };
                         // Apply since both LHS and RHS are ints
                         const new_int = lhs + rhs;

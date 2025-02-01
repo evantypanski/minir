@@ -15,14 +15,13 @@ fn VerifierRunTy(PassTy: type, Error: type) type {
 }
 
 pub fn Verifier(
-    PassTy: type, Error: type, dependencies: []const type,
+    PassTy: type,
+    Error: type,
+    dependencies: []const type,
     init: *const fn (args: anytype) PassTy,
     run: VerifierRunTy(PassTy, Error),
 ) type {
-    return Pass(
-        PassTy, Error!void, VerifierRunTy(PassTy, Error), dependencies,
-        init, run, .verifier
-    );
+    return Pass(PassTy, Error!void, VerifierRunTy(PassTy, Error), dependencies, init, run, .verifier);
 }
 
 fn ModifierRunTy(PassTy: type, Error: type) type {
@@ -30,14 +29,13 @@ fn ModifierRunTy(PassTy: type, Error: type) type {
 }
 
 pub fn Modifier(
-    PassTy: type, Error: type, dependencies: []const type,
+    PassTy: type,
+    Error: type,
+    dependencies: []const type,
     init: *const fn (args: anytype) PassTy,
     run: ModifierRunTy(PassTy, Error),
 ) type {
-    return Pass(
-        PassTy, Error!void, ModifierRunTy(PassTy, Error),
-        dependencies, init, run, .modifier
-    );
+    return Pass(PassTy, Error!void, ModifierRunTy(PassTy, Error), dependencies, init, run, .modifier);
 }
 
 fn ProviderRunTy(PassTy: type, Error: type, RetTy: type) type {
@@ -45,14 +43,14 @@ fn ProviderRunTy(PassTy: type, Error: type, RetTy: type) type {
 }
 
 pub fn Provider(
-    PassTy: type, Error: type, RetTy: type, dependencies: []const type,
+    PassTy: type,
+    Error: type,
+    RetTy: type,
+    dependencies: []const type,
     init: *const fn (args: anytype) PassTy,
     run: ProviderRunTy(PassTy, Error, RetTy),
 ) type {
-    return Pass(
-        PassTy, Error!RetTy, ProviderRunTy(PassTy, Error, RetTy),
-        dependencies, init, run, .provider
-    );
+    return Pass(PassTy, Error!RetTy, ProviderRunTy(PassTy, Error, RetTy), dependencies, init, run, .provider);
 }
 
 /// A simple pass has no dependencies and has no state. It cannot return
@@ -61,18 +59,19 @@ pub fn SimplePass(Error: type, run: VerifierRunTy(void, Error)) type {
     const initFnWrapper = struct {
         pub fn init(_: anytype) void {}
     };
-    return Pass(
-        void, Error!void, VerifierRunTy(void, Error), &[_]type{},
-        initFnWrapper.init, run, .verifier
-    );
+    return Pass(void, Error!void, VerifierRunTy(void, Error), &[_]type{}, initFnWrapper.init, run, .verifier);
 }
 
 // TODO: Try to clean up these arguments a bit. I'd rather not specify RetTy
 // multiple times or have some other way to get that.
 fn Pass(
-    PassTy: type, RetTy: type, RunFnTy: type, dependencies_: []const type,
+    PassTy: type,
+    RetTy: type,
+    RunFnTy: type,
+    dependencies_: []const type,
     init_: *const fn (args: anytype) PassTy,
-    run_: RunFnTy, pass_kind_: PassKind,
+    run_: RunFnTy,
+    pass_kind_: PassKind,
 ) type {
     return struct {
         const Self = @This();
@@ -106,13 +105,11 @@ test "Simple pass" {
     const func = try func_builder.build();
 
     var prog_builder = ProgramBuilder.init(std.testing.allocator);
-    try prog_builder.addDecl(Decl { .bb_function = func });
+    try prog_builder.addDecl(Decl{ .bb_function = func });
     var program = try prog_builder.build();
     defer program.deinit(std.testing.allocator);
 
-    const DummyError = error {
-        Found
-    };
+    const DummyError = error{Found};
 
     const runFnWrapper = struct {
         pub fn run(_: *void, _: *const Program) DummyError!void {
@@ -122,7 +119,7 @@ test "Simple pass" {
 
     const PassType = SimplePass(DummyError, runFnWrapper.run);
     var pass = PassType.init(.{});
-    var new_pass = PassType {};
+    var new_pass = PassType{};
 
     try std.testing.expectError(error.Found, new_pass.get(&pass, &program));
 }

@@ -23,12 +23,8 @@ pub const PassManager = struct {
     program: *Program,
     diag: Diagnostics,
 
-    pub fn init(
-        allocator: Allocator,
-        program: *Program,
-        diag: Diagnostics
-    ) Self {
-        return Self {
+    pub fn init(allocator: Allocator, program: *Program, diag: Diagnostics) Self {
+        return Self{
             .allocator = allocator,
             .program = program,
             .diag = diag,
@@ -51,13 +47,12 @@ pub const PassManager = struct {
             // maybe the pass should just be split up.
             if (dependency.pass_kind == .provider) {
                 @compileError("Providers cannot be a dependency: " ++
-                    @typeName(dependency)
-                );
+                    @typeName(dependency));
             }
             try self.get(dependency);
         }
 
-        var new_pass = PassType {};
+        var new_pass = PassType{};
 
         const result = new_pass.get(&pass, self.program);
 

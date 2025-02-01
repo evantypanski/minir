@@ -22,19 +22,19 @@ pub const Value = union(ValueKind) {
     }
 
     pub fn initInt(i: i32) Value {
-        return Self {
+        return Self{
             .int = i,
         };
     }
 
     pub fn initFloat(f: f32) Value {
-        return Self {
+        return Self{
             .float = f,
         };
     }
 
     pub fn initBool(b: bool) Value {
-        return Self {
+        return Self{
             .boolean = b,
         };
     }

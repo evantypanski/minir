@@ -32,9 +32,7 @@ pub const Type = union(TypeTag) {
     pub fn initPtrAlloc(to: Type, allocator: Allocator) !Type {
         const ty_ptr = try allocator.create(Type);
         ty_ptr.* = to;
-        return .{
-            .pointer = ty_ptr
-        };
+        return .{ .pointer = ty_ptr };
     }
 
     pub fn deinit(self: *Type, allocator: Allocator) void {
@@ -43,7 +41,7 @@ pub const Type = union(TypeTag) {
                 @constCast(to.*).deinit(allocator);
                 allocator.destroy(to.*);
             },
-            else => {}
+            else => {},
         }
     }
 
@@ -61,7 +59,8 @@ pub const Type = union(TypeTag) {
     pub fn eq(self: Type, other: Type) bool {
         // TODO: Real runtime type checking
         if (self == .err or other == .err or
-            self == .runtime or other == .runtime) {
+            self == .runtime or other == .runtime)
+        {
             return true;
         }
 

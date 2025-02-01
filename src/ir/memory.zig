@@ -117,10 +117,10 @@ pub const Heap = struct {
     }
 
     pub fn getBytes(self: *Self, ptr: usize, size: usize) []u8 {
-        return self.memory[ptr..ptr + size];
+        return self.memory[ptr .. ptr + size];
     }
 
     pub fn setBytes(self: *Self, ptr: usize, bytes: []const u8) void {
-        std.mem.copyForwards(u8, self.memory[ptr..ptr + bytes.len], bytes);
+        std.mem.copyForwards(u8, self.memory[ptr .. ptr + bytes.len], bytes);
     }
 };

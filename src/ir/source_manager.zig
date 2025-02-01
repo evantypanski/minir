@@ -23,11 +23,7 @@ pub const SourceManager = struct {
     line_ends: []usize,
     owns_source: bool,
 
-    pub fn init(
-        allocator: Allocator,
-        source: []const u8,
-        owns_source: bool
-    ) !Self {
+    pub fn init(allocator: Allocator, source: []const u8, owns_source: bool) !Self {
         return .{
             .allocator = allocator,
             .source = source,
@@ -56,10 +52,7 @@ pub const SourceManager = struct {
         self.allocator.free(self.line_ends);
     }
 
-    fn analyzeLineEnds(
-        allocator: Allocator,
-        source: []const u8
-    ) ![]usize {
+    fn analyzeLineEnds(allocator: Allocator, source: []const u8) ![]usize {
         var line_ends = std.ArrayList(usize).init(allocator);
         errdefer line_ends.clearAndFree();
         var i: usize = 0;

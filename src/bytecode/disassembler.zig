@@ -10,7 +10,6 @@ const InvalidBytecodeError = @import("errors.zig").InvalidBytecodeError;
 pub const Disassembler = struct {
     pub const Error = InvalidBytecodeError || Writer.Error || fmt.format_float.FormatError;
 
-
     const Self = @This();
 
     chunk: Chunk,
@@ -98,7 +97,7 @@ pub const Disassembler = struct {
                 const b1: u16 = @intCast(try self.getByte());
                 const b2: u16 = @intCast(try self.getByte());
                 const absolute = (b1 << 8) | b2;
-                try fmt.formatInt(absolute, 16, .upper, .{.fill = '0', .width = 8 }, self.writer);
+                try fmt.formatInt(absolute, 16, .upper, .{ .fill = '0', .width = 8 }, self.writer);
             },
             .alloc => {
                 try self.writer.writeAll("ALLOC ");
@@ -168,7 +167,7 @@ pub const Disassembler = struct {
     }
 
     fn printAddress(self: *Self) Error!void {
-        try fmt.formatInt(self.idx, 16, .upper, .{.fill = '0', .width = 8 }, self.writer);
+        try fmt.formatInt(self.idx, 16, .upper, .{ .fill = '0', .width = 8 }, self.writer);
         try self.writer.writeAll(": ");
     }
 };

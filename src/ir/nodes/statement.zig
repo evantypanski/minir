@@ -37,9 +37,7 @@ pub const Branch = struct {
     expr: ?Value,
 
     pub fn initJump(to: []const u8) Branch {
-        return .{
-            .dest_label = to, .dest_index = 0, .expr = null
-        };
+        return .{ .dest_label = to, .dest_index = 0, .expr = null };
     }
 
     pub fn initConditional(to: []const u8, value: Value) Branch {
@@ -68,11 +66,7 @@ pub const Stmt = struct {
     loc: Loc,
 
     pub fn init(kind: StmtKind, label: ?[]const u8, loc: Loc) Stmt {
-        return .{
-            .stmt_kind = kind,
-            .label = label,
-            .loc = loc
-        };
+        return .{ .stmt_kind = kind, .label = label, .loc = loc };
     }
 
     pub fn isTerminator(self: Stmt) bool {

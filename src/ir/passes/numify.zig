@@ -12,13 +12,10 @@ const Program = @import("../nodes/program.zig").Program;
 const Stmt = @import("../nodes/statement.zig").Stmt;
 const BasicBlock = @import("../nodes/basic_block.zig").BasicBlock;
 
-pub const Numify = Modifier(
-    NumifyPass, NumifyPass.Error, &[_]type{},
-    NumifyPass.init, NumifyPass.execute
-);
+pub const Numify = Modifier(NumifyPass, NumifyPass.Error, &[_]type{}, NumifyPass.init, NumifyPass.execute);
 
 pub const NumifyPass = struct {
-    pub const Error = error {
+    pub const Error = error{
         MapError,
         NoName,
         NoDecl,
@@ -42,7 +39,7 @@ pub const NumifyPass = struct {
         self.map.clearAndFree();
     }
 
-    pub const NumifyVisitor = VisitorTy {
+    pub const NumifyVisitor = VisitorTy{
         .visitFunction = visitFunction,
         .visitBBFunction = visitBBFunction,
         .visitVarDecl = visitVarDecl,
@@ -53,22 +50,14 @@ pub const NumifyPass = struct {
         try NumifyVisitor.visitProgram(NumifyVisitor, self, program);
     }
 
-    pub fn visitFunction(
-        visitor: VisitorTy,
-        self: *Self,
-        function: *Function(Stmt)
-    ) Error!void {
+    pub fn visitFunction(visitor: VisitorTy, self: *Self, function: *Function(Stmt)) Error!void {
         try self.handleFnStart(function.params);
         for (function.elements) |*stmt| {
             try visitor.visitStatement(visitor, self, stmt);
         }
     }
 
-    pub fn visitBBFunction(
-        visitor: VisitorTy,
-        self: *Self,
-        function: *Function(BasicBlock)
-    ) Error!void {
+    pub fn visitBBFunction(visitor: VisitorTy, self: *Self, function: *Function(BasicBlock)) Error!void {
         try self.handleFnStart(function.params);
         for (function.elements) |*bb| {
             try visitor.visitBasicBlock(visitor, self, bb);
@@ -81,8 +70,7 @@ pub const NumifyPass = struct {
         var i: usize = params.len;
         for (params) |*param| {
             const signed_i: isize = @intCast(i);
-            self.map.put(param.name, -1 * signed_i)
-                    catch return error.MapError;
+            self.map.put(param.name, -1 * signed_i) catch return error.MapError;
             i -= 1;
         }
     }
@@ -92,11 +80,7 @@ pub const NumifyPass = struct {
         self.num_vars += 1;
     }
 
-    fn visitVarAccess(
-        _: VisitorTy,
-        self: *Self,
-        va: *VarAccess
-    ) Error!void {
+    fn visitVarAccess(_: VisitorTy, self: *Self, va: *VarAccess) Error!void {
         if (va.name) |name| {
             const offset = self.map.get(name) orelse return error.NoDecl;
             va.offset = offset;

@@ -20,13 +20,10 @@ const Loc = @import("../sourceloc.zig").Loc;
 const ResolveCalls = @import("resolve_calls.zig").ResolveCalls;
 const ResolveCallsPass = @import("resolve_calls.zig").ResolveCallsPass;
 
-pub const Typecheck = Verifier(
-    TypecheckPass, TypecheckPass.Error, &[_]type{ResolveCalls},
-    TypecheckPass.init, TypecheckPass.execute
-);
+pub const Typecheck = Verifier(TypecheckPass, TypecheckPass.Error, &[_]type{ResolveCalls}, TypecheckPass.init, TypecheckPass.execute);
 
 pub const TypecheckPass = struct {
-    pub const Error = error {
+    pub const Error = error{
         MapError,
         ParamWithoutType,
         TooManyErrors,
@@ -63,7 +60,7 @@ pub const TypecheckPass = struct {
         self.vars.deinit();
     }
 
-    pub const TypecheckVisitor = VisitorTy {
+    pub const TypecheckVisitor = VisitorTy{
         .visitDecl = visitDecl,
         .visitFunction = visitFunction,
         .visitBBFunction = visitBBFunction,
@@ -80,38 +77,22 @@ pub const TypecheckPass = struct {
         }
     }
 
-    pub fn visitDecl(
-        visitor: VisitorTy,
-        self: *Self,
-        decl: *const Decl
-    ) Error!void {
+    pub fn visitDecl(visitor: VisitorTy, self: *Self, decl: *const Decl) Error!void {
         self.current_fn = decl;
         try visitor.walkDecl(self, decl);
     }
 
-    pub fn visitFunction(
-        visitor: VisitorTy,
-        self: *Self,
-        function: *const Function(Stmt)
-    ) Error!void {
+    pub fn visitFunction(visitor: VisitorTy, self: *Self, function: *const Function(Stmt)) Error!void {
         self.vars.clearRetainingCapacity();
         try visitor.walkFunction(self, function);
     }
 
-    pub fn visitBBFunction(
-        visitor: VisitorTy,
-        self: *Self,
-        function: *const Function(BasicBlock)
-    ) Error!void {
+    pub fn visitBBFunction(visitor: VisitorTy, self: *Self, function: *const Function(BasicBlock)) Error!void {
         self.vars.clearRetainingCapacity();
         try visitor.walkBBFunction(self, function);
     }
 
-    pub fn visitVarDecl(
-        visitor: VisitorTy,
-        self: *Self,
-        decl: *const VarDecl
-    ) Error!void {
+    pub fn visitVarDecl(visitor: VisitorTy, self: *Self, decl: *const VarDecl) Error!void {
         if (decl.*.ty) |ty| {
             self.vars.put(decl.*.name, ty) catch return error.MapError;
         } else if (decl.*.val) |*val| {
@@ -123,11 +104,7 @@ pub const TypecheckPass = struct {
         try visitor.walkVarDecl(self, decl);
     }
 
-    pub fn visitValue(
-        visitor: VisitorTy,
-        self: *Self,
-        val: *const Value
-    ) Error!void {
+    pub fn visitValue(visitor: VisitorTy, self: *Self, val: *const Value) Error!void {
         // First just grab the type of this value since that may produce
         // diagnostics
         _ = self.valTy(val);
@@ -145,11 +122,7 @@ pub const TypecheckPass = struct {
                 const decl_params_len = call.*.resolved.?.params().len;
                 if (args_len != decl_params_len) {
                     self.num_errors += 1;
-                    self.diag.err(
-                        error.BadArity,
-                        .{ call.*.name(), decl_params_len, args_len },
-                        val.*.loc
-                    );
+                    self.diag.err(error.BadArity, .{ call.*.name(), decl_params_len, args_len }, val.*.loc);
                 }
             },
             else => {},
@@ -173,11 +146,7 @@ pub const TypecheckPass = struct {
                     .not => {
                         if (!ty.eq(.boolean)) {
                             self.num_errors += 1;
-                            self.diag.err(
-                                error.InvalidType,
-                                .{@tagName(ty), "!"},
-                                val.*.loc
-                            );
+                            self.diag.err(error.InvalidType, .{ @tagName(ty), "!" }, val.*.loc);
                             break :blk .err;
                         } else {
                             break :blk .boolean;
@@ -189,13 +158,9 @@ pub const TypecheckPass = struct {
                             .pointer => |to_ty| break :blk to_ty.*,
                             else => {
                                 self.num_errors += 1;
-                                self.diag.err(
-                                    error.InvalidType,
-                                    .{@tagName(ty), "*"},
-                                    val.*.loc
-                                );
+                                self.diag.err(error.InvalidType, .{ @tagName(ty), "*" }, val.*.loc);
                                 break :blk .err;
-                            }
+                            },
                         }
                     },
                     .neg => {
@@ -204,15 +169,11 @@ pub const TypecheckPass = struct {
                             .int, .float => break :blk ty,
                             else => {
                                 self.num_errors += 1;
-                                self.diag.err(
-                                    error.InvalidType,
-                                    .{@tagName(ty), "-"},
-                                    val.*.loc
-                                );
+                                self.diag.err(error.InvalidType, .{ @tagName(ty), "-" }, val.*.loc);
                                 break :blk .err;
-                            }
+                            },
                         }
-                    }
+                    },
                 }
             },
             .binary => |*bo| blk: {
@@ -223,20 +184,12 @@ pub const TypecheckPass = struct {
                     self.num_errors += 1;
                     const lhs_loc = bo.*.lhs.loc;
                     const rhs_loc = bo.*.rhs.loc;
-                    self.diag.err(
-                        error.IncompatibleTypes, .{
-                            @tagName(lhs_ty),
-                            self.diag.source_mgr.snip(
-                                lhs_loc.start,
-                                lhs_loc.end
-                            ),
-                            @tagName(rhs_ty),
-                            self.diag.source_mgr.snip(
-                                rhs_loc.start,
-                                rhs_loc.end
-                            ),
-                        }, val.*.loc
-                    );
+                    self.diag.err(error.IncompatibleTypes, .{
+                        @tagName(lhs_ty),
+                        self.diag.source_mgr.snip(lhs_loc.start, lhs_loc.end),
+                        @tagName(rhs_ty),
+                        self.diag.source_mgr.snip(rhs_loc.start, rhs_loc.end),
+                    }, val.*.loc);
                     break :blk .err;
                 }
 
@@ -258,27 +211,19 @@ pub const TypecheckPass = struct {
     fn varAccessTy(self: *Self, va: *const VarAccess, loc: Loc) Type {
         const name = va.*.name.?;
         return self.*.vars.get(name) orelse blk: {
-            self.diag.err(error.Unresolved, .{ name }, loc);
+            self.diag.err(error.Unresolved, .{name}, loc);
             break :blk .err;
         };
     }
 
-    pub fn visitStatement(
-        visitor: VisitorTy,
-        self: *Self,
-        stmt: *const Stmt
-    ) Error!void {
+    pub fn visitStatement(visitor: VisitorTy, self: *Self, stmt: *const Stmt) Error!void {
         switch (stmt.*.stmt_kind) {
             .branch => |*br| {
                 if (br.*.expr) |*val| {
                     const ty = self.valTy(val);
                     if (!ty.eq(.boolean)) {
                         self.num_errors += 1;
-                        self.diag.err(
-                            error.InvalidType,
-                            .{@tagName(ty), "brc"},
-                            val.*.loc
-                        );
+                        self.diag.err(error.InvalidType, .{ @tagName(ty), "brc" }, val.*.loc);
                     }
                 }
             },
@@ -288,19 +233,12 @@ pub const TypecheckPass = struct {
                     const fn_ty = self.current_fn.?.*.ty();
                     if (!ret_val_ty.eq(fn_ty)) {
                         self.num_errors += 1;
-                        self.diag.err(
-                            error.IncompatibleTypes,
-                            .{
-                                @tagName(ret_val_ty),
-                                self.diag.source_mgr.snip(
-                                    ret_val.*.loc.start,
-                                    ret_val.*.loc.end
-                                ),
-                                @tagName(fn_ty),
-                                self.current_fn.?.*.name(),
-                            },
-                            stmt.*.loc
-                        );
+                        self.diag.err(error.IncompatibleTypes, .{
+                            @tagName(ret_val_ty),
+                            self.diag.source_mgr.snip(ret_val.*.loc.start, ret_val.*.loc.end),
+                            @tagName(fn_ty),
+                            self.current_fn.?.*.name(),
+                        }, stmt.*.loc);
                     }
                 }
             },

@@ -49,7 +49,6 @@ pub const UnaryOp = struct {
         self.val.*.deinit(allocator);
         allocator.destroy(self.val);
     }
-
 };
 
 pub const BinaryOp = struct {
@@ -190,42 +189,28 @@ pub const Value = struct {
 
     pub fn initUnary(kind: UnaryOp.Kind, val: *Value, loc: Loc) Value {
         return .{
-            .val_kind = .{
-                .unary = .{
-                    .kind = kind,
-                    .val = val,
-                }
-            },
+            .val_kind = .{ .unary = .{
+                .kind = kind,
+                .val = val,
+            } },
             .loc = loc,
         };
     }
 
-    pub fn initBinary(
-        kind: BinaryOp.Kind, lhs: *Value, rhs: *Value, loc: Loc
-    ) Value {
+    pub fn initBinary(kind: BinaryOp.Kind, lhs: *Value, rhs: *Value, loc: Loc) Value {
         return .{
-            .val_kind = .{
-                .binary = .{
-                    .kind = kind,
-                    .lhs = lhs,
-                    .rhs = rhs,
-                }
-            },
+            .val_kind = .{ .binary = .{
+                .kind = kind,
+                .lhs = lhs,
+                .rhs = rhs,
+            } },
             .loc = loc,
         };
     }
 
-    pub fn initCall(
-        function: *Value, arguments: []Value, loc: Loc
-    ) Value {
+    pub fn initCall(function: *Value, arguments: []Value, loc: Loc) Value {
         return .{
-            .val_kind = .{
-                .call = .{
-                    .function = function,
-                    .resolved = null,
-                    .arguments = arguments
-                }
-            },
+            .val_kind = .{ .call = .{ .function = function, .resolved = null, .arguments = arguments } },
             .loc = loc,
         };
     }

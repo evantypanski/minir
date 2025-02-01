@@ -24,10 +24,7 @@ const ByteValue = @import("../../bytecode/value.zig").Value;
 const OpCode = @import("../../bytecode/opcodes.zig").OpCode;
 const InvalidBytecodeError = @import("../../bytecode/errors.zig").InvalidBytecodeError;
 
-pub const Lower = Provider(
-    Lowerer, Lowerer.Error, Chunk, &[_]type{},
-    Lowerer.init, Lowerer.execute
-);
+pub const Lower = Provider(Lowerer, Lowerer.Error, Chunk, &[_]type{}, Lowerer.init, Lowerer.execute);
 
 pub const Lowerer = struct {
     pub const Error = error{
@@ -45,7 +42,7 @@ pub const Lowerer = struct {
 
     allocator: Allocator,
     // Variables in scope.
-    variables: [256] []const u8,
+    variables: [256][]const u8,
     num_locals: u8,
     // Number of parameters to the current function. This is used to determine
     // the offset signed/unsigned for getting locals.
@@ -70,11 +67,9 @@ pub const Lowerer = struct {
             .num_locals = 0,
             .num_params = 0,
             .builder = ChunkBuilder.init(args.allocator),
-            .placeholder_map =
-                std.StringHashMap(*std.ArrayList(usize)).init(args.allocator),
+            .placeholder_map = std.StringHashMap(*std.ArrayList(usize)).init(args.allocator),
             .fn_map = std.StringHashMap(u16).init(args.allocator),
-            .label_placeholder_map =
-                std.StringHashMap(*std.ArrayList(usize)).init(args.allocator),
+            .label_placeholder_map = std.StringHashMap(*std.ArrayList(usize)).init(args.allocator),
             .label_map = std.StringHashMap(u16).init(args.allocator),
         };
     }
@@ -100,7 +95,7 @@ pub const Lowerer = struct {
         self.label_map.clearAndFree();
     }
 
-    pub const LowerVisitor = VisitorTy {
+    pub const LowerVisitor = VisitorTy{
         .visitStatement = visitStatement,
         .visitBasicBlock = visitBasicBlock,
         .visitInt = visitInt,
@@ -124,11 +119,7 @@ pub const Lowerer = struct {
         return self.builder.build();
     }
 
-    pub fn visitProgram(
-        visitor: VisitorTy,
-        self: *Self,
-        program: *const Program
-    ) Error!void {
+    pub fn visitProgram(visitor: VisitorTy, self: *Self, program: *const Program) Error!void {
         // Add an undef value, index 0 will be undefined for all variables
         const val = ByteValue.initUndef();
         const idx = try self.builder.addValue(val);
@@ -142,8 +133,7 @@ pub const Lowerer = struct {
         var it = self.*.placeholder_map.iterator();
         var opt_entry = it.next();
         while (opt_entry) |entry| {
-            const addr = self.*.fn_map.get(entry.key_ptr.*)
-                orelse return error.NoSuchFunction;
+            const addr = self.*.fn_map.get(entry.key_ptr.*) orelse return error.NoSuchFunction;
             for (entry.value_ptr.*.*.items) |placeholder| {
                 try self.builder.setPlaceholderShort(placeholder, addr);
             }
@@ -155,48 +145,30 @@ pub const Lowerer = struct {
         var it = self.*.label_placeholder_map.iterator();
         var opt_entry = it.next();
         while (opt_entry) |entry| {
-            const addr = self.*.label_map.get(entry.key_ptr.*)
-                orelse return error.NoSuchLabel;
+            const addr = self.*.label_map.get(entry.key_ptr.*) orelse return error.NoSuchLabel;
             for (entry.value_ptr.*.*.items) |placeholder| {
                 const offset_from =
                     self.builder.getPlaceholderShort(placeholder);
                 const signed_addr: i16 = @intCast(addr);
                 const signed_offset: i16 = @intCast(offset_from);
                 const relative = signed_addr - signed_offset;
-                try self.builder.setPlaceholderShort(
-                    placeholder,
-                    @bitCast(relative)
-                );
+                try self.builder.setPlaceholderShort(placeholder, @bitCast(relative));
             }
             opt_entry = it.next();
         }
     }
 
-    pub fn visitFunction(
-        visitor: VisitorTy,
-        self: *Self,
-        function: *const Function(Stmt)
-    ) Error!void {
+    pub fn visitFunction(visitor: VisitorTy, self: *Self, function: *const Function(Stmt)) Error!void {
         try self.addParams(function.*.params);
-        try self.fn_map.put(
-            function.*.name,
-            @intCast(self.builder.currentByte())
-        );
+        try self.fn_map.put(function.*.name, @intCast(self.builder.currentByte()));
         for (function.elements) |*stmt| {
             try visitor.visitStatement(visitor, self, stmt);
         }
     }
 
-    pub fn visitBBFunction(
-        visitor: VisitorTy,
-        self: *Self,
-        function: *const Function(BasicBlock)
-    ) Error!void {
+    pub fn visitBBFunction(visitor: VisitorTy, self: *Self, function: *const Function(BasicBlock)) Error!void {
         try self.addParams(function.*.params);
-        try self.fn_map.put(
-            function.*.name,
-            @intCast(self.builder.currentByte())
-        );
+        try self.fn_map.put(function.*.name, @intCast(self.builder.currentByte()));
         for (function.elements) |*bb| {
             try visitor.visitBasicBlock(visitor, self, bb);
         }
@@ -211,39 +183,21 @@ pub const Lowerer = struct {
         }
     }
 
-    pub fn visitStatement(
-        visitor: VisitorTy,
-        self: *Self,
-        stmt: *const Stmt
-    ) Error!void {
+    pub fn visitStatement(visitor: VisitorTy, self: *Self, stmt: *const Stmt) Error!void {
         if (stmt.*.label) |label| {
-            try self.label_map.put(
-                label,
-                @intCast(self.builder.currentByte())
-            );
+            try self.label_map.put(label, @intCast(self.builder.currentByte()));
         }
         try visitor.walkStatement(self, stmt);
     }
 
-    pub fn visitBasicBlock(
-        visitor: VisitorTy,
-        self: *Self,
-        bb: *const BasicBlock
-    ) Error!void {
+    pub fn visitBasicBlock(visitor: VisitorTy, self: *Self, bb: *const BasicBlock) Error!void {
         if (bb.*.label) |label| {
-            try self.label_map.put(
-                label,
-                @intCast(self.builder.currentByte())
-            );
+            try self.label_map.put(label, @intCast(self.builder.currentByte()));
         }
         try visitor.walkBasicBlock(self, bb);
     }
 
-    pub fn visitVarDecl(
-        visitor: VisitorTy,
-        self: *Self,
-        decl: *const VarDecl
-    ) Error!void {
+    pub fn visitVarDecl(visitor: VisitorTy, self: *Self, decl: *const VarDecl) Error!void {
         self.variables[self.num_locals] = decl.*.name;
         self.num_locals += 1;
         if (decl.*.val) |*val| {
@@ -255,20 +209,12 @@ pub const Lowerer = struct {
         }
     }
 
-    pub fn visitValueStmt(
-        visitor: VisitorTy,
-        self: *Self,
-        val: *const Value
-    ) Error!void {
+    pub fn visitValueStmt(visitor: VisitorTy, self: *Self, val: *const Value) Error!void {
         try visitor.visitValue(visitor, self, val);
         try self.builder.addOp(.pop);
     }
 
-    pub fn visitRet(
-        visitor: VisitorTy,
-        self: *Self,
-        opt_val: *const ?Value
-    ) Error!void {
+    pub fn visitRet(visitor: VisitorTy, self: *Self, opt_val: *const ?Value) Error!void {
         // If there's a return value, it goes on the slot before parameters.
         // Otherwise it's already set as undefined
         if (opt_val.*) |*val| {
@@ -280,11 +226,7 @@ pub const Lowerer = struct {
         try self.builder.addOp(.ret);
     }
 
-    pub fn visitUnaryOp(
-        visitor: VisitorTy,
-        self: *Self,
-        op: *const UnaryOp
-    ) Error!void {
+    pub fn visitUnaryOp(visitor: VisitorTy, self: *Self, op: *const UnaryOp) Error!void {
         try visitor.visitValue(visitor, self, op.*.val);
         switch (op.*.kind) {
             .not => try self.builder.addOp(.not),
@@ -296,11 +238,7 @@ pub const Lowerer = struct {
         }
     }
 
-    pub fn visitBinaryOp(
-        visitor: VisitorTy,
-        self: *Self,
-        op: *const BinaryOp
-    ) Error!void {
+    pub fn visitBinaryOp(visitor: VisitorTy, self: *Self, op: *const BinaryOp) Error!void {
         // Assign is special
         if (op.*.kind == .assign) {
             try visitor.visitValue(visitor, self, op.*.rhs);
@@ -369,21 +307,13 @@ pub const Lowerer = struct {
         try self.builder.addByte(idx);
     }
 
-    pub fn visitVarAccess(
-        visitor: VisitorTy,
-        self: *Self,
-        access: *const VarAccess
-    ) Error!void {
+    pub fn visitVarAccess(visitor: VisitorTy, self: *Self, access: *const VarAccess) Error!void {
         _ = visitor;
         const offset = try self.getOffsetForName(access.*.name.?);
         try self.getVarOffset(offset);
     }
 
-    pub fn visitFuncCall(
-        visitor: VisitorTy,
-        self: *Self,
-        call: *const FuncCall
-    ) Error!void {
+    pub fn visitFuncCall(visitor: VisitorTy, self: *Self, call: *const FuncCall) Error!void {
         if (call.*.resolved) |resolved| {
             switch (resolved.*) {
                 .builtin => |*builtin| return try self.lowerBuiltin(visitor, call, builtin),
@@ -417,12 +347,7 @@ pub const Lowerer = struct {
         }
     }
 
-    fn lowerBuiltin(
-        self: *Self,
-        visitor: VisitorTy,
-        call: *const FuncCall,
-        builtin: *const Builtin
-    ) Error!void {
+    fn lowerBuiltin(self: *Self, visitor: VisitorTy, call: *const FuncCall, builtin: *const Builtin) Error!void {
         switch (builtin.*.kind) {
             .alloc => {
                 try self.builder.addOp(.alloc);
@@ -472,18 +397,13 @@ pub const Lowerer = struct {
 
         // Set the placeholder, for now, to the current byte. This will be
         // replaced with the relative address
-        try self.builder.setPlaceholderShort(
-            placeholder,
-            @intCast(from_relative)
-        );
+        try self.builder.setPlaceholderShort(placeholder, @intCast(from_relative));
 
-
-        const list = self.label_placeholder_map.get(branch.labelName())
-            orelse blk: {
-                const list = try self.allocator.create(std.ArrayList(usize));
-                list.* = std.ArrayList(usize).init(self.allocator);
-                try self.label_placeholder_map.put(branch.labelName(), list);
-                break :blk list;
+        const list = self.label_placeholder_map.get(branch.labelName()) orelse blk: {
+            const list = try self.allocator.create(std.ArrayList(usize));
+            list.* = std.ArrayList(usize).init(self.allocator);
+            try self.label_placeholder_map.put(branch.labelName(), list);
+            break :blk list;
         };
         try list.append(placeholder);
     }
@@ -513,4 +433,3 @@ pub const Lowerer = struct {
         try self.builder.addByte(@bitCast(offset));
     }
 };
-

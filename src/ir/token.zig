@@ -53,7 +53,6 @@ pub const Token = struct {
         // Branch keywords
         br,
         brc,
-
     };
 
     tag: Tag,
@@ -88,16 +87,15 @@ pub const Token = struct {
     }
 
     pub fn isUnaryOp(self: Self) bool {
-        return switch(self.tag) {
+        return switch (self.tag) {
             .bang, .star => true,
             else => false,
         };
     }
 
     pub fn isBinaryOp(self: Self) bool {
-        return switch(self.tag) {
-            .eq, .eq_eq, .plus, .minus, .star, .slash, .amp_amp, .pipe_pipe,
-            .less, .less_eq, .greater, .greater_eq => true,
+        return switch (self.tag) {
+            .eq, .eq_eq, .plus, .minus, .star, .slash, .amp_amp, .pipe_pipe, .less, .less_eq, .greater, .greater_eq => true,
             else => false,
         };
     }

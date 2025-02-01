@@ -22,7 +22,7 @@ const Precedence = @import("precedence.zig").Precedence;
 const NodeError = @import("nodes/errors.zig").NodeError;
 
 pub const Parser = struct {
-    pub const Error = error {
+    pub const Error = error{
         Unexpected,
         ExpectedNumber,
         Expected,
@@ -39,7 +39,7 @@ pub const Parser = struct {
         infix: ?*const fn (self: *Self, other: Value) Error!Value = null,
         prec: Precedence = Precedence.none,
     };
-    const RuleArray = [@typeInfo(Token.Tag).@"enum".fields.len] Rule;
+    const RuleArray = [@typeInfo(Token.Tag).@"enum".fields.len]Rule;
 
     allocator: Allocator,
     lexer: Lexer,
@@ -50,11 +50,7 @@ pub const Parser = struct {
 
     rules: RuleArray,
 
-    pub fn init(
-        allocator: Allocator,
-        lexer: Lexer,
-        diag_engine: Diagnostics
-    ) Self {
+    pub fn init(allocator: Allocator, lexer: Lexer, diag_engine: Diagnostics) Self {
         return .{
             .allocator = allocator,
             .lexer = lexer,
@@ -103,7 +99,7 @@ pub const Parser = struct {
     fn advance(self: *Self) void {
         self.previous = self.current;
         // Lex until valid token
-        while(true) {
+        while (true) {
             if (self.lexer.lex()) |tok| {
                 self.current = tok;
                 return;
@@ -121,7 +117,7 @@ pub const Parser = struct {
         }
 
         self.num_errors += 1;
-        self.diag.err(error.Expected, .{ @tagName(tag) }, self.current.loc);
+        self.diag.err(error.Expected, .{@tagName(tag)}, self.current.loc);
         return error.Expected;
     }
 
@@ -134,12 +130,12 @@ pub const Parser = struct {
         }
 
         self.num_errors += 1;
-        self.diag.err(error.Expected, .{ @tagName(kw) }, self.current.loc);
+        self.diag.err(error.Expected, .{@tagName(kw)}, self.current.loc);
         return error.Expected;
     }
 
     fn parseDecl(self: *Self) Error!Decl {
-        return Decl { .function = try self.parseFnDecl() };
+        return Decl{ .function = try self.parseFnDecl() };
     }
 
     fn parseFnDecl(self: *Self) Error!Function(Stmt) {
@@ -152,12 +148,11 @@ pub const Parser = struct {
         while (self.match(.identifier)) {
             const name = self.lexer.getTokString(self.previous);
             const opt_ty = if (!self.match(.colon)) blk: {
-                self.diag.err(error.Expected, .{ @tagName(.colon) }, self.current.loc);
+                self.diag.err(error.Expected, .{@tagName(.colon)}, self.current.loc);
                 break :blk null;
-            } else
-                try self.parseType();
+            } else try self.parseType();
 
-            const param = VarDecl {
+            const param = VarDecl{
                 .name = name,
                 .val = null,
                 .ty = opt_ty,
@@ -197,9 +192,9 @@ pub const Parser = struct {
 
     fn parseStmt(self: *Self) Error!Stmt {
         const label = if (self.match(.at))
-                try self.parseLabel()
-            else
-                null;
+            try self.parseLabel()
+        else
+            null;
 
         const parsed_stmt = if (self.matchKw(.let))
             try self.parseLet(label)
@@ -227,7 +222,7 @@ pub const Parser = struct {
         if (self.previous.kw) |_| {
             self.num_errors += 1;
             const snipped = self.diag.source_mgr.snip(self.previous.loc.start, self.previous.loc.end);
-            self.diag.err(error.KeywordInvalidIdentifier, .{ snipped }, self.previous.loc);
+            self.diag.err(error.KeywordInvalidIdentifier, .{snipped}, self.previous.loc);
             return error.KeywordInvalidIdentifier;
         }
         const var_name = self.lexer.getTokString(self.previous);
@@ -236,13 +231,11 @@ pub const Parser = struct {
         const ty = if (self.match(.colon)) try self.parseType() else null;
         const val = if (self.match(.eq)) try self.parseExpr() else null;
         return Stmt.init(
-            .{
-                .id = .{
-                    .name = var_name,
-                    .val = val,
-                    .ty = ty,
-                }
-            },
+            .{ .id = .{
+                .name = var_name,
+                .val = val,
+                .ty = ty,
+            } },
             label,
             Loc.init(start, self.previous.loc.end),
         );
@@ -290,11 +283,7 @@ pub const Parser = struct {
         // This shouldn't actually happen, should be able to gather than at
         // comptime eventually?
         self.num_errors += 1;
-        self.diag.err(
-            error.NotABranch,
-            .{ self.diag.source_mgr.snip(loc.start, loc.end) },
-            loc
-        );
+        self.diag.err(error.NotABranch, .{self.diag.source_mgr.snip(loc.start, loc.end)}, loc);
         return error.NotABranch;
     }
 
@@ -363,7 +352,7 @@ pub const Parser = struct {
                         return ty_val;
                     }
                     // Intentionally fallthrough
-                }
+                },
             }
         }
         try self.consume(.identifier);
@@ -437,24 +426,15 @@ pub const Parser = struct {
                 return Value.initFloat(num, loc);
             } else |_| {
                 self.num_errors += 1;
-                self.diag.err(
-                    error.NotANumber,
-                    .{ self.diag.source_mgr.snip(loc.start, loc.end) },
-                    loc
-                );
+                self.diag.err(error.NotANumber, .{self.diag.source_mgr.snip(loc.start, loc.end)}, loc);
                 return error.NotANumber;
             }
-
         } else {
             if (std.fmt.parseInt(i32, num_str, 10)) |num| {
                 return Value.initInt(num, loc);
             } else |_| {
                 self.num_errors += 1;
-                self.diag.err(
-                    error.NotANumber,
-                    .{ self.diag.source_mgr.snip(loc.start, loc.end) },
-                    loc
-                );
+                self.diag.err(error.NotANumber, .{self.diag.source_mgr.snip(loc.start, loc.end)}, loc);
                 return error.NotANumber;
             }
         }
@@ -491,7 +471,7 @@ pub const Parser = struct {
         else blk: {
             self.num_errors += 1;
             const snipped = self.diag.source_mgr.snip(self.current.loc.start, self.current.loc.end);
-            self.diag.err(error.InvalidTypeName, .{ snipped }, self.current.loc);
+            self.diag.err(error.InvalidTypeName, .{snipped}, self.current.loc);
             // Advances since the maybeParseType will remain on the unknown token
             self.advance();
             break :blk error.InvalidTypeName;
@@ -508,7 +488,7 @@ pub const Parser = struct {
                 // know that this will be a type
                 self.num_errors += 1;
                 const snipped = self.diag.source_mgr.snip(self.current.loc.start, self.current.loc.end);
-                self.diag.err(error.InvalidTypeName, .{ snipped }, self.current.loc);
+                self.diag.err(error.InvalidTypeName, .{snipped}, self.current.loc);
                 return error.InvalidTypeName;
             };
             return try Type.initPtrAlloc(ty, self.allocator);
@@ -563,86 +543,22 @@ pub const Parser = struct {
 
     fn make_rules() RuleArray {
         var rules = std.mem.zeroes(RuleArray);
-        rules[@intFromEnum(Token.Tag.lparen)] = .{
-            .prefix = parseGrouping,
-            .infix = parseCall,
-            .prec = Precedence.call
-        };
-        rules[@intFromEnum(Token.Tag.identifier)] = .{
-            .prefix = parseIdentifier,
-            .infix = null,
-            .prec = Precedence.none
-        };
-        rules[@intFromEnum(Token.Tag.num)] = .{
-            .prefix = parseNumber,
-            .infix = null,
-            .prec = Precedence.none
-        };
-        rules[@intFromEnum(Token.Tag.bang)] = .{
-            .prefix = parseUnary,
-            .infix = parseBinary,
-            .prec = Precedence.unary
-        };
-        rules[@intFromEnum(Token.Tag.eq)] = .{
-            .prefix = null,
-            .infix = parseBinary,
-            .prec = Precedence.assign
-        };
-        rules[@intFromEnum(Token.Tag.pipe_pipe)] = .{
-            .prefix = null,
-            .infix = parseBinary,
-            .prec = Precedence.or_
-        };
-        rules[@intFromEnum(Token.Tag.amp_amp)] = .{
-            .prefix = null,
-            .infix = parseBinary,
-            .prec = Precedence.and_
-        };
-        rules[@intFromEnum(Token.Tag.eq_eq)] = .{
-            .prefix = null,
-            .infix = parseBinary,
-            .prec = Precedence.equal
-        };
-        rules[@intFromEnum(Token.Tag.less)] = .{
-            .prefix = null,
-            .infix = parseBinary,
-            .prec = Precedence.compare
-        };
-        rules[@intFromEnum(Token.Tag.less_eq)] = .{
-            .prefix = null,
-            .infix = parseBinary,
-            .prec = Precedence.compare
-        };
-        rules[@intFromEnum(Token.Tag.greater)] = .{
-            .prefix = null,
-            .infix = parseBinary,
-            .prec = Precedence.compare
-        };
-        rules[@intFromEnum(Token.Tag.greater_eq)] = .{
-            .prefix = null,
-            .infix = parseBinary,
-            .prec = Precedence.compare
-        };
-        rules[@intFromEnum(Token.Tag.plus)] = .{
-            .prefix = null,
-            .infix = parseBinary,
-            .prec = Precedence.term
-        };
-        rules[@intFromEnum(Token.Tag.minus)] = .{
-            .prefix = parseUnary,
-            .infix = parseBinary,
-            .prec = Precedence.term
-        };
-        rules[@intFromEnum(Token.Tag.star)] = .{
-            .prefix = parseUnary,
-            .infix = parseBinary,
-            .prec = Precedence.factor
-        };
-        rules[@intFromEnum(Token.Tag.slash)] = .{
-            .prefix = null,
-            .infix = parseBinary,
-            .prec = Precedence.factor
-        };
+        rules[@intFromEnum(Token.Tag.lparen)] = .{ .prefix = parseGrouping, .infix = parseCall, .prec = Precedence.call };
+        rules[@intFromEnum(Token.Tag.identifier)] = .{ .prefix = parseIdentifier, .infix = null, .prec = Precedence.none };
+        rules[@intFromEnum(Token.Tag.num)] = .{ .prefix = parseNumber, .infix = null, .prec = Precedence.none };
+        rules[@intFromEnum(Token.Tag.bang)] = .{ .prefix = parseUnary, .infix = parseBinary, .prec = Precedence.unary };
+        rules[@intFromEnum(Token.Tag.eq)] = .{ .prefix = null, .infix = parseBinary, .prec = Precedence.assign };
+        rules[@intFromEnum(Token.Tag.pipe_pipe)] = .{ .prefix = null, .infix = parseBinary, .prec = Precedence.or_ };
+        rules[@intFromEnum(Token.Tag.amp_amp)] = .{ .prefix = null, .infix = parseBinary, .prec = Precedence.and_ };
+        rules[@intFromEnum(Token.Tag.eq_eq)] = .{ .prefix = null, .infix = parseBinary, .prec = Precedence.equal };
+        rules[@intFromEnum(Token.Tag.less)] = .{ .prefix = null, .infix = parseBinary, .prec = Precedence.compare };
+        rules[@intFromEnum(Token.Tag.less_eq)] = .{ .prefix = null, .infix = parseBinary, .prec = Precedence.compare };
+        rules[@intFromEnum(Token.Tag.greater)] = .{ .prefix = null, .infix = parseBinary, .prec = Precedence.compare };
+        rules[@intFromEnum(Token.Tag.greater_eq)] = .{ .prefix = null, .infix = parseBinary, .prec = Precedence.compare };
+        rules[@intFromEnum(Token.Tag.plus)] = .{ .prefix = null, .infix = parseBinary, .prec = Precedence.term };
+        rules[@intFromEnum(Token.Tag.minus)] = .{ .prefix = parseUnary, .infix = parseBinary, .prec = Precedence.term };
+        rules[@intFromEnum(Token.Tag.star)] = .{ .prefix = parseUnary, .infix = parseBinary, .prec = Precedence.factor };
+        rules[@intFromEnum(Token.Tag.slash)] = .{ .prefix = null, .infix = parseBinary, .prec = Precedence.factor };
         return rules;
     }
 };

@@ -1,11 +1,11 @@
-pub const InvalidBytecodeError = error {
+pub const InvalidBytecodeError = error{
     UnexpectedEnd,
     InvalidValueIndex,
     TooManyConstants,
     ReturnWithoutFunction,
 };
 
-pub const RuntimeError = error {
+pub const RuntimeError = error{
     StackOverflow,
     StackUnderflow,
     InvalidOperand,

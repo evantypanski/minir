@@ -44,7 +44,6 @@ fn run(comptime name: []const u8) !void {
     }
 }
 
-
 test "error examples" {
     try run("notminir.min");
     try run("kwuse.min");

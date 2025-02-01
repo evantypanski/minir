@@ -9,7 +9,7 @@ const Trie = @import("util/trie.zig").Trie;
 const LowercaseTrieNode = @import("util/trie.zig").LowercaseTrieNode;
 
 pub const Lexer = struct {
-    pub const Error = error {
+    pub const Error = error{
         Unexpected,
         InvalidIdentifier,
     };
@@ -42,11 +42,7 @@ pub const Lexer = struct {
 
         if (self.isAtEnd()) {
             // EOF token has the last character as its slice
-            return Token.init(
-                .eof,
-                self.source_mgr.len() - 1,
-                self.source_mgr.len() - 1
-            );
+            return Token.init(.eof, self.source_mgr.len() - 1, self.source_mgr.len() - 1);
         }
 
         const c = self.advance();
@@ -68,32 +64,32 @@ pub const Lexer = struct {
             ';' => Token.init(.semi, self.start, self.current),
             ',' => Token.init(.comma, self.start, self.current),
             '=' => if (self.match('='))
-                        Token.init(.eq_eq, self.start, self.current)
-                    else
-                        Token.init(.eq, self.start, self.current),
+                Token.init(.eq_eq, self.start, self.current)
+            else
+                Token.init(.eq, self.start, self.current),
             '+' => Token.init(.plus, self.start, self.current),
             '-' => if (self.match('>'))
-                        Token.init(.arrow, self.start, self.current)
-                    else
-                        Token.init(.minus, self.start, self.current),
+                Token.init(.arrow, self.start, self.current)
+            else
+                Token.init(.minus, self.start, self.current),
             '*' => Token.init(.star, self.start, self.current),
             '/' => Token.init(.slash, self.start, self.current),
             '&' => if (self.match('&'))
-                        Token.init(.amp_amp, self.start, self.current)
-                    else
-                        return error.Unexpected,
+                Token.init(.amp_amp, self.start, self.current)
+            else
+                return error.Unexpected,
             '|' => if (self.match('|'))
-                        Token.init(.pipe_pipe, self.start, self.current)
-                    else
-                        return error.Unexpected,
+                Token.init(.pipe_pipe, self.start, self.current)
+            else
+                return error.Unexpected,
             '<' => if (self.match('='))
-                        Token.init(.less_eq, self.start, self.current)
-                    else
-                        Token.init(.less, self.start, self.current),
+                Token.init(.less_eq, self.start, self.current)
+            else
+                Token.init(.less, self.start, self.current),
             '>' => if (self.match('='))
-                        Token.init(.greater_eq, self.start, self.current)
-                    else
-                        Token.init(.greater, self.start, self.current),
+                Token.init(.greater_eq, self.start, self.current)
+            else
+                Token.init(.greater, self.start, self.current),
 
             else => error.Unexpected,
         };
@@ -117,11 +113,7 @@ pub const Lexer = struct {
         return self.keyword_trie.get(self.source_mgr.snip(self.start, self.current));
     }
     pub fn lexIdentifier(self: *Self) Token {
-
-        while (ascii.isAlphabetic(self.peek())
-            or ascii.isDigit(self.peek())
-            or self.peek() == '_')
-                : (_ = self.advance()) {}
+        while (ascii.isAlphabetic(self.peek()) or ascii.isDigit(self.peek()) or self.peek() == '_') : (_ = self.advance()) {}
         const opt_kw = self.identifierKw();
         return if (opt_kw) |kw|
             Token.initKw(kw, self.start, self.current)
@@ -167,9 +159,7 @@ pub const Lexer = struct {
     }
 
     fn skipWhitespace(self: *Self) void {
-        while (self.current < self.source_mgr.len()
-            and ascii.isWhitespace(self.peek()))
-            : (self.current += 1) {}
+        while (self.current < self.source_mgr.len() and ascii.isWhitespace(self.peek())) : (self.current += 1) {}
     }
 
     pub inline fn isAtEnd(self: Self) bool {

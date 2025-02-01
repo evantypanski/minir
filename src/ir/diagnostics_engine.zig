@@ -25,20 +25,16 @@ pub const Diagnostics = struct {
         };
     }
 
-    pub fn err(
-        self: Self, comptime the_err: anyerror, args: anytype, loc: Loc
-    ) void {
+    pub fn err(self: Self, comptime the_err: anyerror, args: anytype, loc: Loc) void {
         const start = self.startLineLoc(loc);
         const end = self.endLineLoc(loc);
         // Lol formatting
         const all_args = .{
-                self.source_mgr.filename,
-                self.source_mgr.getLineNum(start),
-            }
-            ++ args
-            ++ .{
-                self.source_mgr.snip(start, end),
-            };
+            self.source_mgr.filename,
+            self.source_mgr.getLineNum(start),
+        } ++ args ++ .{
+            self.source_mgr.snip(start, end),
+        };
         // TODO: I really want a caret at the location of the offending loc in
         // the snippet, but the log function doesn't seem capable for that
         // runtime info. We can't concat the string or get the underlying writer,
@@ -57,15 +53,14 @@ pub const Diagnostics = struct {
     /// Diagnoses the number of errors from a given component
     pub fn diagNumErrors(self: Self, num: usize, name: []const u8) void {
         _ = self;
-        std.debug.print( "\n\nFound {} errors during {s}\n", .{ num, name });
+        std.debug.print("\n\nFound {} errors during {s}\n", .{ num, name });
     }
 
     /// Finds the start of the line for a Loc
     fn startLineLoc(self: Self, loc: Loc) usize {
         if (loc.start == 0) return 0;
         var line_start = loc.start - 1;
-        while (line_start > 0 and self.source_mgr.get(line_start) != '\n')
-            : (line_start -= 1) {}
+        while (line_start > 0 and self.source_mgr.get(line_start) != '\n') : (line_start -= 1) {}
 
         return line_start + 1;
     }
@@ -73,8 +68,7 @@ pub const Diagnostics = struct {
     /// Finds the end of the line for a Loc
     fn endLineLoc(self: Self, loc: Loc) usize {
         var line_end = loc.end;
-        while (line_end < self.source_mgr.len() and self.source_mgr.get(line_end) != '\n')
-            : (line_end += 1) {}
+        while (line_end < self.source_mgr.len() and self.source_mgr.get(line_end) != '\n') : (line_end += 1) {}
 
         return line_end;
     }

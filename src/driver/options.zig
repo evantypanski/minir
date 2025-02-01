@@ -23,11 +23,7 @@ pub const Options = union(Config) {
     }
 };
 
-pub const InterpreterType = enum {
-    byte,
-    treewalk,
-    binary
-};
+pub const InterpreterType = enum { byte, treewalk, binary };
 
 pub const InterpretConfig = struct {
     filename: ?[]const u8,
@@ -68,4 +64,3 @@ pub const DumpConfig = struct {
         };
     }
 };
-

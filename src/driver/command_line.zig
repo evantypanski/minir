@@ -7,7 +7,7 @@ const InterpretConfig = @import("options.zig").InterpretConfig;
 const FmtConfig = @import("options.zig").FmtConfig;
 const DumpConfig = @import("options.zig").DumpConfig;
 
-pub const ParseError = error {
+pub const ParseError = error{
     UnknownCommand,
 };
 
@@ -217,8 +217,7 @@ pub const CommandLine = struct {
             \\Found filename '{s}' but already have '{s}'.
             \\Please specify one file name at a time.
             \\
-             , .{new_filename, old_filename}
-        );
+        , .{ new_filename, old_filename });
     }
 
     pub fn parse(self: Self) !Options {
