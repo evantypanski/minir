@@ -16,14 +16,14 @@ pub const BuiltinKind = enum {
 pub const builtins = blk: {
     break :blk StaticStringMap(*const Decl).initComptime(.{
         .{
-            "alloc", &.{ .builtin = .{
+            "alloc", &Decl{ .builtin = .{
                 .params = &.{ VarDecl{ .name = "ty", .val = null, .ty = Type.type_ }},
                 .ret_ty = Type { .pointer = &.{.runtime = {} } },
                 .kind = .alloc
             }}
         },
         .{
-            "debug", &.{ .builtin = .{
+            "debug", &Decl{ .builtin = .{
                 .params = &.{ VarDecl{ .name = "val", .val = null, .ty = Type.runtime }},
                 .ret_ty = .none,
                 .kind = .debug

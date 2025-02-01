@@ -39,7 +39,7 @@ pub const Parser = struct {
         infix: ?*const fn (self: *Self, other: Value) Error!Value = null,
         prec: Precedence = Precedence.none,
     };
-    const RuleArray = [@typeInfo(Token.Tag).Enum.fields.len] Rule;
+    const RuleArray = [@typeInfo(Token.Tag).@"enum".fields.len] Rule;
 
     allocator: Allocator,
     lexer: Lexer,
