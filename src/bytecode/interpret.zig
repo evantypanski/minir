@@ -87,6 +87,7 @@ pub const Interpreter = struct {
     pub fn interpretOp(self: *Self, op: OpCode) Error!void {
         switch (op) {
             .ret => self.pc = try self.popFrame(),
+            .unreachable_ => return error.Unreachable,
             .pop => _ = try self.popVal(),
             .constant => try self.pushImmediate(),
             .debug => {

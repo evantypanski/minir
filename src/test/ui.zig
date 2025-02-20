@@ -48,4 +48,5 @@ test "error examples" {
     try run("notminir.min");
     try run("kwuse.min");
     try run("invalidtypes.min");
+    try run("unreachable.min");
 }

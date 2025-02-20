@@ -200,6 +200,8 @@ pub const Parser = struct {
             try self.parseLet(label)
         else if (self.matchKw(.ret))
             try self.parseRet(label)
+        else if (self.matchKw(.unreachable_))
+            try self.parseUndefined(label)
         else if (self.current.isBranch())
             try self.parseBranch(label)
         else
@@ -253,6 +255,14 @@ pub const Parser = struct {
             .{ .ret = val },
             label,
             Loc.init(start, self.previous.loc.end),
+        );
+    }
+
+    fn parseUndefined(self: *Self, label: ?[]const u8) Error!Stmt {
+        return Stmt.init(
+            .unreachable_,
+            label,
+            Loc.init(self.previous.loc.start, self.previous.loc.end),
         );
     }
 

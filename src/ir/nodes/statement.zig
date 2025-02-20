@@ -11,6 +11,7 @@ const StmtTag = enum {
     branch,
     ret,
     value,
+    unreachable_,
 };
 
 pub const VarDecl = struct {
@@ -58,6 +59,7 @@ pub const StmtKind = union(StmtTag) {
     branch: Branch,
     ret: ?Value,
     value: Value,
+    unreachable_: void,
 };
 
 pub const Stmt = struct {
@@ -72,7 +74,7 @@ pub const Stmt = struct {
     pub fn isTerminator(self: Stmt) bool {
         switch (self.stmt_kind) {
             .id, .value => return false,
-            .branch, .ret => return true,
+            .branch, .ret, .unreachable_ => return true,
         }
     }
 
@@ -94,6 +96,7 @@ pub const Stmt = struct {
                 }
             },
             .id => |*vd| vd.deinit(allocator),
+            .unreachable_ => {},
         }
     }
 };

@@ -45,6 +45,7 @@ pub const Interpreter = struct {
         StackError,
         InvalidValue,
         WriterError,
+        Unreachable,
     } || Heap.Error || NodeError;
 
     const Self = @This();
@@ -156,6 +157,7 @@ pub const Interpreter = struct {
                 _ = self.env.pop();
             },
             .branch, .ret => try self.evalTerminator(stmt),
+            .unreachable_ => return error.Unreachable,
         }
     }
 
@@ -184,6 +186,7 @@ pub const Interpreter = struct {
                 }
                 self.current_ele = null;
             },
+            .unreachable_ => return error.Unreachable,
         }
     }
 

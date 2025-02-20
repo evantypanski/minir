@@ -6,6 +6,7 @@ pub const OpCode = enum(u8) {
     const value_size = @sizeOf(Value);
 
     ret,
+    unreachable_,
     pop,
     constant,
     debug,
@@ -52,14 +53,14 @@ pub const OpCode = enum(u8) {
         return switch (self) {
             .jmp, .jmpt, .call => 2,
             .constant, .set, .get, .alloc, .deref, .heapset => 1,
-            .ret, .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le, .pop, .and_, .or_, .neg, .not => 0,
+            .ret, .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le, .pop, .and_, .or_, .neg, .not, .unreachable_ => 0,
         };
     }
 
     pub fn stackEffect(self: Self) isize {
         return switch (self) {
             .constant, .get, .alloc => 1,
-            .ret, .call, .jmp, .deref, .neg, .not => 0,
+            .ret, .call, .jmp, .deref, .neg, .not, .unreachable_ => 0,
             .debug, .add, .sub, .mul, .div, .eq, .ne, .gt, .ge, .lt, .le, .set, .jmpt, .pop, .and_, .or_ => -1,
             .heapset => -2,
         };

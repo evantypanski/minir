@@ -31,6 +31,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         visitBranch: VisitBranchFn = defaultVisitBranch,
         visitValueStmt: VisitValueStmtFn = defaultVisitValueStmt,
         visitRet: VisitRetFn = defaultVisitRet,
+        visitUnreachable: VisitUnreachableFn = defaultVisitUnreachable,
 
         visitValue: VisitValueFn = defaultVisitValue,
         visitUndef: VisitUndefFn = defaultVisitUndef,
@@ -60,6 +61,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const VisitBranchFn = *const fn (self: Self, arg: ArgTy, branch: *Branch) RetTy;
         const VisitValueStmtFn = *const fn (self: Self, arg: ArgTy, val: *Value) RetTy;
         const VisitRetFn = *const fn (self: Self, arg: ArgTy, opt_val: *?Value) RetTy;
+        const VisitUnreachableFn = *const fn (self: Self, arg: ArgTy) RetTy;
 
         // Values
         const VisitValueFn = *const fn (self: Self, arg: ArgTy, val: *Value) RetTy;
@@ -126,6 +128,7 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
                 .branch => |*branch| try self.visitBranch(self, arg, branch),
                 .value => |*value| try self.visitValueStmt(self, arg, value),
                 .ret => |*opt_value| try self.visitRet(self, arg, opt_value),
+                .unreachable_ => try self.visitUnreachable(self, arg),
             }
         }
 
@@ -216,6 +219,8 @@ pub fn IrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
                 try self.walkValue(arg, val);
             }
         }
+
+        pub fn defaultVisitUnreachable(_: Self, _: ArgTy) RetTy {}
 
         pub fn defaultVisitInt(_: Self, _: ArgTy, _: *i32) RetTy {}
 

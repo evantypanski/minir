@@ -41,6 +41,7 @@ pub const Disassembler = struct {
         try self.printAddress();
         switch (op) {
             .ret => try self.writer.writeAll("RET"),
+            .unreachable_ => try self.writer.writeAll("UNREACHABLE"),
             .pop => try self.writer.writeAll("POP"),
             .constant => {
                 try self.writer.writeAll("CONSTANT");

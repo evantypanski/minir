@@ -135,6 +135,7 @@ pub const Disassembler = struct {
             .value => |val| {
                 try self.disassembleValue(val);
             },
+            .unreachable_ => try self.writer.writeAll("unreachable"),
         }
 
         try self.writer.writeAll(";");

@@ -45,6 +45,7 @@ pub const Token = struct {
         false_,
         undefined_,
         ret,
+        unreachable_,
         float,
         int,
         boolean,

@@ -103,6 +103,7 @@ pub const Lowerer = struct {
         .visitVarDecl = visitVarDecl,
         .visitValueStmt = visitValueStmt,
         .visitRet = visitRet,
+        .visitUnreachable = visitUnreachable,
         .visitUnaryOp = visitUnaryOp,
         .visitBinaryOp = visitBinaryOp,
         .visitProgram = visitProgram,
@@ -224,6 +225,10 @@ pub const Lowerer = struct {
         }
 
         try self.builder.addOp(.ret);
+    }
+
+    pub fn visitUnreachable(_: VisitorTy, self: *Self) Error!void {
+        try self.builder.addOp(.unreachable_);
     }
 
     pub fn visitUnaryOp(visitor: VisitorTy, self: *Self, op: *const UnaryOp) Error!void {

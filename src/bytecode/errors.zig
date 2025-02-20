@@ -13,6 +13,7 @@ pub const RuntimeError = error{
     ReachedEndNoReturn,
     NoValidFrame,
     InvalidStackIndex,
+    Unreachable,
 
     // Type errors
     ExpectedInt,

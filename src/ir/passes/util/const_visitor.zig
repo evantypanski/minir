@@ -31,6 +31,7 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         visitBranch: VisitBranchFn = defaultVisitBranch,
         visitValueStmt: VisitValueStmtFn = defaultVisitValueStmt,
         visitRet: VisitRetFn = defaultVisitRet,
+        visitUnreachable: VisitUnreachableFn = defaultVisitUnreachable,
 
         visitValue: VisitValueFn = defaultVisitValue,
         visitUndef: VisitUndefFn = defaultVisitUndef,
@@ -60,6 +61,7 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const VisitBranchFn = *const fn (self: Self, arg: ArgTy, branch: *const Branch) RetTy;
         const VisitValueStmtFn = *const fn (self: Self, arg: ArgTy, val: *const Value) RetTy;
         const VisitRetFn = *const fn (self: Self, arg: ArgTy, opt_val: *const ?Value) RetTy;
+        const VisitUnreachableFn = *const fn (self: Self, arg: ArgTy) RetTy;
 
         // Values
         const VisitValueFn = *const fn (self: Self, arg: ArgTy, val: *const Value) RetTy;
@@ -127,6 +129,7 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
                 .branch => |*branch| try self.visitBranch(self, arg, branch),
                 .value => |*value| try self.visitValueStmt(self, arg, value),
                 .ret => |*opt_value| try self.visitRet(self, arg, opt_value),
+                .unreachable_ => try self.visitUnreachable(self, arg),
             }
         }
 
@@ -217,6 +220,8 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
                 try self.walkValue(arg, val);
             }
         }
+
+        pub fn defaultVisitUnreachable(_: Self, _: ArgTy) RetTy {}
 
         pub fn defaultVisitInt(_: Self, _: ArgTy, _: *const i32) RetTy {}
 
