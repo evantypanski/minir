@@ -18,16 +18,15 @@ fn run(comptime name: []const u8) !void {
 
     try proc.spawn();
 
-    var stdout_list = std.ArrayList(u8).init(std.testing.allocator);
+    var stdout_list: std.ArrayListUnmanaged(u8) = .empty;
+    var stderr_list: std.ArrayListUnmanaged(u8) = .empty;
 
-    var stderr_list = std.ArrayList(u8).init(std.testing.allocator);
+    try proc.collectOutput(std.testing.allocator, &stdout_list, &stderr_list, 10000);
 
-    try proc.collectOutput(&stdout_list, &stderr_list, 10000);
-
-    const stdout = try stdout_list.toOwnedSlice();
+    const stdout = try stdout_list.toOwnedSlice(std.testing.allocator);
     defer std.testing.allocator.free(stdout);
 
-    const stderr = try stderr_list.toOwnedSlice();
+    const stderr = try stderr_list.toOwnedSlice(std.testing.allocator);
     defer std.testing.allocator.free(stderr);
 
     const tests_dir = try std.fs.cwd().openDir(ui_dir_name, .{});

@@ -167,7 +167,7 @@ pub const Interpreter = struct {
             .branch => |branch| {
                 if (branch.expr) |val| {
                     try self.evalValue(val);
-                    const result = self.env.pop();
+                    const result = self.env.pop().?;
                     if (!try (try self.evalBool(result)).asBool()) {
                         // Go to next basic block and return
                         if (self.current_ele) |*current_ele| {
@@ -226,12 +226,12 @@ pub const Interpreter = struct {
             },
             .unary => {
                 self.evalValue(value) catch return error.InvalidBool;
-                const val = self.env.pop();
+                const val = self.env.pop().?;
                 return self.evalBool(val) catch return error.InvalidBool;
             },
             .binary => {
                 self.evalValue(value) catch return error.InvalidBool;
-                const val = self.env.pop();
+                const val = self.env.pop().?;
                 return self.evalBool(val) catch return error.InvalidBool;
             },
         }
@@ -277,14 +277,14 @@ pub const Interpreter = struct {
             },
             .deref => {
                 self.evalValue(op.val.*) catch return error.OperandError;
-                const ptrVal = self.env.pop();
+                const ptrVal = self.env.pop().?;
                 const ptr = try ptrVal.asPtr();
                 const bytes = self.heap.getBytes(ptr.to, ptr.ty.size());
                 try self.pushValue(std.mem.bytesAsValue(Value, bytes[0..@sizeOf(Value)]).*);
             },
             .neg => {
                 self.evalValue(op.val.*) catch return error.OperandError;
-                const numVal = self.env.pop();
+                const numVal = self.env.pop().?;
                 switch (numVal.val_kind) {
                     .int => |i| try self.pushValue(Value.initInt(-1 * i, value.loc)),
                     .float => |f| try self.pushValue(Value.initFloat(-1 * f, value.loc)),
@@ -315,7 +315,7 @@ pub const Interpreter = struct {
                         // Get the pointer
                         if (uo.kind != .deref) return error.InvalidLHSAssign;
                         self.evalValue(uo.val.*) catch return error.OperandError;
-                        const ptrVal = self.env.pop();
+                        const ptrVal = self.env.pop().?;
                         const ptr = try ptrVal.asPtr();
                         self.evalValue(op.rhs.*) catch return error.OperandError;
                         const rhs = self.env.getLast();
@@ -367,9 +367,9 @@ pub const Interpreter = struct {
         }
 
         self.evalValue(op.lhs.*) catch return error.OperandError;
-        const lhs = self.env.pop();
+        const lhs = self.env.pop().?;
         self.evalValue(op.rhs.*) catch return error.OperandError;
-        const rhs = self.env.pop();
+        const rhs = self.env.pop().?;
         const newloc = Loc.combine(op.lhs.*.loc, op.rhs.*.loc);
 
         switch (op.kind) {
@@ -446,7 +446,7 @@ pub const Interpreter = struct {
         const func = call.resolved orelse return error.NoSuchFunction;
         try self.pushFrame();
         defer {
-            const frame = self.popFrame();
+            const frame = self.popFrame().?;
             self.current_ele = frame.return_ele_index;
         }
         try self.interpretDecl(func.*);
@@ -469,12 +469,12 @@ pub const Interpreter = struct {
     fn interpretBuiltin(self: *Self, builtin: Builtin) Error!void {
         switch (builtin.kind) {
             .alloc => {
-                const val_ty = self.env.pop();
+                const val_ty = self.env.pop().?;
                 const allocated = try self.allocateType(val_ty.val_kind.type_);
                 try self.pushValue(allocated);
             },
             .debug => {
-                try self.printValue(self.env.pop());
+                try self.printValue(self.env.pop().?);
             },
         }
     }
@@ -490,7 +490,7 @@ pub const Interpreter = struct {
         self.call_stack.append(.{ .frame_env_begin = self.env.items.len, .return_ele_index = self.current_ele.? }) catch return error.FrameError;
     }
 
-    fn popFrame(self: *Self) Frame {
+    fn popFrame(self: *Self) ?Frame {
         return self.call_stack.pop();
     }
 
