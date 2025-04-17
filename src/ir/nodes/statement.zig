@@ -16,6 +16,8 @@ const StmtTag = enum {
 
 pub const VarDecl = struct {
     name: []const u8,
+    // An optional SSA index, if in SSA form
+    ssa_index: ?u64,
     // Initial decl
     val: ?Value,
     ty: ?Type,

@@ -73,6 +73,7 @@ test "deinit works" {
     bb1_builder.setLabel("bb1");
     try bb1_builder.addStatement(Stmt.init(.{ .id = .{
         .name = "hi",
+        .ssa_index = null,
         .val = Value.initInt(99, Loc.default()),
         .ty = .int,
     } }, null, Loc.default()));

@@ -15,6 +15,7 @@ const UnaryOp = @import("../../nodes/value.zig").UnaryOp;
 const BinaryOp = @import("../../nodes/value.zig").BinaryOp;
 const FuncCall = @import("../../nodes/value.zig").FuncCall;
 const Pointer = @import("../../nodes/value.zig").Pointer;
+const Phi = @import("../../nodes/value.zig").Phi;
 const Type = @import("../../nodes/type.zig").Type;
 
 pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
@@ -44,6 +45,7 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         visitFuncCall: VisitFuncCallFn = defaultVisitFuncCall,
         visitTypeVal: VisitTypeValFn = defaultVisitTypeVal,
         visitPtr: VisitPtrFn = defaultVisitPtr,
+        visitPhi: VisitPhiFn = defaultVisitPhi,
 
         const Self = @This();
 
@@ -75,6 +77,7 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         const VisitFuncCallFn = *const fn (self: Self, arg: ArgTy, call: *const FuncCall) RetTy;
         const VisitTypeValFn = *const fn (self: Self, arg: ArgTy, ty: *const Type) RetTy;
         const VisitPtrFn = *const fn (self: Self, arg: ArgTy, ptr: *const Pointer) RetTy;
+        const VisitPhiFn = *const fn (self: Self, arg: ArgTy, phi: *const Phi) RetTy;
 
         pub fn walkProgram(self: Self, arg: ArgTy, program: *const Program) RetTy {
             for (program.decls) |*function| {
@@ -159,6 +162,7 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
                 .call => |*call| try self.visitFuncCall(self, arg, call),
                 .type_ => |*ty| try self.visitTypeVal(self, arg, ty),
                 .ptr => |*ptr| try self.visitPtr(self, arg, ptr),
+                .phi => |*phi| try self.visitPhi(self, arg, phi),
             }
         }
 
@@ -174,6 +178,12 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         pub fn walkFuncCall(self: Self, arg: ArgTy, call: *const FuncCall) RetTy {
             for (call.arguments) |*call_arg| {
                 try self.visitValue(self, arg, call_arg);
+            }
+        }
+
+        pub fn walkPhi(self: Self, arg: ArgTy, phi: *const Phi) RetTy {
+            for (phi.operands) |*access| {
+                try self.visitValue(self, arg, access);
             }
         }
 
@@ -254,5 +264,9 @@ pub fn ConstIrVisitor(comptime ArgTy: type, comptime RetTy: type) type {
         pub fn defaultVisitTypeVal(_: Self, _: ArgTy, _: *const Type) RetTy {}
 
         pub fn defaultVisitPtr(_: Self, _: ArgTy, _: *const Pointer) RetTy {}
+
+        pub fn defaultVisitPhi(self: Self, arg: ArgTy, phi: *const Phi) RetTy {
+            try self.walkPhi(arg, phi);
+        }
     };
 }

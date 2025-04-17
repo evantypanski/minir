@@ -234,6 +234,7 @@ pub const Interpreter = struct {
                 const val = self.env.pop().?;
                 return self.evalBool(val) catch return error.InvalidBool;
             },
+            .phi => |phi| return self.evalBool(phi.operands[0]),
         }
     }
 
@@ -259,6 +260,7 @@ pub const Interpreter = struct {
                 }
             },
             .type_ => return value,
+            .phi => |phi| return self.evalType(phi.operands[0]),
         }
     }
 
@@ -434,6 +436,7 @@ pub const Interpreter = struct {
                     try self.pushValue(Value.initUndef(Loc.default()));
                 }
             },
+            .phi => |phi| return self.evalValue(phi.operands[0]),
         }
     }
 
@@ -518,6 +521,7 @@ pub const Interpreter = struct {
                 self.writer.writeAll(")") catch return error.WriterError;
             },
             .ptr => |ptr| self.writer.print("@{d}", .{ptr.to}) catch return error.WriterError,
+            .phi => |phi| return self.printValue(phi.operands[0]),
             else => return error.InvalidValue,
         }
 

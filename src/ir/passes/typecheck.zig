@@ -205,6 +205,7 @@ pub const TypecheckPass = struct {
             },
             .type_ => .type_,
             .ptr => |ptr| ptr.ty,
+            .phi => |phi| self.valTy(&phi.operands[0]),
         };
     }
 

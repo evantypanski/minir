@@ -109,6 +109,10 @@ pub const Disassembler = struct {
         switch (stmt.stmt_kind) {
             .id => |decl| {
                 try self.writer.print("let {s}", .{decl.name});
+                if (decl.ssa_index) |idx| {
+                    try self.writer.writeAll("_");
+                    try fmt.formatInt(idx, 10, .lower, .{}, self.writer);
+                }
                 if (decl.ty) |ty| {
                     try self.writer.writeAll(": ");
                     try self.disassembleType(ty);
@@ -152,6 +156,11 @@ pub const Disassembler = struct {
                     try self.writer.writeAll("@+");
                     try fmt.formatInt(offset, 10, .lower, .{}, self.writer);
                 }
+
+                if (va.ssa_index) |idx| {
+                    try self.writer.writeAll("_");
+                    try fmt.formatInt(idx, 10, .lower, .{}, self.writer);
+                }
             },
             .int => |i| try fmt.formatInt(i, 10, .lower, .{}, self.writer),
             .float => |f| {
@@ -185,6 +194,20 @@ pub const Disassembler = struct {
             },
             .type_ => |ty| try self.disassembleType(ty),
             .ptr => |ptr| try self.disassemblePtr(ptr),
+            .phi => |phi| {
+                try self.writer.writeAll("phi(");
+                var first = true;
+                for (phi.operands) |access| {
+                    if (!first) {
+                        try self.writer.writeAll(", ");
+                    }
+
+                    try self.disassembleValue(access);
+                    first = false;
+                }
+
+                try self.writer.writeAll(")");
+            },
         }
     }
 

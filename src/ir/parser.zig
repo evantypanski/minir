@@ -154,6 +154,7 @@ pub const Parser = struct {
 
             const param = VarDecl{
                 .name = name,
+                .ssa_index = null,
                 .val = null,
                 .ty = opt_ty,
             };
@@ -235,6 +236,7 @@ pub const Parser = struct {
         return Stmt.init(
             .{ .id = .{
                 .name = var_name,
+                .ssa_index = null,
                 .val = val,
                 .ty = ty,
             } },

@@ -14,7 +14,7 @@ pub const BuiltinKind = enum {
 };
 
 pub const builtins = blk: {
-    break :blk StaticStringMap(*const Decl).initComptime(.{ .{ "alloc", &Decl{ .builtin = .{ .params = &.{VarDecl{ .name = "ty", .val = null, .ty = Type.type_ }}, .ret_ty = Type{ .pointer = &.{ .runtime = {} } }, .kind = .alloc } } }, .{ "debug", &Decl{ .builtin = .{ .params = &.{VarDecl{ .name = "val", .val = null, .ty = Type.runtime }}, .ret_ty = .none, .kind = .debug } } } });
+    break :blk StaticStringMap(*const Decl).initComptime(.{ .{ "alloc", &Decl{ .builtin = .{ .params = &.{VarDecl{ .name = "ty", .ssa_index = null, .val = null, .ty = Type.type_ }}, .ret_ty = Type{ .pointer = &.{ .runtime = {} } }, .kind = .alloc } } }, .{ "debug", &Decl{ .builtin = .{ .params = &.{VarDecl{ .name = "val", .ssa_index = null, .val = null, .ty = Type.runtime }}, .ret_ty = .none, .kind = .debug } } } });
 };
 
 pub const Builtin = struct {

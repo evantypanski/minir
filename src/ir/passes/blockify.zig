@@ -106,6 +106,7 @@ test "Changes all functions into BB functions" {
 
     try func_builder.addElement(Stmt.init(.{ .id = .{
         .name = "hi",
+        .ssa_index = null,
         .val = Value.initInt(99, Loc.default()),
         .ty = .int,
     } }, null, Loc.default()));
@@ -152,6 +153,7 @@ test "Errors when already blockified" {
     bb1_builder.setLabel("bb1");
     try bb1_builder.addStatement(Stmt.init(.{ .id = .{
         .name = "hi",
+        .ssa_index = null,
         .val = Value.initInt(99, Loc.default()),
         .ty = .int,
     } }, null, Loc.default()));

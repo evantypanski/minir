@@ -19,10 +19,12 @@ const ValueTag = enum {
     call,
     type_,
     ptr,
+    phi,
 };
 
 pub const VarAccess = struct {
     name: ?[]const u8,
+    ssa_index: ?u64,
     offset: ?isize,
 };
 
@@ -129,6 +131,10 @@ pub const Pointer = struct {
     ty: Type,
 };
 
+pub const Phi = struct {
+    operands: []Value,
+};
+
 pub const ValueKind = union(ValueTag) {
     undef,
     access: VarAccess,
@@ -140,6 +146,7 @@ pub const ValueKind = union(ValueTag) {
     call: FuncCall,
     type_: Type,
     ptr: Pointer,
+    phi: Phi,
 
     pub fn deinit(self: *ValueKind, allocator: Allocator) void {
         switch (self.*) {
@@ -161,7 +168,7 @@ pub const Value = struct {
 
     pub fn initAccessName(name: []const u8, loc: Loc) Value {
         return .{
-            .val_kind = .{ .access = .{ .name = name, .offset = null } },
+            .val_kind = .{ .access = .{ .name = name, .ssa_index = null, .offset = null } },
             .loc = loc,
         };
     }
