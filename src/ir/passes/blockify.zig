@@ -55,6 +55,20 @@ pub const BlockifyPass = struct {
                 for (func.*.params) |*param| {
                     try fn_builder.addParam(param.*);
                 }
+                // Make a begin and end block
+                var begin_builder = BasicBlockBuilder.init(arg.allocator);
+                errdefer begin_builder.deinit();
+                // TODO: Make sure this label doesn't conflict
+                begin_builder.setLabel("begin");
+                const begin = try begin_builder.build();
+                try fn_builder.addElement(begin);
+
+                var end_builder = BasicBlockBuilder.init(arg.allocator);
+                errdefer end_builder.deinit();
+                // TODO: Make sure this label doesn't conflict
+                end_builder.setLabel("end");
+                const end = try end_builder.build();
+
                 var bb_builder = BasicBlockBuilder.init(arg.allocator);
                 errdefer bb_builder.deinit();
                 var empty_bb_builder = true;
@@ -89,13 +103,52 @@ pub const BlockifyPass = struct {
                     const bb = try bb_builder.build();
                     try fn_builder.addElement(bb);
                 }
+                try fn_builder.addElement(end);
+
                 func.shallowDeinit(arg.allocator);
                 decl.* = .{ .bb_function = fn_builder.build() catch unreachable };
+
+                try constructCfg(decl);
             },
             .bb_function => {
                 return error.AlreadyBlockified;
             },
             .builtin => {},
+        }
+    }
+
+    // Takes the basic blocks and connects them.
+    pub fn constructCfg(decl: *Decl) Error!void {
+        switch (decl.*) {
+            .bb_function => |*func| {
+                std.debug.assert(func.elements.len >= 2);
+                // First element is begin, last is end.
+                var begin = func.elements[0];
+                var end = func.elements[func.elements.len - 1];
+                try func.elements[0].addNext(&func.elements[1]);
+                try func.elements[1].addPrevious(&begin);
+                var bb_index: usize = 1;
+                for (func.elements[bb_index .. func.elements.len - 1]) |*bb| {
+                    if (bb.terminator) |terminator| {
+                        switch (terminator.stmt_kind) {
+                            .ret, .unreachable_ => {
+                                try bb.addNext(&end);
+                                try end.addPrevious(bb);
+                            },
+                            .branch => |br| {
+                                // TODO
+                                _ = br;
+                            },
+                            else => {},
+                        }
+                    } else {
+                        try bb.addNext(&func.elements[bb_index + 1]);
+                    }
+
+                    bb_index += 1;
+                }
+            },
+            .function, .builtin => {},
         }
     }
 };
@@ -125,17 +178,16 @@ test "Changes all functions into BB functions" {
     // Better way to expect a tagged union value?
     switch (program.decls[0]) {
         .function => |main_func| try std.testing.expectEqual(main_func.elements.len, 3),
-        .bb_function => try std.testing.expect(false),
-        .builtin => try std.testing.expect(false),
+        .bb_function, .builtin => try std.testing.expect(false),
     }
 
     var pass = BlockifyPass.init(.{ .allocator = std.testing.allocator });
     try pass.execute(&program);
 
-    // Now it should be blockified
+    // Now it should be blockified, two blocks plus begin/end
     switch (program.decls[0]) {
         .function => try std.testing.expect(false),
-        .bb_function => |bb_func| try std.testing.expectEqual(bb_func.elements.len, 2),
+        .bb_function => |bb_func| try std.testing.expectEqual(bb_func.elements.len, 4),
         .builtin => try std.testing.expect(false),
     }
 

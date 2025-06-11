@@ -9,8 +9,27 @@ pub const BasicBlock = struct {
     terminator: ?Stmt,
     label: ?[]const u8,
 
+    previous: std.ArrayList(*BasicBlock),
+    next: std.ArrayList(*BasicBlock),
+
     pub fn getLabel(self: BasicBlock) ?[]const u8 {
         return self.label;
+    }
+
+    pub fn addPrevious(self: *BasicBlock, prev: *BasicBlock) !void {
+        try self.previous.append(prev);
+    }
+
+    pub fn addNext(self: *BasicBlock, next: *BasicBlock) !void {
+        try self.next.append(next);
+    }
+
+    pub fn jsonStringify(self: BasicBlock, jw: anytype) !void {
+        try jw.write(self.statements);
+        try jw.write(self.terminator);
+        try jw.write(self.label);
+        try jw.write(self.previous.items);
+        try jw.write(self.next.items);
     }
 
     pub fn deinit(self: *BasicBlock, allocator: Allocator) void {
@@ -18,6 +37,8 @@ pub const BasicBlock = struct {
             stmt.deinit(allocator);
         }
         allocator.free(self.statements);
+        self.previous.deinit();
+        self.next.deinit();
     }
 };
 
@@ -66,6 +87,8 @@ pub const BasicBlockBuilder = struct {
             .statements = try self.statements.toOwnedSlice(),
             .terminator = self.terminator,
             .label = self.label,
+            .previous = std.ArrayList(*BasicBlock).init(self.allocator),
+            .next = std.ArrayList(*BasicBlock).init(self.allocator),
         };
     }
 };

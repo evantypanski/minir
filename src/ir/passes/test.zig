@@ -79,8 +79,12 @@ test "Test simple blockify" {
 
     try expectDisassembled(start,
         \\func main() -> none {
+        \\  @begin {
+        \\  }
         \\  {
         \\    let i: int = 42;
+        \\  }
+        \\  @end {
         \\  }
         \\}
     );
@@ -106,12 +110,16 @@ test "Test blockify with jump" {
 
     try expectDisassembled(start,
         \\func main() -> none {
+        \\  @begin {
+        \\  }
         \\  @label {
         \\    let i: int = 42;
         \\    br label;
         \\  }
         \\  {
         \\    let j: int = 420;
+        \\  }
+        \\  @end {
         \\  }
         \\}
     );
