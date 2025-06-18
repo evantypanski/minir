@@ -20,6 +20,7 @@ pub const Blockify = Modifier(BlockifyPass, BlockifyPass.Error, &[_]type{}, Bloc
 pub const BlockifyPass = struct {
     pub const Error = error{
         AlreadyBlockified,
+        LabelNotFound,
     } || Allocator.Error || NodeError;
 
     const Self = @This();
@@ -58,14 +59,12 @@ pub const BlockifyPass = struct {
                 // Make a begin and end block
                 var begin_builder = BasicBlockBuilder.init(arg.allocator);
                 errdefer begin_builder.deinit();
-                // TODO: Make sure this label doesn't conflict
                 begin_builder.setLabel("begin");
                 const begin = try begin_builder.build();
                 try fn_builder.addElement(begin);
 
                 var end_builder = BasicBlockBuilder.init(arg.allocator);
                 errdefer end_builder.deinit();
-                // TODO: Make sure this label doesn't conflict
                 end_builder.setLabel("end");
                 const end = try end_builder.build();
 
@@ -129,15 +128,27 @@ pub const BlockifyPass = struct {
                 try func.elements[1].addPrevious(&begin);
                 var bb_index: usize = 1;
                 for (func.elements[bb_index .. func.elements.len - 1]) |*bb| {
-                    if (bb.terminator) |terminator| {
+                    if (bb.terminator) |*terminator| {
                         switch (terminator.stmt_kind) {
                             .ret, .unreachable_ => {
                                 try bb.addNext(&end);
                                 try end.addPrevious(bb);
                             },
-                            .branch => |br| {
-                                // TODO
-                                _ = br;
+                            .branch => |*br| {
+                                // Linear search for the label
+                                for (func.elements, 0..) |*labeled, i| {
+                                    if (labeled.getLabel()) |label| {
+                                        if (std.mem.eql(u8, label, br.dest_label)) {
+                                            // Found it!
+                                            br.*.dest_index = i;
+                                            try bb.addNext(labeled);
+                                            try labeled.addPrevious(bb);
+                                            break;
+                                        }
+                                    }
+                                } else {
+                                    return error.LabelNotFound;
+                                }
                             },
                             else => {},
                         }
