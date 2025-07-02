@@ -12,6 +12,7 @@ const Formatter = @import("../ir/dump/disassembler.zig").Disassembler;
 const JSONifier = @import("../ir/dump/json.zig").JSONifier;
 const TreewalkInterpreter = @import("../ir/interpret.zig").Interpreter;
 const Numify = @import("../ir/passes/numify.zig").Numify;
+const Blockify = @import("../ir/passes/blockify.zig").Blockify;
 const Lexer = @import("../ir/lexer.zig").Lexer;
 const Parser = @import("../ir/parser.zig").Parser;
 const PassManager = @import("../ir/passes/util/pass_manager.zig").PassManager;
@@ -28,7 +29,7 @@ const CommandLine = @import("command_line.zig").CommandLine;
 const Options = @import("options.zig").Options;
 
 const Self = @This();
-pub const default_passes = &[_]type{ Numify, ResolveBranches, ResolveCalls, Typecheck };
+pub const default_passes = &[_]type{ Numify, ResolveBranches, ResolveCalls, Typecheck, Blockify };
 
 allocator: Allocator,
 out: AnyWriter,
@@ -43,8 +44,8 @@ pub fn init(allocator: Allocator, out: AnyWriter) Self {
 /// Drives using the CLI arguments; the default entry-point
 pub fn drive(self: Self) !void {
     const cli = try CommandLine.init(self.allocator, self.out);
-    const cli_result = try cli.parse();
     defer cli.deinit();
+    const cli_result = try cli.parse();
     // Run through extra passes version because it auto-adds default passes
     try self.driveWithExtraPasses(cli_result, &[_]type{});
 }
@@ -77,8 +78,8 @@ pub fn driveWithOpts(self: Self, options: Options, passes: []const type) !void {
     const lexer = try Lexer.init(self.allocator, source_mgr);
     var parser = Parser.init(self.allocator, lexer, diag_engine);
     var program = try parser.parse();
-    lexer.deinit();
     defer program.deinit(self.allocator);
+    lexer.deinit();
 
     var pass_manager = PassManager.init(self.allocator, &program, diag_engine);
     inline for (passes) |pass| {

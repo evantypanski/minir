@@ -70,21 +70,21 @@ test "Test simple blockify" {
     ;
 
     var start = try parseProgramFromString(begin_str);
+    defer start.deinit(std.testing.allocator);
     var source_mgr = try SourceManager.init(std.testing.allocator, begin_str, false);
     defer source_mgr.deinit();
     const diag = Diagnostics.init(source_mgr);
     var pass_manager = PassManager.init(std.testing.allocator, &start, diag);
     try pass_manager.get(Blockify);
-    defer start.deinit(std.testing.allocator);
 
     try expectDisassembled(start,
         \\func main() -> none {
-        \\  @begin {
+        \\  @__begin {
         \\  }
-        \\  {
+        \\  @__bb0 {
         \\    let i: int = 42;
         \\  }
-        \\  @end {
+        \\  @__end {
         \\  }
         \\}
     );
@@ -104,22 +104,22 @@ test "Test blockify with jump" {
     defer source_mgr.deinit();
     const diag = Diagnostics.init(source_mgr);
     var start = try parseProgram(source_mgr, diag);
+    defer start.deinit(std.testing.allocator);
     var pass_manager = PassManager.init(std.testing.allocator, &start, diag);
     try pass_manager.get(Blockify);
-    defer start.deinit(std.testing.allocator);
 
     try expectDisassembled(start,
         \\func main() -> none {
-        \\  @begin {
+        \\  @__begin {
         \\  }
         \\  @label {
         \\    let i: int = 42;
         \\    br label;
         \\  }
-        \\  {
+        \\  @__bb0 {
         \\    let j: int = 420;
         \\  }
-        \\  @end {
+        \\  @__end {
         \\  }
         \\}
     );
@@ -136,9 +136,9 @@ test "Test simple constant folding" {
     defer source_mgr.deinit();
     const diag = Diagnostics.init(source_mgr);
     var start = try parseProgram(source_mgr, diag);
+    defer start.deinit(std.testing.allocator);
     var pass_manager = PassManager.init(std.testing.allocator, &start, diag);
     try pass_manager.get(FoldConstants);
-    defer start.deinit(std.testing.allocator);
 
     // Parentheses be damned
     try expectDisassembled(start,

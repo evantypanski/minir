@@ -21,6 +21,7 @@ pub const BlockifyPass = struct {
     pub const Error = error{
         AlreadyBlockified,
         LabelNotFound,
+        ExpectedLabel,
     } || Allocator.Error || NodeError;
 
     const Self = @This();
@@ -59,18 +60,16 @@ pub const BlockifyPass = struct {
                 // Make a begin and end block
                 var begin_builder = BasicBlockBuilder.init(arg.allocator);
                 errdefer begin_builder.deinit();
-                begin_builder.setLabel("begin");
+                // TODO: How to better allocate a known string so that
+                // it gets freed properly later?
+                begin_builder.setLabel(try std.fmt.allocPrint(arg.allocator, "__begin", .{}));
                 const begin = try begin_builder.build();
                 try fn_builder.addElement(begin);
-
-                var end_builder = BasicBlockBuilder.init(arg.allocator);
-                errdefer end_builder.deinit();
-                end_builder.setLabel("end");
-                const end = try end_builder.build();
 
                 var bb_builder = BasicBlockBuilder.init(arg.allocator);
                 errdefer bb_builder.deinit();
                 var empty_bb_builder = true;
+                var bb_label_index: u64 = 0;
                 for (func.*.elements) |*stmt| {
                     // Labeled statements start a new basic block
                     if (stmt.label) |label| {
@@ -79,10 +78,15 @@ pub const BlockifyPass = struct {
                             const bb = try bb_builder.build();
                             try fn_builder.addElement(bb);
                             bb_builder = BasicBlockBuilder.init(arg.allocator);
+                            errdefer bb_builder.deinit();
                         }
-                        bb_builder.setLabel(label);
+                        bb_builder.setLabel(try arg.allocator.dupe(u8, label));
                         // Remove its label
+                        // TODO: Maybe this label should've been alloc'd
                         stmt.label = null;
+                    } else if (bb_builder.label == null) {
+                        bb_builder.setLabel(try std.fmt.allocPrint(arg.allocator, "__bb{d}", .{bb_label_index}));
+                        bb_label_index += 1;
                     }
                     // Even if it has a label, we should go through this in
                     // case that labeled statement is a terminator.
@@ -92,6 +96,7 @@ pub const BlockifyPass = struct {
                         const bb = try bb_builder.build();
                         try fn_builder.addElement(bb);
                         bb_builder = BasicBlockBuilder.init(arg.allocator);
+                        errdefer bb_builder.deinit();
                     } else {
                         empty_bb_builder = false;
                         try bb_builder.addStatement(stmt.*);
@@ -102,6 +107,11 @@ pub const BlockifyPass = struct {
                     const bb = try bb_builder.build();
                     try fn_builder.addElement(bb);
                 }
+
+                var end_builder = BasicBlockBuilder.init(arg.allocator);
+                errdefer end_builder.deinit();
+                end_builder.setLabel(try std.fmt.allocPrint(arg.allocator, "__end", .{}));
+                const end = try end_builder.build();
                 try fn_builder.addElement(end);
 
                 func.shallowDeinit(arg.allocator);
@@ -122,29 +132,27 @@ pub const BlockifyPass = struct {
             .bb_function => |*func| {
                 std.debug.assert(func.elements.len >= 2);
                 // First element is begin, last is end.
-                var begin = func.elements[0];
+                const begin = func.elements[0];
                 var end = func.elements[func.elements.len - 1];
-                try func.elements[0].addNext(&func.elements[1]);
-                try func.elements[1].addPrevious(&begin);
+                try func.elements[0].addNext(func.elements[1].label);
+                try func.elements[1].addPrevious(begin.label);
                 var bb_index: usize = 1;
                 for (func.elements[bb_index .. func.elements.len - 1]) |*bb| {
                     if (bb.terminator) |*terminator| {
                         switch (terminator.stmt_kind) {
                             .ret, .unreachable_ => {
-                                try bb.addNext(&end);
-                                try end.addPrevious(bb);
+                                try bb.addNext(end.label);
+                                try end.addPrevious(bb.*.label);
                             },
                             .branch => |*br| {
                                 // Linear search for the label
                                 for (func.elements, 0..) |*labeled, i| {
-                                    if (labeled.getLabel()) |label| {
-                                        if (std.mem.eql(u8, label, br.dest_label)) {
-                                            // Found it!
-                                            br.*.dest_index = i;
-                                            try bb.addNext(labeled);
-                                            try labeled.addPrevious(bb);
-                                            break;
-                                        }
+                                    if (std.mem.eql(u8, labeled.*.label, br.dest_label)) {
+                                        // Found it!
+                                        br.*.dest_index = i;
+                                        try bb.addNext(labeled.label);
+                                        try labeled.addPrevious(bb.label);
+                                        break;
                                     }
                                 } else {
                                     return error.LabelNotFound;
@@ -153,7 +161,8 @@ pub const BlockifyPass = struct {
                             else => {},
                         }
                     } else {
-                        try bb.addNext(&func.elements[bb_index + 1]);
+                        try bb.addNext(func.elements[bb_index + 1].label);
+                        try func.elements[bb_index + 1].addPrevious(bb.*.label);
                     }
 
                     bb_index += 1;
@@ -185,6 +194,7 @@ test "Changes all functions into BB functions" {
     var prog_builder = ProgramBuilder.init(std.testing.allocator);
     try prog_builder.addDecl(Decl{ .function = func });
     var program = try prog_builder.build();
+    defer program.deinit(std.testing.allocator);
 
     // Better way to expect a tagged union value?
     switch (program.decls[0]) {
@@ -201,8 +211,6 @@ test "Changes all functions into BB functions" {
         .bb_function => |bb_func| try std.testing.expectEqual(bb_func.elements.len, 4),
         .builtin => try std.testing.expect(false),
     }
-
-    program.deinit(std.testing.allocator);
 }
 
 // This may not always be necessary, but right now we only act on programs so
@@ -213,7 +221,8 @@ test "Errors when already blockified" {
     var func_builder = FunctionBuilder(BasicBlock).init(std.testing.allocator, "main");
 
     var bb1_builder = BasicBlockBuilder.init(std.testing.allocator);
-    bb1_builder.setLabel("bb1");
+    errdefer bb1_builder.deinit();
+    bb1_builder.setLabel(try std.fmt.allocPrint(std.testing.allocator, "bb1", .{}));
     try bb1_builder.addStatement(Stmt.init(.{ .id = .{
         .name = "hi",
         .ssa_index = null,
@@ -226,9 +235,8 @@ test "Errors when already blockified" {
     var prog_builder = ProgramBuilder.init(std.testing.allocator);
     try prog_builder.addDecl(Decl{ .bb_function = func });
     var program = try prog_builder.build();
+    defer program.deinit(std.testing.allocator);
 
     var pass = BlockifyPass.init(.{ .allocator = std.testing.allocator });
     try std.testing.expectError(error.AlreadyBlockified, pass.execute(&program));
-
-    program.deinit(std.testing.allocator);
 }

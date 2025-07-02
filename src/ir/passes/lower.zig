@@ -192,9 +192,7 @@ pub const Lowerer = struct {
     }
 
     pub fn visitBasicBlock(visitor: VisitorTy, self: *Self, bb: *const BasicBlock) Error!void {
-        if (bb.*.label) |label| {
-            try self.label_map.put(label, @intCast(self.builder.currentByte()));
-        }
+        try self.label_map.put(bb.label, @intCast(self.builder.currentByte()));
         try visitor.walkBasicBlock(self, bb);
     }
 

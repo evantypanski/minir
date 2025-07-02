@@ -65,11 +65,7 @@ pub const Disassembler = struct {
         indent += 1;
         for (function.elements) |bb| {
             try self.newline();
-            if (bb.label) |label| {
-                try self.writer.print("@{s} {{", .{label});
-            } else {
-                try self.writer.writeAll("{");
-            }
+            try self.writer.print("@{s} {{", .{bb.label});
             indent += 1;
 
             for (bb.statements) |stmt| {
