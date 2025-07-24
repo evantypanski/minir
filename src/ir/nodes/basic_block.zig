@@ -40,6 +40,9 @@ pub const BasicBlock = struct {
         for (self.statements) |*stmt| {
             stmt.deinit(allocator);
         }
+        if (self.terminator) |*terminator| {
+            terminator.deinit(allocator);
+        }
         allocator.free(self.statements);
         allocator.free(self.label);
         self.previous_labels.deinit();
