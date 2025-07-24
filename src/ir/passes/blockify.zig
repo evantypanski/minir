@@ -133,7 +133,7 @@ pub const BlockifyPass = struct {
                 std.debug.assert(func.elements.len >= 2);
                 // First element is begin, last is end.
                 const begin = func.elements[0];
-                var end = func.elements[func.elements.len - 1];
+                const end = &func.elements[func.elements.len - 1];
                 try func.elements[0].addNext(func.elements[1].label);
                 try func.elements[1].addPrevious(begin.label);
                 var bb_index: usize = 1;
@@ -141,8 +141,8 @@ pub const BlockifyPass = struct {
                     if (bb.terminator) |*terminator| {
                         switch (terminator.stmt_kind) {
                             .ret, .unreachable_ => {
-                                try bb.addNext(end.label);
-                                try end.addPrevious(bb.*.label);
+                                try bb.addNext(end.*.label);
+                                try end.*.addPrevious(bb.*.label);
                             },
                             .branch => |*br| {
                                 // Linear search for the label
