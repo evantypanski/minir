@@ -25,15 +25,32 @@ pub const BasicBlock = struct {
     }
 
     pub fn jsonStringify(self: BasicBlock, jw: anytype) !void {
-        try jw.write(self.statements);
-        try jw.write(self.terminator);
+        try jw.beginObject();
+        try jw.objectField("label");
         try jw.write(self.label);
+
+        try jw.objectField("statements");
+        try jw.beginArray();
+        try jw.write(self.statements);
+        try jw.endArray();
+
+        try jw.objectField("terminator");
+        try jw.write(self.terminator);
+
+        try jw.objectField("previous_labels");
+        try jw.beginArray();
         for (self.previous_labels.items) |prev| {
             try jw.write(prev);
         }
+        try jw.endArray();
+
+        try jw.objectField("next_labels");
+        try jw.beginArray();
         for (self.next_labels.items) |next| {
             try jw.write(next);
         }
+        try jw.endArray();
+        try jw.endObject();
     }
 
     pub fn deinit(self: *BasicBlock, allocator: Allocator) void {
